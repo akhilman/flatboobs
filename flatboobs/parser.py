@@ -4,6 +4,7 @@ import operator
 from pathlib import Path
 from typing import Optional
 
+from frozendict import frozendict
 from parsy import regex, seq, string, success
 from toolz import dicttoolz, itertoolz
 
@@ -113,7 +114,7 @@ METADATA = (
         LPAR >> seq(
             IDENT,
             (COLON >> SINGLE_VALUE) | success(True)
-        ).sep_by(COMMA).map(dict)
+        ).sep_by(COMMA).map(frozendict)
         << RPAR
     )
     | success({})
