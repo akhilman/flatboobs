@@ -9,3 +9,5 @@ build/
 # Ignore OSX finder directories
 .DS_Store
 
+# Ignore mypy cache
+.mypy_cache

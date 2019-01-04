@@ -7,6 +7,12 @@ from setuptools import (setup, find_packages)
 
 here = path.abspath(path.dirname(__file__))
 install_requirements = [
+    'attrs',
+    'numpy',
+    'cython',
+    'frozendict',
+    'toolz',
+    'parsy',
     # Place your project requirements here.
 
     # One way to keep up-to-date while still keeping a stable API is to
@@ -20,9 +26,11 @@ install_requirements = [
 
 # The following are meant to avoid accidental upload/registration of this
 # package in the Python Package Index (PyPi)
-pypi_operations = frozenset(['register', 'upload']) & frozenset([x.lower() for x in sys.argv])
+pypi_operations = frozenset(['register', 'upload']) & frozenset([
+    x.lower() for x in sys.argv])
 if pypi_operations:
-    raise ValueError('Command(s) {} disabled in this example.'.format(', '.join(pypi_operations)))
+    raise ValueError('Command(s) {} disabled in this example.'.format(
+        ', '.join(pypi_operations)))
 
 # Python favors using README.rst files (as opposed to README.md files)
 # If you wish to use README.md, you must add the following line to your MANIFEST.in file::
@@ -36,15 +44,15 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as fh:
 # We separate the version into a separate file so we can let people
 # import everything in their __init__.py without causing ImportError.
 __version__ = None
-exec(open('module_template/about.py').read())
+exec(open('flatboobs/about.py').read())
 if __version__ is None:
     raise IOError('about.py in project lacks __version__!')
 
-setup(name='module_template', version=__version__,
-      author='Ben Jolitz',
-      description='Template for creating python modules',
+setup(name='flatboobs', version=__version__,
+      author='Ildar Akhmetgaleev',
+      description='FlatBuffer reader/writer generator',
       long_description=long_description,
-      license='BSD',
+      license='MIT',
       packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
       include_package_data=True,
       # This part is good for when the setup.py itself cannot proceed until dependencies
@@ -79,10 +87,10 @@ setup(name='module_template', version=__version__,
       #       "https://localhost:8080/test/path/file.zip#egg=package_name_underscore-1.2.3"
       # ],
       install_requires=install_requirements,
-      keywords=['module', 'template', 'library'],
-      url="https://github.com/benjolitz/module_template",
+      keywords=['module', 'library'],
+      url="https://github.com/akhilman/flatboobs",
       classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Topic :: Utilities",
-        "License :: OSI Approved :: BSD License",
+          "Development Status :: 3 - Alpha",
+          "Topic :: Utilities",
+          "License :: OSI Approved :: BIT License",
       ])
