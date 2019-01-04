@@ -8,30 +8,30 @@ import attr
 from frozendict import frozendict
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Attribute:
     name: str = ''
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class TypeDef:
     name: str = ''
     metadata: Dict[str, Any] = frozendict()
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Enum(TypeDef):
     type: Optional[str] = None
     members: Sequence[Tuple[str, Optional[int]]] = tuple()
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Union(TypeDef):
     type: Optional[str] = None
     members: Sequence[Tuple[str, Optional[int]]] = tuple()
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Field:
     name: str = ''
     type: Optional[str] = None
@@ -40,18 +40,18 @@ class Field:
     metadata: Dict[str, Any] = frozendict()
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Struct(TypeDef):
     type: Optional[str] = None
     fields: Sequence[Tuple[str, Field]] = tuple()
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Table(TypeDef):
     fields: Sequence[Tuple[str, Field]] = tuple()
 
 
-@attr.s(auto_attribs=True, frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Schema:
 
     file_path: Optional[Path] = None
