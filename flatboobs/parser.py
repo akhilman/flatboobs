@@ -226,7 +226,12 @@ def parse(source: str, file_path: Optional[Path] = None) -> Schema:
         if type_ in ['struct', 'table']:
             kwargs = dicttoolz.assoc(
                 kwargs, 'fields',
-                tuple(map(Field, kwargs['fields']))
+                tuple(
+                    map(
+                        lambda kw: Field(**kw),
+                        kwargs['fields']
+                    )
+                )
             )
         return {
             'attribute': Attribute,
