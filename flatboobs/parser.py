@@ -4,18 +4,20 @@ import operator
 from pathlib import Path
 from typing import Optional
 
-from frozendict import frozendict
 from parsy import regex, seq, string, success
 from toolz import dicttoolz, itertoolz
 
 from flatboobs.schema import (
     Attribute,
     Enum,
+    EnumMember,
     Field,
+    MetadataMember,
     Schema,
     Struct,
     Table,
-    Union
+    Union,
+    UnionMember
 )
 
 WHITESPACE = regex(r'\s*')
@@ -104,20 +106,20 @@ NAMESPACE_DECL = (
     >> IDENT.sep_by(PERIOD, min=1)
     << SEMICOLON
 ).tag('namespace')
-ATTRIBUTE_DECL = (
+ATTRIBUTE_DECL = seq(
     lexeme(string('attribute'))
     >> STRING_CONSTANT
     << SEMICOLON
-).map(lambda v: {'name': v}).tag('attribute')
+).map(dict).tag('attribute')
 METADATA = (
     (
         LPAR >> seq(
-            IDENT,
-            (COLON >> SINGLE_VALUE) | success(True)
-        ).sep_by(COMMA).map(frozendict)
+            IDENT.tag('name'),
+            ((COLON >> SINGLE_VALUE) | success(True)).tag('value')
+        ).map(dict).sep_by(COMMA)
         << RPAR
     )
-    | success({})
+    | success(list())
 ).tag('metadata')
 FIELD_DECL = seq(
     IDENT.tag('name'),
@@ -148,13 +150,11 @@ TYPE_DECL = seq(
 ENUMVAL_DECL = (
     LBRACE
     >> seq(
-        IDENT,
-        (
-            EQ >> SCALAR
-        ).optional()
-    ).sep_by(COMMA)
+        IDENT.tag('name'),
+        (EQ >> SCALAR).optional().tag('value')
+    ).map(dict).sep_by(COMMA)
     << RBRACE
-).tag('members')
+)
 ENUM_DECL = seq(
     lexeme(string('enum'))
     >> IDENT.tag('name'),
@@ -163,13 +163,13 @@ ENUM_DECL = seq(
         >> IDENT
     ).optional().tag('type'),
     METADATA,
-    ENUMVAL_DECL
+    ENUMVAL_DECL.tag('members')
 ).map(dict).tag('enum')
 UNION_DECL = seq(
     lexeme(string('union'))
     >> IDENT.tag('name'),
     METADATA,
-    ENUMVAL_DECL
+    ENUMVAL_DECL.tag('members')
 ).map(dict).tag('union')
 ROOT_DECL = (
     lexeme(string('root_type'))
@@ -213,33 +213,60 @@ SCHEMA = (
 
 def parse(source: str, file_path: Optional[Path] = None) -> Schema:
 
-    # from pprint import pprint
-    # pprint(SCHEMA.parse_partial(source))
-
-    parsed = SCHEMA.parse(source)
-    keys_to_move = [
-        'file_extension', 'file_identifier', 'namespace', 'root_type'
-    ]
-
     def type_factory(args):
-        type_, kwargs = args
-        if type_ in ['struct', 'table']:
-            kwargs = dicttoolz.assoc(
+
+        def fix_metadata(kwargs):
+            return dicttoolz.assoc(
+                kwargs, 'metadata',
+                tuple(
+                    map(MetadataMember._make, kwargs['metadata'])
+                )
+            )
+
+        def fix_enum(kwargs):
+            return dicttoolz.assoc(
+                kwargs, 'members',
+                tuple(
+                    map(EnumMember._make, kwargs['members'])
+                )
+            )
+
+        def fix_union(kwargs):
+            return dicttoolz.assoc(
+                kwargs, 'members',
+                tuple(
+                    map(UnionMember._make, kwargs['members'])
+                )
+            )
+
+        def fix_fields(kwargs):
+            return dicttoolz.assoc(
                 kwargs, 'fields',
                 tuple(
                     map(
-                        lambda kw: Field(**kw),
+                        lambda kw: Field(**fix_metadata(kw)),
                         kwargs['fields']
                     )
                 )
             )
+
+        type_, kwargs = args
         return {
             'attribute': Attribute,
-            'enum': Enum,
-            'union': Union,
-            'struct': Struct,
-            'table': Table,
-        }[type_](**kwargs)
+            'enum': lambda v: Enum(**fix_metadata(fix_enum(v))),
+            'union': lambda v: Union(**fix_metadata(fix_union(v))),
+            'struct': lambda v: Struct(**fix_metadata(fix_fields(v))),
+            'table': lambda v: Table(**fix_metadata(fix_fields(v))),
+        }[type_](kwargs)
+
+    keys_to_move = [
+        'file_extension', 'file_identifier', 'namespace', 'root_type'
+    ]
+
+    # from pprint import pprint
+    # pprint(SCHEMA.parse_partial(source))
+
+    parsed = SCHEMA.parse(source)
 
     kwargs = dicttoolz.merge(
         parsed,
