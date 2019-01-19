@@ -9,10 +9,8 @@ here = path.abspath(path.dirname(__file__))
 install_requirements = [
     'attrs',
     'numpy',
-    'cython',
-    'frozendict',
-    'toolz',
     'parsy',
+    'toolz',
     # Place your project requirements here.
 
     # One way to keep up-to-date while still keeping a stable API is to
