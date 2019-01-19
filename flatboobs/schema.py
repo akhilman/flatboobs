@@ -2,43 +2,48 @@
 # pylint: disable=missing-docstring  # TODO add docstrings
 
 import collections
-import dataclasses
 from pathlib import Path
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any, Optional, Sequence
 
-MetadataMember = collections.namedtuple('MetadataMember', ('key', 'value'))
-EnumMember = collections.namedtuple('EnumMember', ('key', 'value'))
-UnionMember = collections.namedtuple('UnionMember', ('key', 'type'))
+import attr
+
+MetadataMember = collections.namedtuple('MetadataMember', ('name', 'value'))
+EnumMember = collections.namedtuple('EnumMember', ('name', 'value'))
+UnionMember = collections.namedtuple('UnionMember', ('type', 'value'))
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Attribute:
+    namespace: Optional[Sequence[str]] = None
     name: str = ''
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class DefWithMetadata:
     metadata: Sequence[MetadataMember] = tuple()
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class TypeDef(DefWithMetadata):
+    namespace: Optional[Sequence[str]] = None
     name: str = ''
+    is_root: bool = False
+    identifier: Optional[str] = None
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Enum(TypeDef):
     type: Optional[str] = None
     members: Sequence[EnumMember] = tuple()
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Union(TypeDef):
     type: Optional[str] = None
-    members: Sequence[Tuple[str, Optional[int]]] = tuple()
+    members: Sequence[UnionMember] = tuple()
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Field(DefWithMetadata):
     name: str = ''
     type: Optional[str] = None
@@ -46,18 +51,18 @@ class Field(DefWithMetadata):
     default: Any = None
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Struct(TypeDef):
     type: Optional[str] = None
-    fields: Sequence[Tuple[str, Field]] = tuple()
+    fields: Sequence[Field] = tuple()
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Table(TypeDef):
-    fields: Sequence[Tuple[str, Field]] = tuple()
+    fields: Sequence[Field] = tuple()
 
 
-@dataclasses.dataclass(frozen=True)
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class Schema:
 
     file_path: Optional[Path] = None

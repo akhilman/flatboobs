@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from parsy import regex, seq, string, success
-from toolz import dicttoolz, itertoolz
+from toolz import dicttoolz, functoolz, itertoolz
 
 from flatboobs.schema import (
     Attribute,
@@ -19,6 +19,7 @@ from flatboobs.schema import (
     Union,
     UnionMember
 )
+from flatboobs.util import unpack_kwargs
 
 WHITESPACE = regex(r'\s*')
 COMMENT = regex(r'\s*//.*\s*').many()
@@ -49,9 +50,16 @@ COLON = lexeme(string(':'))
 COMMA = lexeme(string(','))
 PERIOD = lexeme(string('.'))
 SEMICOLON = lexeme(string(';'))
-SCALAR = lexeme(
-    regex(r'-?(0|[1-9][0-9]*)([.][0-9]+)?([eE][+-]?[0-9]+)?')
+IDENT = lexeme(regex(r'[a-zA-Z_]\w*'))
+INTEGER_CONST = lexeme(regex(r'-?[0-9]+')).map(int)
+BOOL_CONST = lexeme(
+    string('true') >> success(True)
+    | string('false') >> success(False)
+)
+FLOAT_CONST = lexeme(
+    regex(r'-?(0|[1-9][0-9]*)([.][0-9]+)([eE][+-]?[0-9]+)?')
 ).map(float)
+SCALAR = INTEGER_CONST | BOOL_CONST | FLOAT_CONST | IDENT
 STRING_PART = regex(r'[^"\\]+')
 STRING_ESC = string('\\') >> (
     string('\\')
@@ -82,7 +90,6 @@ VALUE = (
     # )
 
 )
-IDENT = lexeme(regex(r'[a-zA-Z_]\w*'))
 TYPE = (
     seq(
         IDENT.tag('type'),
@@ -105,10 +112,10 @@ NAMESPACE_DECL = (
     lexeme(string('namespace'))
     >> IDENT.sep_by(PERIOD, min=1)
     << SEMICOLON
-).tag('namespace')
+).map(tuple).tag('namespace')
 ATTRIBUTE_DECL = seq(
     lexeme(string('attribute'))
-    >> STRING_CONSTANT
+    >> STRING_CONSTANT.tag('name')
     << SEMICOLON
 ).map(dict).tag('attribute')
 METADATA = (
@@ -165,11 +172,19 @@ ENUM_DECL = seq(
     METADATA,
     ENUMVAL_DECL.tag('members')
 ).map(dict).tag('enum')
+UNIONVAL_DECL = (
+    LBRACE
+    >> seq(
+        IDENT.tag('type'),
+        (EQ >> SCALAR).optional().tag('value')
+    ).map(dict).sep_by(COMMA)
+    << RBRACE
+)
 UNION_DECL = seq(
     lexeme(string('union'))
     >> IDENT.tag('name'),
     METADATA,
-    ENUMVAL_DECL.tag('members')
+    UNIONVAL_DECL.tag('members')
 ).map(dict).tag('union')
 ROOT_DECL = (
     lexeme(string('root_type'))
@@ -211,53 +226,59 @@ SCHEMA = (
 )
 
 
-def parse(source: str, file_path: Optional[Path] = None) -> Schema:
+def fix_enum_values(enum, bit_flags=False):
+    next_value = 1 if bit_flags else 0
+    for member in enum:
+        if member['value'] is None:
+            value = next_value
+        else:
+            value = member['value']
+        if value < next_value:
+            raise ValueError(
+                "Enum values must be specified in ascending order.")
+        next_value = value + 1
+        yield dicttoolz.assoc(member, 'value', value)
 
-    def type_factory(args):
 
-        def fix_metadata(kwargs):
-            return dicttoolz.assoc(
-                kwargs, 'metadata',
-                tuple(
-                    map(MetadataMember._make, kwargs['metadata'])
-                )
+def fix_metadata(kwargs):
+    return dicttoolz.assoc(
+        kwargs, 'metadata',
+        tuple(MetadataMember(**kw) for kw in kwargs['metadata'])
+    )
+
+
+def fix_enum(kwargs):
+    bit_flags = any(
+        m['name'] == 'bit_flags' for m in kwargs['metadata']
+    )
+    return dicttoolz.assoc(
+        kwargs, 'members',
+        tuple(EnumMember(**kw) for kw in fix_enum_values(
+            kwargs['members'], bit_flags=bit_flags))
+    )
+
+
+def fix_union(kwargs):
+    return dicttoolz.assoc(
+        kwargs, 'members',
+        tuple(UnionMember(**kw)
+              for kw in fix_enum_values(kwargs['members']))
+    )
+
+
+def fix_fields(kwargs):
+    return dicttoolz.assoc(
+        kwargs, 'fields',
+        tuple(
+            map(
+                lambda kw: Field(**fix_metadata(kw)),
+                kwargs['fields']
             )
+        )
+    )
 
-        def fix_enum(kwargs):
-            return dicttoolz.assoc(
-                kwargs, 'members',
-                tuple(
-                    map(EnumMember._make, kwargs['members'])
-                )
-            )
 
-        def fix_union(kwargs):
-            return dicttoolz.assoc(
-                kwargs, 'members',
-                tuple(
-                    map(UnionMember._make, kwargs['members'])
-                )
-            )
-
-        def fix_fields(kwargs):
-            return dicttoolz.assoc(
-                kwargs, 'fields',
-                tuple(
-                    map(
-                        lambda kw: Field(**fix_metadata(kw)),
-                        kwargs['fields']
-                    )
-                )
-            )
-
-        type_, kwargs = args
-        return {
-            'attribute': Attribute,
-            'enum': lambda v: Enum(**fix_metadata(fix_enum(v))),
-            'union': lambda v: Union(**fix_metadata(fix_union(v))),
-            'struct': lambda v: Struct(**fix_metadata(fix_fields(v))),
-            'table': lambda v: Table(**fix_metadata(fix_fields(v))),
-        }[type_](kwargs)
+def parse(source: str, file_path: Optional[str] = None) -> Schema:
 
     keys_to_move = [
         'file_extension', 'file_identifier', 'namespace', 'root_type'
@@ -269,33 +290,78 @@ def parse(source: str, file_path: Optional[Path] = None) -> Schema:
     parsed = SCHEMA.parse(source)
 
     kwargs = dicttoolz.merge(
-        parsed,
-        {
-            'declarations': tuple(
-                map(
-                    type_factory,
-                    filter(
-                        lambda v: v[0] not in keys_to_move,
-                        parsed['declarations'],
-                    )
-                )
-
-            ),
-            'file_path': file_path
-        },
-        dict(
-            itertoolz.unique(
-                filter(
-                    lambda v: v[0] in keys_to_move,
-                    reversed(
-                        parsed['declarations']
-                    ),
+        # removing declarations from dict
+        dicttoolz.dissoc(parsed, 'declarations'),
+        # adding keys from keys_to_move from declarations to dict root
+        itertoolz.unique(
+            filter(
+                lambda v: v[0] in keys_to_move,
+                reversed(
+                    parsed['declarations']
                 ),
-                operator.itemgetter(0)
-            )
-        )
+            ),
+            operator.itemgetter(0)
+        ),
+        # ading file path
+        {'file_path': file_path}
     )
-    schema = Schema(**kwargs)
+
+    namespace = kwargs.get('namespace', None)
+    root_type = kwargs.get('root_type', None)
+    file_identifier = kwargs.get('file_identifier', None)
+
+    # exclude keys_to_move from declarations
+    declarations = filter(
+        lambda v: v[0] not in keys_to_move,
+        reversed(
+            parsed['declarations']
+        ),
+    )
+
+    # add namespace
+    declarations = map(
+        lambda x: (x[0], dicttoolz.assoc(x[1], 'namespace', namespace)),
+        declarations
+    )
+
+    # set is_root and identifier for root_type
+    declarations = map(
+        lambda x: (x[0], (
+            x[0] != 'attribute' and x[1]['name'] == root_type
+            and dicttoolz.merge((
+                x[1],
+                {'is_root': True, 'identifier': file_identifier}
+            ))
+            or x[1]
+        )),
+        declarations
+    )
+
+    # fix declarations
+    declarations = map(
+        lambda x: {
+            'attribute': unpack_kwargs(Attribute),
+            'enum': functoolz.compose(
+                unpack_kwargs(Enum), fix_metadata, fix_enum),
+            'union': functoolz.compose(
+                unpack_kwargs(Union), fix_metadata, fix_union),
+            'struct': functoolz.compose(
+                unpack_kwargs(Struct), fix_metadata, fix_fields),
+            'table': functoolz.compose(
+                unpack_kwargs(Table), fix_metadata, fix_fields)
+        }[x[0]](x[1]),
+        declarations
+    )
+
+    schema = Schema(
+        declarations=tuple(declarations),
+        **kwargs
+    )
+
+    # from pprint import pprint
+    # pprint(schema.declarations)
+    # import attr
+    # pprint(attr.asdict(schema))
 
     return schema
 
