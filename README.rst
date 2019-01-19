@@ -1,7 +1,28 @@
 TODO
 -----
 
-* [ ] Make it work
+ - [ ] Make it work.
+    - [ ] Read messages.
+        - [ ] Read tables.
+        - [ ] Read enums.
+        - [ ] Read structs.
+        - [ ] Read arrays of scalars.
+        - [ ] Read arrays of tables.
+        - [ ] Read arrasy of structs.
+        - [ ] Read unions.
+    - [ ] Write messages.
+        - [ ] Write tables.
+        - [ ] Write enums.
+        - [ ] Write structs.
+        - [ ] Write arrays of scalars.
+        - [ ] Write arrays of tables.
+        - [ ] Write arrasy of structs.
+        - [ ] Write unions.
+ - [ ] Tests.
+ - [ ] Benchmarks.
+ - [ ] Examples.
+ - [ ] Documentation.
+ - [ ] C++ backend.
 
 Template for defining Python modules
 -------------------------------------
