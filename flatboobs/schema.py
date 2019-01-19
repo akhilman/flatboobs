@@ -3,7 +3,6 @@
 
 import collections
 import types
-from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 import attr
@@ -43,7 +42,7 @@ class TypeDef(DefWithMetadata):
 class Enum(TypeDef):
     type: Optional[str] = None
     members: Sequence[EnumMember] = tuple()
-    members_map: Mapping[str, MetadataMember] = attr.ib(
+    members_map: Mapping[str, EnumMember] = attr.ib(
         attr.Factory(
             lambda self: types.MappingProxyType(dict(self.members)),
             takes_self=True
@@ -56,7 +55,7 @@ class Enum(TypeDef):
 class Union(TypeDef):
     type: Optional[str] = None
     members: Sequence[UnionMember] = tuple()
-    members_map: Mapping[str, MetadataMember] = attr.ib(
+    members_map: Mapping[str, UnionMember] = attr.ib(
         attr.Factory(
             lambda self: types.MappingProxyType(dict(self.members)),
             takes_self=True
@@ -102,7 +101,7 @@ class Table(TypeDef):
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Schema:
 
-    file_path: Optional[Path] = None
+    file_path: Optional[str] = None
     includes: Sequence[str] = tuple()
     namespace: Optional[Sequence[str]] = None
     declarations: Sequence[Any] = tuple()
