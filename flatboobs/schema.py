@@ -19,7 +19,7 @@ class Attribute:
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class DefWithMetadata:
+class DeclarationWithMetadata:
     metadata: Sequence[MetadataMember] = tuple()
     metadata_map: Mapping[str, MetadataMember] = attr.ib(
         attr.Factory(
@@ -31,7 +31,7 @@ class DefWithMetadata:
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class TypeDef(DefWithMetadata):
+class TypeDeclaration(DeclarationWithMetadata):
     namespace: Optional[Sequence[str]] = None
     name: str = ''
     is_root: bool = False
@@ -39,7 +39,7 @@ class TypeDef(DefWithMetadata):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Enum(TypeDef):
+class Enum(TypeDeclaration):
     type: Optional[str] = None
     members: Sequence[EnumMember] = tuple()
     members_map: Mapping[str, EnumMember] = attr.ib(
@@ -65,7 +65,7 @@ class Union(Enum):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Field(DefWithMetadata):
+class Field(DeclarationWithMetadata):
     name: str = ''
     type: Optional[str] = None
     is_vector: bool = False
@@ -73,7 +73,7 @@ class Field(DefWithMetadata):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Struct(TypeDef):
+class Struct(TypeDeclaration):
     fields: Sequence[Field] = tuple()
     fields_map: Mapping[str, Field] = attr.ib(
         attr.Factory(
@@ -86,7 +86,7 @@ class Struct(TypeDef):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Table(TypeDef):
+class Table(TypeDeclaration):
     fields: Sequence[Field] = tuple()
     fields_map: Mapping[str, Field] = attr.ib(
         attr.Factory(
