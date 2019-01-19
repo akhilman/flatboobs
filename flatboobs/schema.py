@@ -2,6 +2,8 @@
 # pylint: disable=missing-docstring  # TODO add docstrings
 
 import collections
+import functools
+import types
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
@@ -22,6 +24,11 @@ class Attribute:
 class DefWithMetadata:
     metadata: Sequence[MetadataMember] = tuple()
 
+    @property  # type: ignore
+    @functools.lru_cache()
+    def metadata_map(self):
+        return types.MappingProxyType(dict(self.metadata))
+
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class TypeDef(DefWithMetadata):
@@ -36,11 +43,21 @@ class Enum(TypeDef):
     type: Optional[str] = None
     members: Sequence[EnumMember] = tuple()
 
+    @property  # type: ignore
+    @functools.lru_cache()
+    def members_map(self):
+        return types.MappingProxyType(dict(self.members))
+
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Union(TypeDef):
     type: Optional[str] = None
     members: Sequence[UnionMember] = tuple()
+
+    @property  # type: ignore
+    @functools.lru_cache()
+    def members_map(self):
+        return types.MappingProxyType(dict(self.members))
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
@@ -56,10 +73,20 @@ class Struct(TypeDef):
     type: Optional[str] = None
     fields: Sequence[Field] = tuple()
 
+    @property  # type: ignore
+    @functools.lru_cache()
+    def fields_map(self):
+        return types.MappingProxyType({f.name: f for f in self.fields})
+
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Table(TypeDef):
     fields: Sequence[Field] = tuple()
+
+    @property  # type: ignore
+    @functools.lru_cache()
+    def fields_map(self):
+        return types.MappingProxyType({f.name: f for f in self.fields})
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
