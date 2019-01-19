@@ -75,7 +75,6 @@ class Field(DefWithMetadata):
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Struct(TypeDef):
-    type: Optional[str] = None
     fields: Sequence[Field] = tuple()
     fields_map: Mapping[str, Field] = attr.ib(
         attr.Factory(
