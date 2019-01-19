@@ -1,5 +1,8 @@
 MIT License
 
+Flatbuffers protocol itself is licensed under the Apache License, Version 2.0.
+See https://github.com/google/flatbuffers.
+
 Copyright (c) 2018 Akhmetgaleev Ildar <akhilman@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
