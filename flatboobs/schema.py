@@ -52,7 +52,7 @@ class Enum(TypeDef):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Union(TypeDef):
+class Union(Enum):
     type: Optional[str] = None
     members: Sequence[UnionMember] = tuple()
     members_map: Mapping[str, UnionMember] = attr.ib(
