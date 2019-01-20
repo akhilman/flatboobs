@@ -233,7 +233,7 @@ def make_metadata(kwargs):
     )
 
 
-def make_enum_values(enum, bit_flags=False):
+def make_enum_members(enum, bit_flags=False):
     next_value = 1 if bit_flags else 0
     for member in enum:
         if member['value'] is None:
@@ -254,7 +254,7 @@ def make_enum(kwargs):
     return dicttoolz.assoc(
         kwargs, 'members', tuple(
             map(unpack_kwargs(EnumMember),
-                make_enum_values(kwargs['members'], bit_flags=bit_flags))
+                make_enum_members(kwargs['members'], bit_flags=bit_flags))
         )
     )
 
@@ -263,7 +263,7 @@ def make_union(kwargs):
     return dicttoolz.assoc(
         kwargs, 'members', tuple(
             map(unpack_kwargs(UnionMember),
-                make_enum_values(kwargs['members']))
+                make_enum_members(kwargs['members']))
         )
     )
 
