@@ -101,7 +101,7 @@ class Table(TypeDeclaration):
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Schema:
 
-    file_path: Optional[str] = None
+    schema_file: Optional[str] = None
     includes: Sequence[str] = tuple()
     namespace: Optional[Sequence[str]] = None
     declarations: Sequence[Any] = tuple()

@@ -111,7 +111,7 @@ NAMESPACE_DECL = (
     lexeme(string('namespace'))
     >> IDENT.sep_by(PERIOD, min=1)
     << SEMICOLON
-).map(tuple).tag('namespace')
+).tag('namespace')
 ATTRIBUTE_DECL = seq(
     lexeme(string('attribute'))
     >> STRING_CONSTANT.tag('name')
@@ -225,6 +225,14 @@ SCHEMA = (
 )
 
 
+def fix_metadata(kwargs):
+    return dicttoolz.assoc(
+        kwargs, 'metadata', tuple(
+            map(unpack_kwargs(MetadataMember), kwargs['metadata'])
+        )
+    )
+
+
 def fix_enum_values(enum, bit_flags=False):
     next_value = 1 if bit_flags else 0
     for member in enum:
@@ -239,45 +247,37 @@ def fix_enum_values(enum, bit_flags=False):
         yield dicttoolz.assoc(member, 'value', value)
 
 
-def fix_metadata(kwargs):
-    return dicttoolz.assoc(
-        kwargs, 'metadata',
-        tuple(MetadataMember(**kw) for kw in kwargs['metadata'])
-    )
-
-
 def fix_enum(kwargs):
     bit_flags = any(
         m['name'] == 'bit_flags' for m in kwargs['metadata']
     )
     return dicttoolz.assoc(
-        kwargs, 'members',
-        tuple(EnumMember(**kw) for kw in fix_enum_values(
-            kwargs['members'], bit_flags=bit_flags))
+        kwargs, 'members', tuple(
+            map(unpack_kwargs(EnumMember),
+                fix_enum_values(kwargs['members'], bit_flags=bit_flags))
+        )
     )
 
 
 def fix_union(kwargs):
     return dicttoolz.assoc(
-        kwargs, 'members',
-        tuple(UnionMember(**kw)
-              for kw in fix_enum_values(kwargs['members']))
+        kwargs, 'members', tuple(
+            map(unpack_kwargs(UnionMember),
+                fix_enum_values(kwargs['members']))
+        )
     )
 
 
 def fix_fields(kwargs):
     return dicttoolz.assoc(
-        kwargs, 'fields',
-        tuple(
-            map(
-                lambda kw: Field(**fix_metadata(kw)),
-                kwargs['fields']
-            )
+        kwargs, 'fields', tuple(
+            map(functoolz.compose(unpack_kwargs(Field), fix_metadata),
+                kwargs['fields'])
         )
     )
 
 
-def parse(source: str, file_path: Optional[str] = None) -> Schema:
+def parse(source: str, schema_file: Optional[str] = None) -> Schema:
 
     keys_to_move = [
         'file_extension', 'file_identifier', 'namespace', 'root_type'
@@ -288,10 +288,8 @@ def parse(source: str, file_path: Optional[str] = None) -> Schema:
 
     parsed = SCHEMA.parse(source)
 
-    kwargs = dicttoolz.merge(
-        # removing declarations from dict
-        dicttoolz.dissoc(parsed, 'declarations'),
-        # adding keys from keys_to_move from declarations to dict root
+    # add keys listed in keys_to_move dict root
+    last_decl = dict(
         itertoolz.unique(
             filter(
                 lambda v: v[0] in keys_to_move,
@@ -301,30 +299,29 @@ def parse(source: str, file_path: Optional[str] = None) -> Schema:
             ),
             operator.itemgetter(0)
         ),
-        # ading file path
-        {'file_path': file_path}
     )
+    namespace = (tuple(last_decl['namespace'])
+                 if 'namespace' in last_decl else None)
+    file_identifier = last_decl.get('file_identifier', None)
+    file_extension = last_decl.get('file_extension', 'bin')
+    root_type = last_decl.get('root_type', None)
 
-    namespace = kwargs.get('namespace', None)
-    root_type = kwargs.get('root_type', None)
-    file_identifier = kwargs.get('file_identifier', None)
+    includes = tuple(parsed.get('includes', []))
 
     # exclude keys_to_move from declarations
-    declarations = filter(
+    declarations_gen = filter(
         lambda v: v[0] not in keys_to_move,
-        reversed(
-            parsed['declarations']
-        ),
+        parsed['declarations']
     )
 
     # add namespace
-    declarations = map(
+    declarations_gen = map(
         lambda x: (x[0], dicttoolz.assoc(x[1], 'namespace', namespace)),
-        declarations
+        declarations_gen
     )
 
     # set is_root and identifier for root_type
-    declarations = map(
+    declarations_gen = map(
         lambda x: (x[0], (
             x[0] != 'attribute' and x[1]['name'] == root_type
             and dicttoolz.merge((
@@ -333,11 +330,11 @@ def parse(source: str, file_path: Optional[str] = None) -> Schema:
             ))
             or x[1]
         )),
-        declarations
+        declarations_gen
     )
 
     # fix declarations
-    declarations = map(
+    declarations_gen = map(
         lambda x: {
             'attribute': unpack_kwargs(Attribute),
             'enum': functoolz.compose(
@@ -349,16 +346,24 @@ def parse(source: str, file_path: Optional[str] = None) -> Schema:
             'table': functoolz.compose(
                 unpack_kwargs(Table), fix_metadata, fix_fields)
         }[x[0]](x[1]),
-        declarations
+        declarations_gen
     )
 
+    # resolve generator
+    declarations = tuple(declarations_gen)
+
     schema = Schema(
-        declarations=tuple(declarations),
-        **kwargs
+        includes=includes,
+        namespace=namespace,
+        declarations=declarations,
+        root_type=root_type,
+        file_identifier=file_identifier,
+        file_extension=file_extension,
+        schema_file=schema_file,
     )
 
     # from pprint import pprint
-    # pprint(schema.declarations)
+    # pprint(schema)
     # import attr
     # pprint(attr.asdict(schema))
 
