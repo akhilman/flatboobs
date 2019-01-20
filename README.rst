@@ -2,6 +2,7 @@ TODO
 -----
 
 - [ ] Make it work.
+   - [X] Parse schema file.
    - [ ] Read messages.
        - [ ] Read tables.
        - [ ] Read enums.
@@ -23,6 +24,7 @@ TODO
 - [ ] Examples.
 - [ ] Documentation.
 - [ ] C++ backend.
+- [ ] Test against original FlatBuffers implementation.
 
 Template for defining Python modules
 -------------------------------------
