@@ -225,7 +225,7 @@ SCHEMA = (
 )
 
 
-def fix_metadata(kwargs):
+def make_metadata(kwargs):
     return dicttoolz.assoc(
         kwargs, 'metadata', tuple(
             map(unpack_kwargs(MetadataMember), kwargs['metadata'])
@@ -233,7 +233,7 @@ def fix_metadata(kwargs):
     )
 
 
-def fix_enum_values(enum, bit_flags=False):
+def make_enum_values(enum, bit_flags=False):
     next_value = 1 if bit_flags else 0
     for member in enum:
         if member['value'] is None:
@@ -247,33 +247,50 @@ def fix_enum_values(enum, bit_flags=False):
         yield dicttoolz.assoc(member, 'value', value)
 
 
-def fix_enum(kwargs):
+def make_enum(kwargs):
     bit_flags = any(
         m['name'] == 'bit_flags' for m in kwargs['metadata']
     )
     return dicttoolz.assoc(
         kwargs, 'members', tuple(
             map(unpack_kwargs(EnumMember),
-                fix_enum_values(kwargs['members'], bit_flags=bit_flags))
+                make_enum_values(kwargs['members'], bit_flags=bit_flags))
         )
     )
 
 
-def fix_union(kwargs):
+def make_union(kwargs):
     return dicttoolz.assoc(
         kwargs, 'members', tuple(
             map(unpack_kwargs(UnionMember),
-                fix_enum_values(kwargs['members']))
+                make_enum_values(kwargs['members']))
         )
     )
 
 
-def fix_fields(kwargs):
+def make_fields(kwargs):
     return dicttoolz.assoc(
         kwargs, 'fields', tuple(
-            map(functoolz.compose(unpack_kwargs(Field), fix_metadata),
+            map(functoolz.compose(unpack_kwargs(Field), make_metadata),
                 kwargs['fields'])
         )
+    )
+
+
+def make_declarations(declarations_gen):
+    return map(
+        lambda x: {
+            'attribute': unpack_kwargs(Attribute),
+            'enum': functoolz.compose(
+                unpack_kwargs(Enum), make_metadata, make_enum),
+            'union': functoolz.compose(
+                unpack_kwargs(Union), make_metadata, make_union),
+            'struct': functoolz.compose(
+                unpack_kwargs(Struct), make_metadata, make_fields),
+            'table': functoolz.compose(
+                unpack_kwargs(Table), make_metadata, make_fields)
+        }[x[0]](x[1]),
+        declarations_gen
     )
 
 
@@ -333,24 +350,8 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
         declarations_gen
     )
 
-    # fix declarations
-    declarations_gen = map(
-        lambda x: {
-            'attribute': unpack_kwargs(Attribute),
-            'enum': functoolz.compose(
-                unpack_kwargs(Enum), fix_metadata, fix_enum),
-            'union': functoolz.compose(
-                unpack_kwargs(Union), fix_metadata, fix_union),
-            'struct': functoolz.compose(
-                unpack_kwargs(Struct), fix_metadata, fix_fields),
-            'table': functoolz.compose(
-                unpack_kwargs(Table), fix_metadata, fix_fields)
-        }[x[0]](x[1]),
-        declarations_gen
-    )
-
-    # resolve generator
-    declarations = tuple(declarations_gen)
+    # make schema for declaratons
+    declarations = tuple(make_declarations(declarations_gen))
 
     schema = Schema(
         includes=includes,
