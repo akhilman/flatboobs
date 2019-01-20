@@ -1,7 +1,6 @@
 # pylint: disable=missing-docstring  # TODO write docstrings
 
 import operator
-from pathlib import Path
 from typing import Optional
 
 from parsy import regex, seq, string, success
@@ -154,7 +153,7 @@ TYPE_DECL = seq(
         << RBRACE
     ).map(dict)
 )
-ENUMVAL_DECL = (
+ENUM_MEMBER_DECL = (
     LBRACE
     >> seq(
         IDENT.tag('name'),
@@ -170,9 +169,9 @@ ENUM_DECL = seq(
         >> IDENT
     ).optional().tag('type'),
     METADATA,
-    ENUMVAL_DECL.tag('members')
+    ENUM_MEMBER_DECL.tag('members')
 ).map(dict).tag('enum')
-UNIONVAL_DECL = (
+UNION_MEMBER_DECL = (
     LBRACE
     >> seq(
         IDENT.tag('type'),
@@ -184,7 +183,7 @@ UNION_DECL = seq(
     lexeme(string('union'))
     >> IDENT.tag('name'),
     METADATA,
-    UNIONVAL_DECL.tag('members')
+    UNION_MEMBER_DECL.tag('members')
 ).map(dict).tag('union')
 ROOT_DECL = (
     lexeme(string('root_type'))
@@ -362,13 +361,5 @@ def parse(source: str, file_path: Optional[str] = None) -> Schema:
     # pprint(schema.declarations)
     # import attr
     # pprint(attr.asdict(schema))
-
-    return schema
-
-
-def parse_file(file_path: Path):
-
-    src = file_path.read_text()
-    schema = parse(src, file_path)
 
     return schema
