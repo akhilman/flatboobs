@@ -18,7 +18,7 @@ from flatboobs.schema import (
     Union,
     UnionMember
 )
-from flatboobs.util import unpack_kwargs
+from flatboobs.util import applykw
 
 WHITESPACE = regex(r'\s*')
 COMMENT = regex(r'\s*//.*\s*').many()
@@ -228,7 +228,7 @@ SCHEMA = (
 def make_metadata(kwargs):
     return dicttoolz.assoc(
         kwargs, 'metadata', tuple(
-            map(unpack_kwargs(MetadataMember), kwargs['metadata'])
+            map(functoolz.curry(applykw)(MetadataMember), kwargs['metadata'])
         )
     )
 
@@ -253,7 +253,7 @@ def make_enum(kwargs):
     )
     return dicttoolz.assoc(
         kwargs, 'members', tuple(
-            map(unpack_kwargs(EnumMember),
+            map(functoolz.curry(applykw)(EnumMember),
                 make_enum_members(kwargs['members'], bit_flags=bit_flags))
         )
     )
@@ -262,7 +262,7 @@ def make_enum(kwargs):
 def make_union(kwargs):
     return dicttoolz.assoc(
         kwargs, 'members', tuple(
-            map(unpack_kwargs(UnionMember),
+            map(functoolz.curry(applykw)(UnionMember),
                 make_enum_members(kwargs['members']))
         )
     )
@@ -271,8 +271,13 @@ def make_union(kwargs):
 def make_fields(kwargs):
     return dicttoolz.assoc(
         kwargs, 'fields', tuple(
-            map(functoolz.compose(unpack_kwargs(Field), make_metadata),
-                kwargs['fields'])
+            map(
+                functoolz.compose(
+                    functoolz.curry(applykw)(Field),
+                    make_metadata
+                ),
+                kwargs['fields']
+            )
         )
     )
 
@@ -280,15 +285,15 @@ def make_fields(kwargs):
 def make_declarations(declarations_gen):
     return map(
         lambda x: {
-            'attribute': unpack_kwargs(Attribute),
+            'attribute': functoolz.curry(applykw)(Attribute),
             'enum': functoolz.compose(
-                unpack_kwargs(Enum), make_metadata, make_enum),
+                functoolz.curry(applykw)(Enum), make_metadata, make_enum),
             'union': functoolz.compose(
-                unpack_kwargs(Union), make_metadata, make_union),
+                functoolz.curry(applykw)(Union), make_metadata, make_union),
             'struct': functoolz.compose(
-                unpack_kwargs(Struct), make_metadata, make_fields),
+                functoolz.curry(applykw)(Struct), make_metadata, make_fields),
             'table': functoolz.compose(
-                unpack_kwargs(Table), make_metadata, make_fields)
+                functoolz.curry(applykw)(Table), make_metadata, make_fields)
         }[x[0]](x[1]),
         declarations_gen
     )
