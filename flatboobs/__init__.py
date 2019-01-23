@@ -1,2 +1,5 @@
-from .about import __version__
-__version__  # Silence unused import warning.
+from flatboobs.about import __version__
+
+__all__ = [
+    '__version__',
+]
