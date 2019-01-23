@@ -3,7 +3,7 @@
 
 import collections
 import types
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Iterator, Mapping, Optional, Sequence
 
 import attr
 
@@ -52,7 +52,7 @@ class Enum(TypeDeclaration):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Union(Enum):
+class Union(TypeDeclaration):
     type: Optional[str] = None
     members: Sequence[UnionMember] = tuple()
     members_map: Mapping[str, UnionMember] = attr.ib(
@@ -108,3 +108,10 @@ class Schema:
     file_extension: Optional[str] = None
     file_identifier: Optional[str] = None
     root_type: Optional[str] = None
+
+
+def extract_types(schema: Schema) -> Iterator[TypeDeclaration]:
+    return filter(
+        lambda x: isinstance(x, TypeDeclaration),
+        schema.declarations
+    )
