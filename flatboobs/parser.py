@@ -311,7 +311,7 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
     parsed = SCHEMA.parse(source)
 
     # add keys listed in keys_to_move dict root
-    last_decl = dict(
+    moved_decl = dict(
         itertoolz.unique(
             filter(
                 lambda v: v[0] in keys_to_move,
@@ -322,11 +322,11 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
             operator.itemgetter(0)
         ),
     )
-    namespace = (tuple(last_decl['namespace'])
-                 if 'namespace' in last_decl else None)
-    file_identifier = last_decl.get('file_identifier', None)
-    file_extension = last_decl.get('file_extension', 'bin')
-    root_type = last_decl.get('root_type', None)
+    namespace = (tuple(moved_decl['namespace'])
+                 if 'namespace' in moved_decl else None)
+    file_identifier = moved_decl.get('file_identifier', None)
+    file_extension = moved_decl.get('file_extension', 'bin')
+    root_type = moved_decl.get('root_type', None)
 
     includes = tuple(parsed.get('includes', []))
 
