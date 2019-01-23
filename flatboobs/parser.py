@@ -4,7 +4,9 @@ import operator
 from typing import Optional
 
 from parsy import regex, seq, string, success
-from toolz import dicttoolz, functoolz, itertoolz
+from toolz import dicttoolz as dt
+from toolz import functoolz as ft
+from toolz import itertoolz as it
 
 from flatboobs.schema import (
     Attribute,
@@ -136,7 +138,7 @@ FIELD_DECL = seq(
     << SEMICOLON
 ).map(dict).map(
     lambda v: {
-        **dicttoolz.dissoc(v, 'type'),
+        **dt.dissoc(v, 'type'),
         **v['type']
     }
 )
@@ -226,9 +228,9 @@ SCHEMA = (
 
 
 def make_metadata(kwargs):
-    return dicttoolz.assoc(
+    return dt.assoc(
         kwargs, 'metadata', tuple(
-            map(functoolz.curry(applykw)(MetadataMember), kwargs['metadata'])
+            map(ft.curry(applykw)(MetadataMember), kwargs['metadata'])
         )
     )
 
@@ -244,36 +246,36 @@ def make_enum_members(enum, bit_flags=False):
             raise ValueError(
                 "Enum values must be specified in ascending order.")
         next_value = value + 1
-        yield dicttoolz.assoc(member, 'value', value)
+        yield dt.assoc(member, 'value', value)
 
 
 def make_enum(kwargs):
     bit_flags = any(
         m['name'] == 'bit_flags' for m in kwargs['metadata']
     )
-    return dicttoolz.assoc(
+    return dt.assoc(
         kwargs, 'members', tuple(
-            map(functoolz.curry(applykw)(EnumMember),
+            map(ft.curry(applykw)(EnumMember),
                 make_enum_members(kwargs['members'], bit_flags=bit_flags))
         )
     )
 
 
 def make_union(kwargs):
-    return dicttoolz.assoc(
+    return dt.assoc(
         kwargs, 'members', tuple(
-            map(functoolz.curry(applykw)(UnionMember),
+            map(ft.curry(applykw)(UnionMember),
                 make_enum_members(kwargs['members']))
         )
     )
 
 
 def make_fields(kwargs):
-    return dicttoolz.assoc(
+    return dt.assoc(
         kwargs, 'fields', tuple(
             map(
-                functoolz.compose(
-                    functoolz.curry(applykw)(Field),
+                ft.compose(
+                    ft.curry(applykw)(Field),
                     make_metadata
                 ),
                 kwargs['fields']
@@ -285,15 +287,15 @@ def make_fields(kwargs):
 def make_declarations(declarations_gen):
     return map(
         lambda x: {
-            'attribute': functoolz.curry(applykw)(Attribute),
-            'enum': functoolz.compose(
-                functoolz.curry(applykw)(Enum), make_metadata, make_enum),
-            'union': functoolz.compose(
-                functoolz.curry(applykw)(Union), make_metadata, make_union),
-            'struct': functoolz.compose(
-                functoolz.curry(applykw)(Struct), make_metadata, make_fields),
-            'table': functoolz.compose(
-                functoolz.curry(applykw)(Table), make_metadata, make_fields)
+            'attribute': ft.curry(applykw)(Attribute),
+            'enum': ft.compose(
+                ft.curry(applykw)(Enum), make_metadata, make_enum),
+            'union': ft.compose(
+                ft.curry(applykw)(Union), make_metadata, make_union),
+            'struct': ft.compose(
+                ft.curry(applykw)(Struct), make_metadata, make_fields),
+            'table': ft.compose(
+                ft.curry(applykw)(Table), make_metadata, make_fields)
         }[x[0]](x[1]),
         declarations_gen
     )
@@ -312,7 +314,7 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
 
     # add keys listed in keys_to_move dict root
     moved_decl = dict(
-        itertoolz.unique(
+        it.unique(
             filter(
                 lambda v: v[0] in keys_to_move,
                 reversed(
@@ -338,7 +340,7 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
 
     # add namespace
     declarations_gen = map(
-        lambda x: (x[0], dicttoolz.assoc(x[1], 'namespace', namespace)),
+        lambda x: (x[0], dt.assoc(x[1], 'namespace', namespace)),
         declarations_gen
     )
 
@@ -346,7 +348,7 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
     declarations_gen = map(
         lambda x: (x[0], (
             x[0] != 'attribute' and x[1]['name'] == root_type
-            and dicttoolz.merge((
+            and dt.merge((
                 x[1],
                 {'is_root': True, 'identifier': file_identifier}
             ))

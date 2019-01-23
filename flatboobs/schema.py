@@ -8,7 +8,8 @@ import types
 import typing
 
 import attr
-from toolz import functoolz, itertoolz
+from toolz import functoolz as ft
+from toolz import itertoolz as it
 
 import flatboobs.parser
 from flatboobs import logging
@@ -156,7 +157,7 @@ def _load_with_includes(
         filter(
             None,
             map(
-                functoolz.partial(
+                ft.partial(
                     _load_with_includes,
                     join_path, read, visited, package,
                 ),
@@ -166,12 +167,12 @@ def _load_with_includes(
     )
     declarations: typing.Sequence[typing.Union[TypeDeclaration, Attribute]] = (
         tuple(
-            itertoolz.unique(
-                itertoolz.concatv(
+            it.unique(
+                it.concatv(
                     filter(
                         lambda x:
                         isinstance(x, (TypeDeclaration, Attribute)),
-                        itertoolz.concat(
+                        it.concat(
                             map(
                                 operator.attrgetter('declarations'),
                                 included_schema,
