@@ -2,7 +2,7 @@
 # pylint: disable=missing-docstring  # TODO add docstrings
 
 import collections
-import operator
+import operator as op
 import pathlib
 import types
 import typing
@@ -152,38 +152,27 @@ def _load_with_includes(
     source = read(package, resource)
     schema = load_from_string(source, schema_file=schema_path)
 
-    included_schema: typing.Iterator[Schema] = filter(
-        lambda x: x.namespace == schema.namespace,  # type: ignore
-        filter(
-            None,
-            map(
-                ft.partial(
-                    _load_with_includes,
-                    join_path, read, visited, package,
-                ),
-                schema.includes
-            )
-        )
-    )
-    declarations: typing.Sequence[typing.Union[TypeDeclaration, Attribute]] = (
-        tuple(
-            it.unique(
-                it.concatv(
-                    filter(
-                        lambda x:
-                        isinstance(x, (TypeDeclaration, Attribute)),
-                        it.concat(
-                            map(
-                                operator.attrgetter('declarations'),
-                                included_schema,
-                            )
-                        )
-                    ),
-                    schema.declarations
-                )
-            )
-        )
-    )
+    # pylint: disable=no-value-for-parameter
+    declarations: typing.Sequence[typing.Union[TypeDeclaration, Attribute]]
+    declarations = ft.compose(
+        tuple,
+        it.unique,
+        ft.partial(ft.flip(it.concatv), schema.declarations),
+        ft.curry(filter)(
+            ft.curry(ft.flip(isinstance))((TypeDeclaration, Attribute))),
+        it.concat,
+        ft.curry(map)(op.attrgetter('declarations')),
+        ft.curry(filter)(
+            ft.compose(ft.curry(op.eq)(schema.namespace),
+                       op.attrgetter('namespace'))
+        ),
+        ft.curry(filter)(None),
+        ft.curry(map)(
+            ft.partial(_load_with_includes,
+                       join_path, read, visited, package)
+        ),
+    )(schema.includes)
+
     schema = attr.evolve(
         schema,
         declarations=declarations
@@ -199,13 +188,11 @@ def load_from_file(
     if not isinstance(fpath, pathlib.Path):
         fpath = pathlib.Path(fpath)
 
-    def read(path: pathlib.Path, fname: str):
-        logger.debug('Loading schema from %s', path / fname)
-        return (path / fname).read_text()
+    logger.debug('Loading schema from %s', fpath)
 
     schema = _load_with_includes(
         lambda p, r: str(p / r),
-        read,
+        lambda p, r: (p / r).read_text(),
         frozenset(),
         fpath.parent,
         fpath.name,
