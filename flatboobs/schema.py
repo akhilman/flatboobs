@@ -157,11 +157,9 @@ def _load_with_includes(
     declarations = ft.compose(
         tuple,
         it.unique,
-        ft.partial(ft.flip(it.concatv), schema.declarations),
-        ft.curry(filter)(
-            ft.curry(ft.flip(isinstance))((TypeDeclaration, Attribute))),
         it.concat,
         ft.curry(map)(op.attrgetter('declarations')),
+        ft.curry(it.cons)(schema),
         ft.curry(filter)(
             ft.compose(ft.curry(op.eq)(schema.namespace),
                        op.attrgetter('namespace'))
