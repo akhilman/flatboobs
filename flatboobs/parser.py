@@ -324,8 +324,8 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
             operator.itemgetter(0)
         ),
     )
-    namespace = (tuple(moved_decl['namespace'])
-                 if 'namespace' in moved_decl else None)
+    namespace = ('.'.join(moved_decl['namespace'])
+                 if 'namespace' in moved_decl else '')
     file_identifier = moved_decl.get('file_identifier', None)
     file_extension = moved_decl.get('file_extension', 'bin')
     root_type = moved_decl.get('root_type', None)

@@ -23,7 +23,7 @@ logger = logging.getLogger('flatboobs')
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Attribute:
-    namespace: typing.Optional[typing.Sequence[str]] = None
+    namespace: str = ''
     name: str = ''
 
 
@@ -41,7 +41,7 @@ class DeclarationWithMetadata:
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class TypeDeclaration(DeclarationWithMetadata):
-    namespace: typing.Optional[typing.Sequence[str]] = None
+    namespace: str = ''
     name: str = ''
     is_root: bool = False
     identifier: typing.Optional[str] = None
@@ -112,7 +112,7 @@ class Schema:
 
     schema_file: typing.Optional[str] = None
     includes: typing.Sequence[str] = tuple()
-    namespace: typing.Optional[typing.Sequence[str]] = None
+    namespace: str = ''
     declarations: typing.Sequence[typing.Any] = tuple()
     file_extension: typing.Optional[str] = None
     file_identifier: typing.Optional[str] = None
