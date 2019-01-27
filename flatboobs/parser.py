@@ -17,8 +17,7 @@ from flatboobs.schema import (
     Schema,
     Struct,
     Table,
-    Union,
-    UnionMember
+    Union
 )
 from flatboobs.util import applykw
 
@@ -173,19 +172,11 @@ ENUM_DECL = seq(
     METADATA,
     ENUM_MEMBER_DECL.tag('members')
 ).map(dict).tag('enum')
-UNION_MEMBER_DECL = (
-    LBRACE
-    >> seq(
-        IDENT.tag('type'),
-        (EQ >> SCALAR).optional().tag('value')
-    ).map(dict).sep_by(COMMA)
-    << RBRACE
-)
 UNION_DECL = seq(
     lexeme(string('union'))
     >> IDENT.tag('name'),
     METADATA,
-    UNION_MEMBER_DECL.tag('members')
+    ENUM_MEMBER_DECL.tag('members')
 ).map(dict).tag('union')
 ROOT_DECL = (
     lexeme(string('root_type'))
@@ -249,8 +240,8 @@ def make_enum_members(enum, bit_flags=False):
         yield dt.assoc(member, 'value', value)
 
 
-def make_enum(kwargs):
-    bit_flags = any(
+def make_enum(kwargs, union=False):
+    bit_flags = not union and any(
         m['name'] == 'bit_flags' for m in kwargs['metadata']
     )
     return dt.assoc(
@@ -262,12 +253,7 @@ def make_enum(kwargs):
 
 
 def make_union(kwargs):
-    return dt.assoc(
-        kwargs, 'members', tuple(
-            map(ft.curry(applykw)(UnionMember),
-                make_enum_members(kwargs['members']))
-        )
-    )
+    return make_enum(kwargs, union=True)
 
 
 def make_fields(kwargs):

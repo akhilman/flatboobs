@@ -16,7 +16,6 @@ from flatboobs import logging
 
 MetadataMember = collections.namedtuple('MetadataMember', ('name', 'value'))
 EnumMember = collections.namedtuple('EnumMember', ('name', 'value'))
-UnionMember = collections.namedtuple('UnionMember', ('type', 'value'))
 
 logger = logging.getLogger('flatboobs')
 
@@ -58,19 +57,12 @@ class Enum(TypeDeclaration):
         ),
         hash=False, init=False, repr=False
     )
+    default: typing.Optional[int] = None
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Union(TypeDeclaration):
-    type: typing.Optional[str] = None
-    members: typing.Sequence[UnionMember] = tuple()
-    members_map: typing.Mapping[str, UnionMember] = attr.ib(
-        attr.Factory(
-            lambda self: types.MappingProxyType(dict(self.members)),
-            takes_self=True
-        ),
-        hash=False, init=False, repr=False
-    )
+class Union(Enum):
+    pass
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
