@@ -74,7 +74,7 @@ class Field(DeclarationWithMetadata):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Struct(TypeDeclaration):
+class _TableLike(TypeDeclaration, typing.Mapping[str, Field]):
     fields: typing.Sequence[Field] = tuple()
     fields_map: typing.Mapping[str, Field] = attr.ib(
         attr.Factory(
@@ -85,22 +85,30 @@ class Struct(TypeDeclaration):
         hash=False, init=False, repr=False
     )
 
+    # pylint: disable=unsubscriptable-object,
 
-@attr.s(auto_attribs=True, frozen=True, slots=True)
-class Table(TypeDeclaration):
-    fields: typing.Sequence[Field] = tuple()
-    fields_map: typing.Mapping[str, Field] = attr.ib(
-        attr.Factory(
-            lambda self: types.MappingProxyType({f.name: f
-                                                 for f in self.fields}),
-            takes_self=True
-        ),
-        hash=False, init=False, repr=False
-    )
+    def __getitem__(self: '_TableLike', key: str) -> Field:
+        return self.fields_map[key]
+
+    def __iter__(self: '_TableLike') -> typing.Iterator[str]:
+        return iter(self.fields_map)
+
+    def __len__(self: '_TableLike') -> int:
+        return len(self.fields_map)
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Schema:
+class Struct(_TableLike):
+    pass
+
+
+@attr.s(auto_attribs=True, frozen=True, slots=True)
+class Table(_TableLike):
+    pass
+
+
+@attr.s(auto_attribs=True, frozen=True, slots=True)
+class Schema(typing.Mapping[str, TypeDeclaration]):
 
     schema_file: typing.Optional[str] = None
     includes: typing.Sequence[str] = tuple()
@@ -109,6 +117,36 @@ class Schema:
     file_extension: typing.Optional[str] = None
     file_identifier: typing.Optional[str] = None
     root_type: typing.Optional[str] = None
+
+    attributes: typing.FrozenSet[str] = attr.ib(
+        attr.Factory(
+            lambda self: frozenset(x.name for x in self.declarations
+                                   if isinstance(x, Attribute)),
+            takes_self=True
+        ),
+        hash=False, init=False, repr=False, cmp=False
+    )
+    types: typing.Mapping[str, TypeDeclaration] = attr.ib(
+        attr.Factory(
+            lambda self: types.MappingProxyType({
+                x.name: x for x in self.declarations
+                if isinstance(x, TypeDeclaration)
+            }),
+            takes_self=True
+        ),
+        hash=False, init=False, repr=False, cmp=False
+    )
+
+    # pylint: disable=unsubscriptable-object,
+
+    def __getitem__(self: 'Schema', key: str) -> TypeDeclaration:
+        return self.types[key]
+
+    def __iter__(self: 'Schema') -> typing.Iterator[str]:
+        return iter(self.types)
+
+    def __len__(self: 'Schema') -> int:
+        return len(self.types)
 
 
 def extract_types(schema: Schema) -> typing.Iterator[TypeDeclaration]:
