@@ -345,7 +345,7 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
             x[0] != 'attribute' and x[1]['name'] == root_type
             and dt.merge((
                 x[1],
-                {'is_root': True, 'identifier': file_identifier}
+                {'is_root': True, 'file_identifier': file_identifier}
             ))
             or x[1]
         )),

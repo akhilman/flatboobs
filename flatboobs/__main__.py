@@ -5,11 +5,14 @@ TODO Write module docstring
 from typing import IO, Optional
 
 import click
+import toolz.functoolz as ft
+import toolz.itertoolz as it
 import yaml
 
 import flatboobs.parser
 import flatboobs.schema
 from flatboobs import logging
+from flatboobs.registry import Registry
 
 # pylint: disable=no-value-for-parameter
 
@@ -51,16 +54,23 @@ def cat(
         root_type: Optional[str],
         message_file: IO
 ):
-    types = set()
+    registry = Registry()
     if schema_file:
         sch = flatboobs.schema.load_from_file(schema_file)
+        registry.add_types(sch)
         root_type = root_type or sch.root_type
-        types |= sch.types
     if schema_package:
         raise NotImplementedError
 
+    root_type_decl = ft.compose(
+        it.first,
+        ft.partial(filter, lambda x: x.name == root_type)
+    )(registry.types)
+
     from pprint import pprint
-    pprint(list(types))
+    pprint(list(registry.types))
+    pprint('------')
+    pprint(root_type_decl)
 
     # backend = backend
     # unpackb(backend, types, message_file.read(), root_type)

@@ -8,6 +8,7 @@ from setuptools import (setup, find_packages)
 here = path.abspath(path.dirname(__file__))
 install_requirements = [
     'attrs',
+    'multipledispatch',
     'numpy',
     'parsy',
     'toolz',
@@ -51,7 +52,9 @@ setup(name='flatboobs', version=__version__,
       description='FlatBuffer reader/writer generator',
       long_description=long_description,
       license='MIT',
-      packages=find_packages(exclude=['third_party', 'docs', 'tests*']),
+      packages=find_packages(exclude=[
+          'third_party', 'docs', 'tests*', 'utils'
+      ]),
       include_package_data=True,
       # This part is good for when the setup.py itself cannot proceed until dependencies
       # in ``setup_requires`` are met. If you also need some/all of the dependencies in
