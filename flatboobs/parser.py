@@ -57,9 +57,15 @@ BOOL_CONST = lexeme(
     | string('false') >> success(False)
 )
 FLOAT_CONST = lexeme(
-    regex(r'-?(0|[1-9][0-9]*)([.][0-9]+)([eE][+-]?[0-9]+)?')
+    regex(
+        r'-?(0|[1-9][0-9]*)'
+        r'('
+        r'([.][0-9]+)?([eE][+-]?[0-9]+)'
+        r')|('
+        r'([.][0-9]+)([eE][+-]?[0-9]+)?'
+        r')'
+    )
 ).map(float)
-SCALAR = INTEGER_CONST | BOOL_CONST | FLOAT_CONST | IDENT
 STRING_PART = regex(r'[^"\\]+')
 STRING_ESC = string('\\') >> (
     string('\\')
@@ -79,7 +85,7 @@ STRING_CONSTANT = (
         << string('"')
     )
 )
-SINGLE_VALUE = STRING_CONSTANT | SCALAR
+SINGLE_VALUE = FLOAT_CONST | INTEGER_CONST | BOOL_CONST | STRING_CONSTANT
 VALUE = (
     SINGLE_VALUE
     # | OBJECT  # TODO add object tag
@@ -158,7 +164,7 @@ ENUM_MEMBER_DECL = (
     LBRACE
     >> seq(
         IDENT.tag('name'),
-        (EQ >> SCALAR).optional().tag('value')
+        (EQ >> (INTEGER_CONST | IDENT)).optional().tag('value')
     ).map(dict).sep_by(COMMA)
     << RBRACE
 )
