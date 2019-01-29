@@ -168,7 +168,7 @@ ENUM_DECL = seq(
     (
         COLON
         >> IDENT
-    ).optional().tag('type'),
+    ).tag('type'),
     METADATA,
     ENUM_MEMBER_DECL.tag('members')
 ).map(dict).tag('enum')
