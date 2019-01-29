@@ -55,7 +55,7 @@ def cat(
     if schema_file:
         sch = flatboobs.schema.load_from_file(schema_file)
         root_type = root_type or sch.root_type
-        types |= set(flatboobs.schema.extract_types(sch))
+        types |= sch.types
     if schema_package:
         raise NotImplementedError
 

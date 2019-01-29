@@ -1,6 +1,5 @@
 # pylint: disable=missing-docstring  # TODO write docstrings
 
-import operator
 from typing import Optional
 
 from parsy import regex, seq, string, success
@@ -9,7 +8,6 @@ from toolz import functoolz as ft
 from toolz import itertoolz as it
 
 from flatboobs.schema import (
-    Attribute,
     Enum,
     EnumMember,
     Field,
@@ -119,11 +117,11 @@ NAMESPACE_DECL = (
     >> IDENT.sep_by(PERIOD, min=1)
     << SEMICOLON
 ).tag('namespace')
-ATTRIBUTE_DECL = seq(
+ATTRIBUTE_DECL = (
     lexeme(string('attribute'))
-    >> STRING_CONSTANT.tag('name')
+    >> STRING_CONSTANT
     << SEMICOLON
-).map(dict).tag('attribute')
+).tag('attribute')
 METADATA = (
     (
         LPAR >> seq(
@@ -147,7 +145,7 @@ FIELD_DECL = seq(
         **v['type']
     }
 )
-TYPE_DECL = seq(
+TABLE_LIKE_DECL = seq(
     lexeme(
         string('struct')
         | string('table')
@@ -211,7 +209,7 @@ SCHEMA = (
         (
             NAMESPACE_DECL
             | ATTRIBUTE_DECL
-            | TYPE_DECL
+            | TABLE_LIKE_DECL
             | ENUM_DECL
             | UNION_DECL
             | ROOT_DECL
@@ -278,10 +276,9 @@ def make_fields(kwargs):
     )
 
 
-def make_declarations(declarations_gen):
+def make_types(types_gen):
     return map(
         lambda x: {
-            'attribute': ft.curry(applykw)(Attribute),
             'enum': ft.compose(
                 ft.curry(applykw)(Enum), make_metadata, make_enum),
             'union': ft.compose(
@@ -291,55 +288,59 @@ def make_declarations(declarations_gen):
             'table': ft.compose(
                 ft.curry(applykw)(Table), make_metadata, make_fields)
         }[x[0]](x[1]),
-        declarations_gen
+        types_gen
     )
+
+def _get_last_decl(declarations, key, default=None):
+    # pylint: disable=no-value-for-parameter
+    return ft.compose(
+        it.first,
+        it.partial(ft.flip(it.concatv), [default]),
+        ft.curry(map)(ft.partial(it.get, 1)),
+        ft.curry(filter)(lambda x: x[0] == key),
+        reversed,
+    )(declarations)
 
 
 def parse(source: str, schema_file: Optional[str] = None) -> Schema:
-
-    keys_to_move = [
-        'file_extension', 'file_identifier', 'namespace', 'root_type'
-    ]
 
     # from pprint import pprint
     # pprint(SCHEMA.parse_partial(source))
 
     parsed = SCHEMA.parse(source)
 
-    # add keys listed in keys_to_move dict root
-    moved_decl = dict(
-        it.unique(
-            filter(
-                lambda v: v[0] in keys_to_move,
-                reversed(
-                    parsed['declarations']
-                ),
-            ),
-            operator.itemgetter(0)
-        ),
-    )
-    namespace = ('.'.join(moved_decl['namespace'])
-                 if 'namespace' in moved_decl else '')
-    file_identifier = moved_decl.get('file_identifier', None)
-    file_extension = moved_decl.get('file_extension', 'bin')
-    root_type = moved_decl.get('root_type', None)
+    declarations = parsed['declarations']
 
-    includes = tuple(parsed.get('includes', []))
+    includes = frozenset(parsed.get('includes', []))
 
-    # exclude keys_to_move from declarations
-    declarations_gen = filter(
-        lambda v: v[0] not in keys_to_move,
-        parsed['declarations']
+    namespace = '.'.join(_get_last_decl(declarations, 'namespace', ['']))
+    file_identifier = _get_last_decl(declarations, 'file_identifier', None)
+    file_identifier = _get_last_decl(declarations, 'file_identifier', None)
+    file_extension = _get_last_decl(declarations, 'file_extension', 'bin')
+    root_type = _get_last_decl(declarations, 'root_type', None)
+
+    # attributes
+    attributes = ft.compose(
+        frozenset,
+        ft.curry(map)(ft.partial(it.get, 1)),
+        ft.curry(filter)(lambda v: v[0] == 'attribute'),
+    )(declarations)
+
+    # get type declarations
+    type_tags = ['enum', 'struct', 'table', 'union']
+    types_gen = filter(
+        lambda v: v[0] in type_tags,
+        declarations
     )
 
     # add namespace
-    declarations_gen = map(
+    types_gen = map(
         lambda x: (x[0], dt.assoc(x[1], 'namespace', namespace)),
-        declarations_gen
+        types_gen
     )
 
     # set is_root and identifier for root_type
-    declarations_gen = map(
+    types_gen = map(
         lambda x: (x[0], (
             x[0] != 'attribute' and x[1]['name'] == root_type
             and dt.merge((
@@ -348,16 +349,17 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
             ))
             or x[1]
         )),
-        declarations_gen
+        types_gen
     )
 
     # make schema for declaratons
-    declarations = tuple(make_declarations(declarations_gen))
+    types = frozenset(make_types(types_gen))
 
     schema = Schema(
         includes=includes,
         namespace=namespace,
-        declarations=declarations,
+        attributes=attributes,
+        types=types,
         root_type=root_type,
         file_identifier=file_identifier,
         file_extension=file_extension,

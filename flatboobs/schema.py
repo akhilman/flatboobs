@@ -4,8 +4,8 @@
 import collections
 import operator as op
 import pathlib
-import types
 import typing
+from types import MappingProxyType
 
 import attr
 from toolz import functoolz as ft
@@ -21,17 +21,11 @@ logger = logging.getLogger('flatboobs')
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Attribute:
-    namespace: str = ''
-    name: str = ''
-
-
-@attr.s(auto_attribs=True, frozen=True, slots=True)
 class DeclarationWithMetadata:
     metadata: typing.Sequence[MetadataMember] = tuple()
     metadata_map: typing.Mapping[str, MetadataMember] = attr.ib(
         attr.Factory(
-            lambda self: types.MappingProxyType(dict(self.metadata)),
+            lambda self: MappingProxyType(dict(self.metadata)),
             takes_self=True
         ),
         hash=False, init=False, repr=False
@@ -52,7 +46,7 @@ class Enum(TypeDeclaration):
     members: typing.Sequence[EnumMember] = tuple()
     members_map: typing.Mapping[str, EnumMember] = attr.ib(
         attr.Factory(
-            lambda self: types.MappingProxyType(dict(self.members)),
+            lambda self: MappingProxyType(dict(self.members)),
             takes_self=True
         ),
         hash=False, init=False, repr=False
@@ -78,8 +72,8 @@ class _TableLike(TypeDeclaration, typing.Mapping[str, Field]):
     fields: typing.Sequence[Field] = tuple()
     fields_map: typing.Mapping[str, Field] = attr.ib(
         attr.Factory(
-            lambda self: types.MappingProxyType({f.name: f
-                                                 for f in self.fields}),
+            lambda self: MappingProxyType({f.name: f
+                                           for f in self.fields}),
             takes_self=True
         ),
         hash=False, init=False, repr=False
@@ -111,26 +105,18 @@ class Table(_TableLike):
 class Schema(typing.Mapping[str, TypeDeclaration]):
 
     schema_file: typing.Optional[str] = None
-    includes: typing.Sequence[str] = tuple()
+    includes: typing.FrozenSet[str] = frozenset()
     namespace: str = ''
-    declarations: typing.Sequence[typing.Any] = tuple()
+    attributes: typing.FrozenSet[str] = frozenset()
+    types: typing.FrozenSet[TypeDeclaration] = frozenset()
     file_extension: typing.Optional[str] = None
     file_identifier: typing.Optional[str] = None
     root_type: typing.Optional[str] = None
 
-    attributes: typing.FrozenSet[str] = attr.ib(
+    type_map: typing.Mapping[str, TypeDeclaration] = attr.ib(
         attr.Factory(
-            lambda self: frozenset(x.name for x in self.declarations
-                                   if isinstance(x, Attribute)),
-            takes_self=True
-        ),
-        hash=False, init=False, repr=False, cmp=False
-    )
-    types: typing.Mapping[str, TypeDeclaration] = attr.ib(
-        attr.Factory(
-            lambda self: types.MappingProxyType({
-                x.name: x for x in self.declarations
-                if isinstance(x, TypeDeclaration)
+            lambda self: MappingProxyType({
+                x.name: x for x in self.types
             }),
             takes_self=True
         ),
@@ -140,20 +126,13 @@ class Schema(typing.Mapping[str, TypeDeclaration]):
     # pylint: disable=unsubscriptable-object,
 
     def __getitem__(self: 'Schema', key: str) -> TypeDeclaration:
-        return self.types[key]
+        return self.type_map[key]
 
     def __iter__(self: 'Schema') -> typing.Iterator[str]:
-        return iter(self.types)
+        return iter(self.type_map)
 
     def __len__(self: 'Schema') -> int:
-        return len(self.types)
-
-
-def extract_types(schema: Schema) -> typing.Iterator[TypeDeclaration]:
-    return filter(
-        lambda x: isinstance(x, TypeDeclaration),
-        schema.declarations
-    )
+        return len(self.type_map)
 
 
 def load_from_string(
@@ -182,14 +161,8 @@ def _load_with_includes(
     source = read(package, resource)
     schema = load_from_string(source, schema_file=schema_path)
 
-    # pylint: disable=no-value-for-parameter
-    declarations: typing.Sequence[typing.Union[TypeDeclaration, Attribute]]
-    declarations = ft.compose(
+    included_schema = ft.compose(
         tuple,
-        it.unique,
-        it.concat,
-        ft.curry(map)(op.attrgetter('declarations')),
-        ft.curry(it.cons)(schema),
         ft.curry(filter)(
             ft.compose(ft.curry(op.eq)(schema.namespace),
                        op.attrgetter('namespace'))
@@ -201,9 +174,28 @@ def _load_with_includes(
         ),
     )(schema.includes)
 
+    attributes = ft.compose(
+        frozenset,
+        it.concat,
+        ft.curry(map)(op.attrgetter('attributes')),
+        ft.curry(it.cons)(schema),
+    )(included_schema)
+
+    # pylint: disable=no-value-for-parameter
+    types: typing.FrozenSet[TypeDeclaration]
+    types = ft.compose(
+        frozenset,
+        it.unique,
+        it.concat,
+        ft.curry(map)(op.attrgetter('types')),
+        ft.curry(it.cons)(schema),
+    )(included_schema)
+
     schema = attr.evolve(
         schema,
-        declarations=declarations
+        includes=frozenset(),
+        attributes=attributes,
+        types=types
     )
 
     return schema
