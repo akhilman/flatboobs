@@ -22,6 +22,10 @@ install_requirements = [
     # Example where we ask for a ``fake`` library and block a specific version.
     # 'fake>=1.0.0, !1.1.0, <2.0.0a0'
 ]
+extras_require = {
+    'test': ['pytest', 'pytest-mock', 'pytest-cov', 'codecov']
+}
+setup_requires = ['pytest-runner']
 
 # The following are meant to avoid accidental upload/registration of this
 # package in the Python Package Index (PyPi)
@@ -88,6 +92,8 @@ setup(name='flatboobs', version=__version__,
       #       "https://localhost:8080/test/path/file.zip#egg=package_name_underscore-1.2.3"
       # ],
       install_requires=install_requirements,
+      setup_requires=setup_requires,
+      extras_require=extras_require,
       keywords=['module', 'library'],
       url="https://github.com/akhilman/flatboobs",
       classifiers=[

@@ -1,5 +1,5 @@
 # Ignore cached bytecode
-*.py[co]
+__pycache__
 
 # Ignore Python setup.py sdist|bdist_wheel directories
 dist/
