@@ -4,7 +4,7 @@ TODO
 - [ ] Make it work.
    - [X] Parse schema file.
    - [ ] Read messages.
-       - [ ] Read tables.
+       - [X] Read tables.
        - [ ] Read enums.
        - [ ] Read structs.
        - [ ] Read arrays of scalars.
@@ -12,7 +12,7 @@ TODO
        - [ ] Read arrasy of structs.
        - [ ] Read unions.
    - [ ] Write messages.
-       - [ ] Write tables.
+       - [X] Write tables.
        - [ ] Write enums.
        - [ ] Write structs.
        - [ ] Write arrays of scalars.
