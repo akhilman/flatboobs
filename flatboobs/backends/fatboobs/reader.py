@@ -24,7 +24,6 @@ class FileHeader(abc.FileHeader):
     file_identifier: str
 
 
-
 def read_header(buffer: bytes) -> FileHeader:
     header = unpack_from(f"<{FILE_HEADER_FMT}", buffer, 0)
     return FileHeader(header[0], header[1].decode('ascii'))

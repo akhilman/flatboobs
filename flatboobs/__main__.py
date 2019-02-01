@@ -1,13 +1,13 @@
 """
 TODO Write module docstring
 """
+# pylint: disable=missing-docstring
 
 from typing import IO, Optional
 
 import click
 import toolz.functoolz as ft
 import toolz.itertoolz as it
-import yaml
 
 import flatboobs.parser
 import flatboobs.schema
@@ -15,6 +15,7 @@ from flatboobs import logging
 from flatboobs.registry import Registry
 
 # pylint: disable=no-value-for-parameter
+
 
 @click.command()
 @click.option(
@@ -54,9 +55,10 @@ def cat(
         root_type: Optional[str],
         message_file: IO
 ):
+    # pylint: disable=unused-argument
     registry = Registry()
     if schema_file:
-        sch = flatboobs.schema.load_from_file(schema_file)
+        sch = flatboobs.parser.load_from_file(schema_file)
         registry.add_types(sch)
         root_type = root_type or sch.root_type
     if schema_package:

@@ -1,3 +1,5 @@
+# pylint: disable=missing-docstring
+
 from typing import NewType, Union
 
 import numpy as np

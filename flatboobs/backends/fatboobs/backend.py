@@ -10,7 +10,7 @@ from flatboobs.typing import TemplateId, UOffset
 from . import reader, table
 
 
-_T = TypeVar('_T')
+_TT = TypeVar('_TT')  # Template type
 
 
 class FatBoobs(abc.Backend):
@@ -27,11 +27,11 @@ class FatBoobs(abc.Backend):
 
     def _new_template(
             self: 'FatBoobs',
-            factory: Type[_T],
+            factory: Type[_TT],
             type_decl: schema.TypeDeclaration,
             *args,
             **kwargs
-    ) -> _T:
+    ) -> _TT:
         template_id = next(self._template_count)
         template = factory(  # type: ignore
             self, template_id, type_decl, *args, **kwargs)

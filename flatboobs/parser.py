@@ -1,26 +1,23 @@
 # pylint: disable=missing-docstring  # TODO write docstrings
 
-from typing import Optional
+import operator as op
+import pathlib
+from typing import Any, Callable, FrozenSet, Iterator, Optional, Union
 
+import attr
 from parsy import regex, seq, string, success
 from toolz import dicttoolz as dt
 from toolz import functoolz as ft
 from toolz import itertoolz as it
 
-from flatboobs.schema import (
-    Enum,
-    EnumMember,
-    Field,
-    MetadataMember,
-    Schema,
-    Struct,
-    Table,
-    Union
-)
+import flatboobs.schema as s
+from flatboobs import logging
 from flatboobs.util import applykw
 
 WHITESPACE = regex(r'\s*')
 COMMENT = regex(r'\s*//.*\s*').many()
+
+logger = logging.getLogger('flatboobs')
 
 
 def lexeme(parser):
@@ -225,7 +222,7 @@ SCHEMA = (
 def make_metadata(kwargs):
     return dt.assoc(
         kwargs, 'metadata', tuple(
-            map(ft.curry(applykw)(MetadataMember), kwargs['metadata'])
+            map(ft.curry(applykw)(s.MetadataMember), kwargs['metadata'])
         )
     )
 
@@ -252,7 +249,7 @@ def make_enum(kwargs, union=False):
     kwargs = dt.assoc(kwargs, 'type', kwargs.get('type', 'byte'))
     return dt.assoc(
         kwargs, 'members', tuple(
-            map(ft.curry(applykw)(EnumMember),
+            map(ft.curry(applykw)(s.EnumMember),
                 make_enum_members(kwargs['members'], start_value))
         )
     )
@@ -267,7 +264,7 @@ def make_fields(kwargs):
         kwargs, 'fields', tuple(
             map(
                 ft.compose(
-                    ft.curry(applykw)(Field),
+                    ft.curry(applykw)(s.Field),
                     make_metadata
                 ),
                 kwargs['fields']
@@ -280,16 +277,17 @@ def make_types(types_gen):
     return map(
         lambda x: {
             'enum': ft.compose(
-                ft.curry(applykw)(Enum), make_metadata, make_enum),
+                ft.curry(applykw)(s.Enum), make_metadata, make_enum),
             'union': ft.compose(
-                ft.curry(applykw)(Union), make_metadata, make_union),
+                ft.curry(applykw)(s.Union), make_metadata, make_union),
             'struct': ft.compose(
-                ft.curry(applykw)(Struct), make_metadata, make_fields),
+                ft.curry(applykw)(s.Struct), make_metadata, make_fields),
             'table': ft.compose(
-                ft.curry(applykw)(Table), make_metadata, make_fields)
+                ft.curry(applykw)(s.Table), make_metadata, make_fields)
         }[x[0]](x[1]),
         types_gen
     )
+
 
 def _get_last_decl(declarations, key, default=None):
     # pylint: disable=no-value-for-parameter
@@ -302,7 +300,7 @@ def _get_last_decl(declarations, key, default=None):
     )(declarations)
 
 
-def parse(source: str, schema_file: Optional[str] = None) -> Schema:
+def parse(source: str, schema_file: Optional[str] = None) -> s.Schema:
 
     # from pprint import pprint
     # pprint(SCHEMA.parse_partial(source))
@@ -355,7 +353,7 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
     # make schema for declaratons
     types = frozenset(make_types(types_gen))
 
-    schema = Schema(
+    schema = s.Schema(
         includes=includes,
         namespace=namespace,
         attributes=attributes,
@@ -372,3 +370,112 @@ def parse(source: str, schema_file: Optional[str] = None) -> Schema:
     # pprint(attr.asdict(schema))
 
     return schema
+
+
+def load_from_string(
+        source: str,
+        schema_file: Optional[str] = None,
+) -> s.Schema:
+
+    schema = parse(source, schema_file=schema_file)
+    return schema
+
+
+def _load_with_includes(
+        join_path: Callable[[Any, str], str],
+        read: Callable[[Any, str], str],
+        visited: FrozenSet[str],
+        package: Any,
+        resource: str,
+
+) -> Optional[s.Schema]:
+
+    schema_path = join_path(package, resource)
+    if schema_path in visited:
+        return None
+    visited = visited | {schema_path}
+
+    source = read(package, resource)
+    schema = load_from_string(source, schema_file=schema_path)
+
+    included_schema = ft.compose(
+        tuple,
+        ft.curry(filter)(
+            ft.compose(ft.curry(op.eq)(schema.namespace),
+                       op.attrgetter('namespace'))
+        ),
+        ft.curry(filter)(None),
+        ft.curry(map)(
+            ft.partial(_load_with_includes,
+                       join_path, read, visited, package)
+        ),
+    )(schema.includes)
+
+    attributes = ft.compose(
+        frozenset,
+        it.concat,
+        ft.curry(map)(op.attrgetter('attributes')),
+        ft.curry(it.cons)(schema),
+    )(included_schema)
+
+    # pylint: disable=no-value-for-parameter
+    types: FrozenSet[s.TypeDeclaration]
+    types = ft.compose(
+        frozenset,
+        it.unique,
+        it.concat,
+        ft.curry(map)(op.attrgetter('types')),
+        ft.curry(it.cons)(schema),
+    )(included_schema)
+
+    schema = attr.evolve(
+        schema,
+        includes=frozenset(),
+        attributes=attributes,
+        types=types
+    )
+
+    return schema
+
+
+def load_from_file(
+        fpath: Union[pathlib.Path, str],
+) -> s.Schema:
+
+    if not isinstance(fpath, pathlib.Path):
+        fpath = pathlib.Path(fpath)
+
+    logger.debug('Loading schema from %s', fpath)
+
+    schema = _load_with_includes(
+        lambda p, r: str(p / r),
+        lambda p, r: (p / r).read_text(),
+        frozenset(),
+        fpath.parent,
+        fpath.name,
+    )
+
+    assert schema
+
+    return schema
+
+
+def load_from_directory(
+        path: Union[pathlib.Path, str],
+        suffix: str = '.fbs'
+) -> Iterator[s.Schema]:
+
+    if not isinstance(path, pathlib.Path):
+        path = pathlib.Path(path)
+
+    return map(
+        load_from_file,
+        path.glob(f'*{suffix}')
+    )
+
+
+def load_from_package(
+        package: str,
+        suffix: str = '.fbs'
+) -> Iterator[s.Schema]:
+    raise NotImplementedError

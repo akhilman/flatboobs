@@ -11,7 +11,7 @@ import attr
 import toolz.functoolz as ft
 
 import flatboobs.abc as abc
-from flatboobs import logging, schema
+from flatboobs import logging, schema, parser
 from flatboobs.constants import PYTYPE_MAP, SCALAR_TYPES, BasicType
 from flatboobs.typing import TemplateId, UOffset
 
@@ -56,7 +56,6 @@ def _load_backend(
     return backend()
 
 
-
 @attr.s(auto_attribs=True)
 class Registry:
 
@@ -89,20 +88,20 @@ class Registry:
             source: str,
             schema_file: Optional[str] = None,
     ) -> None:
-        self.add_types(schema.load_from_string(source, schema_file))
+        self.add_types(parser.load_from_string(source, schema_file))
 
     def load_schema_from_file(
             self: 'Registry',
             fpath: Union[pathlib.Path, str],
     ) -> None:
-        self.add_types(schema.load_from_file(fpath))
+        self.add_types(parser.load_from_file(fpath))
 
     def load_schema_from_directory(
             self: 'Registry',
             path: Union[pathlib.Path, str],
             suffix: str = '.fbs'
     ) -> None:
-        for schema_ in schema.load_from_directory(path, suffix):
+        for schema_ in parser.load_from_directory(path, suffix):
             self.add_types(schema_)
 
     def load_schema_from_package(
@@ -110,7 +109,7 @@ class Registry:
             package: str,
             suffix: str = '.fbs'
     ) -> None:
-        for schema_ in schema.load_from_package(package, suffix):
+        for schema_ in parser.load_from_package(package, suffix):
             self.add_types(schema_)
 
     def _type_map(

@@ -7,6 +7,7 @@ from .template import Template
 
 _TT = TypeVar('_TT', bound=Template)
 
+
 class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
     # pylint: disable=too-few-public-methods
     template: _TT

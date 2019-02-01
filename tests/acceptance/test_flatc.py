@@ -1,4 +1,4 @@
-from flatboobs.utils.flatc import flatc_packb, flatc_unpackb
+from flatc import flatc_packb, flatc_unpackb
 
 SCHEMA = """
 namespace flatboobs.test;

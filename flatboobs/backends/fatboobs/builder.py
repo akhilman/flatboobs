@@ -1,11 +1,9 @@
 # pylint: disable=missing-docstring
 
-import operator as op
 import struct
 from functools import reduce
-from typing import Dict, Mapping, Optional, Tuple, Union
+from typing import Dict, Mapping, Optional, Tuple
 
-import attr
 import toolz.functoolz as ft
 import toolz.itertoolz as it
 from multipledispatch import Dispatcher
@@ -20,28 +18,16 @@ from flatboobs.typing import UOffset, USize
 
 from .container import Container
 
-Content = Union[Container, str]
 
+# Callable[[Container], Generator[Container, None, None]]
+flatten = Dispatcher(f'{__name__}.flatten')  # pylint: disable=invalid-name
 
-@attr.s(auto_attribs=True)
-class Block:
-    content: Content
-    hash: int = attr.ib(attr.Factory(
-        lambda self: hash(self.content),
-        takes_self=True
-    ), init=False)
-    size: int = 0
+# Callable[[USize, Container], USize]
+calc_size = Dispatcher(f'{__name__}.calc_size')  # pylint: disable=invalid-name
 
-
-# Callable[[Content], Generator[Content, None, None]]
-flatten = Dispatcher(f'{__name__}.flatten')  # pylint: disable=infalid-name
-
-# Callable[[USize, Content], USize]
-calc_size = Dispatcher(f'{__name__}.calc_size')  # pylint: disable=infalid-name
-
-# Callable[[bytearray, UOffset, Mapping[int, UOffset], Content],
+# Callable[[bytearray, UOffset, Mapping[int, UOffset], Container],
 #          Tuple[UOffset, UOffset]]
-write = Dispatcher(f'{__name__}.write')  # pylint: disable=infalid-name
+write = Dispatcher(f'{__name__}.write')  # pylint: disable=invalid-name
 
 
 @calc_size.register(int, str)
@@ -75,9 +61,9 @@ def write_header(
     else:
         ident = b''
 
-    print(ident, type(ident))
-    print('cursor', len(buffer) - cursor)
-    print('root_offset', root_offset, len(buffer) - root_offset)
+    # print(ident, type(ident))
+    # print('cursor', len(buffer) - cursor)
+    # print('root_offset', root_offset, len(buffer) - root_offset)
 
     struct.pack_into(
         f'{UOFFSET_FMT}{FILE_IDENTIFIER_LENGTH}s',
@@ -92,16 +78,11 @@ def build(content: Container) -> bytes:
 
     blocks = ft.compose(
         list,
-        ft.curry(it.unique)(key=op.attrgetter('hash')),
-        ft.curry(map)(Block),
+        it.unique,
         flatten,
     )(content)
 
-    size: USize = reduce(
-        calc_size,
-        map(op.attrgetter('content'), blocks),
-        0
-    )
+    size: USize = reduce(calc_size, blocks, 0)
     size += FILE_IDENTIFIER_LENGTH
     size += -size % UOFFSET_SIZE
     size += UOFFSET_SIZE
@@ -112,19 +93,18 @@ def build(content: Container) -> bytes:
     cursor: UOffset = 0
     for block in blocks:
         cursor, offset = write(
-            buffer, cursor, offset_map, block.content)
-        offset_map[block.hash] = offset
+            buffer, cursor, offset_map, block)
+        offset_map[hash(block)] = offset
         cursor += 1
 
-    print('free space', len(buffer) - cursor)
     cursor = len(buffer)
 
     root_block = blocks[-1]
-    if isinstance(root_block.content, Container):
-        file_identifier = root_block.content.template.schema.file_identifier
+    if isinstance(root_block, Container):
+        file_identifier = root_block.template.schema.file_identifier
     else:
         file_identifier = None
     write_header(
-        buffer, offset_map[root_block.hash], file_identifier, cursor)
+        buffer, offset_map[hash(root_block)], file_identifier, cursor)
 
     return buffer

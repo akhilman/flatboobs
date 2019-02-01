@@ -1,3 +1,4 @@
+# pylint: disable=missing-docstring
 import enum
 import struct
 from typing import Dict, FrozenSet, Optional

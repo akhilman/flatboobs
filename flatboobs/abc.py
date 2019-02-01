@@ -54,7 +54,7 @@ class Container(Generic[_CT, _ST], ABC):
 
     @property
     @abstractmethod
-    def Enums(self: 'Container') -> Mapping[str, enum.Enum]:
+    def enums(self: 'Container') -> Mapping[str, enum.Enum]:
         pass
 
     @property

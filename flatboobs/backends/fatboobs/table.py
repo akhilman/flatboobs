@@ -5,6 +5,7 @@ import enum
 import itertools
 import operator as op
 import struct
+import weakref
 from typing import (
     Any,
     Generator,
@@ -40,9 +41,8 @@ from flatboobs.constants import (
     VSIZE_SIZE,
     BasicType
 )
-from flatboobs.typing import Integer, Scalar, TemplateId, UOffset, USize, VSize
+from flatboobs.typing import Integer, Scalar, TemplateId, UOffset, USize
 
-from . import backend as b  # pylint: disable=unused-import
 from . import builder, reader
 from .container import Container
 from .template import Template
@@ -92,19 +92,17 @@ class UnionFieldTemplate(FieldTemplate):
 @attr.s(auto_attribs=True, slots=True)
 class TableTemplate(Template[flatboobs.schema.Table], abc.TableTemplate):
 
-    backend: 'b.FatBoobs'
+    backend: Any = attr.ib(converter=weakref.proxy)
     id: abc.TemplateId
     schema: flatboobs.schema.Table
 
     fields: List[FieldTemplate] = attr.ib(factory=list, init=False)
-    vtable_size: VSize = attr.ib(0, init=False)
-
-    finished: bool = attr.ib(False, init=False)
-
-    _field_count: Iterator[int] = attr.ib(
-        factory=lambda: itertools.count(0),
+    field_count: int = attr.ib(0, init=False)
+    _field_counter: Iterator[int] = attr.ib(  # type: ignore
+        factory=itertools.count,
         hash=False, init=False, repr=False
     )
+
     field_map: Mapping[str, FieldTemplate] = cast(
         Mapping[str, FieldTemplate],
         attr.ib(
@@ -112,18 +110,19 @@ class TableTemplate(Template[flatboobs.schema.Table], abc.TableTemplate):
             hash=False, init=False, repr=False
         )
     )
+    finished: bool = attr.ib(False, init=False)
 
     def add_depreacated_field(self: 'TableTemplate') -> None:
-        next(self._field_count)
+        next(self._field_counter)
 
     def add_scalar_field(
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
             value_type: BasicType,
-            default: Union[abc.Number, bool],
+            default: Scalar,
     ) -> None:
-        index = next(self._field_count)
+        index = next(self._field_counter)
         field = ScalarFieldTemplate(
             index, name, is_vector, value_type, default)
         self.fields.append(field)
@@ -170,7 +169,7 @@ class TableTemplate(Template[flatboobs.schema.Table], abc.TableTemplate):
     def finish(self: 'TableTemplate') -> TemplateId:
         super().finish()
         self.field_map = {f.name: f for f in self.fields}
-        self.vtable_size = next(self._field_count)
+        self.field_count = next(self._field_counter)
         return self.id
 
 
@@ -192,7 +191,7 @@ class Table(Container[TableTemplate], abc.Table):
             self.vtable = reader.read_vtable(self.buffer, self.offset)
 
     @property
-    def Enums(
+    def enums(
             self: 'Table'
     ) -> Mapping[str, enum.IntEnum]:
         raise NotImplementedError
@@ -291,9 +290,9 @@ def read_scalar_field(
 @builder.flatten.register(Table)
 def flatten_table(
         table: Table
-) -> Generator[Union[Container, str], None, None]:
+) -> Generator[Container, None, None]:
     for value in table.values():
-        if isinstance(value, (Container, str)):
+        if isinstance(value, Container):
             yield from builder.flatten(value)
 
     yield table
@@ -359,7 +358,7 @@ def calc_table_size(
 
     size += -size % UOFFSET_SIZE
     size += UOFFSET_SIZE
-    size += table.template.vtable_size * VOFFSET_SIZE + 2 * VSIZE_SIZE
+    size += table.template.field_count * VOFFSET_SIZE + 2 * VSIZE_SIZE
 
     return size
 
@@ -374,12 +373,13 @@ def write_table(
     # pylint: disable=unused-argument
     # pylint: disable=too-many-locals  # TODO split to smaller functions?
 
+    field_map = table.template.field_map
     body_values = {k: v for k, v in table.items()
-                   if v != table.template.field_map[k].default}
+                   if v != field_map[k].default}
     keys = list(body_values.keys())
-    size_map = {k: field_size(table, table.template.field_map[k])
+    size_map = {k: field_size(table, field_map[k])
                 for k in keys}
-    format_map = {k: field_format(table, table.template.field_map[k])
+    format_map = {k: field_format(table, field_map[k])
                   for k in keys}
 
     # Fill space between table's UOffset and first largest value
@@ -398,24 +398,27 @@ def write_table(
     pad_right = -(body_size+cursor) % SOFFSET_SIZE
 
     print('keys', keys)
-    print('sizes', [size_map[k] for k in keys])
-    print('formats', [format_map[k] for k in keys])
-    print('pad_left', pad_left, 'pad_right', pad_right)
+    # print('sizes', [size_map[k] for k in keys])
+    # print('formats', [format_map[k] for k in keys])
+    # print('pad_left', pad_left, 'pad_right', pad_right)
 
-    vtable_size = VSIZE_SIZE * 2 + VOFFSET_SIZE * table.template.vtable_size
+    # field_count = table.template.field_count
+    field_count = max(map(lambda x: field_map[x].index, keys)) + 1
+    vtable_size = VSIZE_SIZE * 2 + VOFFSET_SIZE * field_count
 
-    fmt = ''.join((
+    composed_format = ''.join((
         '<',
         VSIZE_FMT * 2,
-        VOFFSET_FMT * table.template.vtable_size,
+        VOFFSET_FMT * field_count,
         SOFFSET_FMT,
         'x'*pad_left,
         *(format_map[k] for k in keys),
         'x'*pad_right,
     ))
+    print(composed_format)
 
     vtable_offsets = dict(zip(
-        map(lambda k: table.template.field_map[k].index, keys),
+        map(lambda k: field_map[k].index, keys),
         ft.compose(
             ft.curry(it.accumulate)(op.add),
             ft.curry(it.cons)(pad_left+SOFFSET_SIZE),
@@ -423,24 +426,19 @@ def write_table(
         )(keys)
     ))
 
-    vtable = ft.compose(
-        list,
-        ft.curry(it.cons)(vtable_size),
-        ft.curry(it.cons)(SOFFSET_SIZE + pad_left + body_size),
-        ft.curry(map)(lambda n: vtable_offsets.get(n, 0)),
-        range
-    )(table.template.vtable_size)
+    vtable = map(lambda n: vtable_offsets.get(n, 0), range(field_count))
 
     offset = cursor + pad_right + body_size + pad_left + SOFFSET_SIZE
     cursor = offset + vtable_size
 
     struct.pack_into(
-        fmt,
+        composed_format,
         buffer,
         len(buffer) - cursor,
-        *vtable, vtable_size, *(body_values[k] for k in keys)
+        vtable_size, SOFFSET_SIZE + pad_left + body_size, *vtable,
+        vtable_size, *(body_values[k] for k in keys)
     )
 
-    print(cursor, offset)
+    # print(cursor, offset)
 
     return cursor, offset
