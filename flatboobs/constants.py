@@ -1,8 +1,11 @@
 # pylint: disable=missing-docstring
+
+import collections
 import enum
 import struct
-from typing import Dict, FrozenSet, Optional
-from flatboobs.typing import UOffset, SOffset, VOffset, USize, VSize
+from typing import Dict, FrozenSet
+
+from flatboobs.typing import SOffset, UOffset, USize, VOffset, VSize
 
 FILE_IDENTIFIER_LENGTH = USize(4)
 UOFFSET_FMT = 'I'
@@ -15,93 +18,130 @@ SOFFSET_SIZE = SOffset(struct.calcsize(SOFFSET_FMT))
 VOFFSET_SIZE = VOffset(struct.calcsize(VOFFSET_FMT))
 USIZE_SIZE = USize(struct.calcsize(USIZE_FMT))
 VSIZE_SIZE = VSize(struct.calcsize(VSIZE_FMT))
-INT32_MAX = 0x7FFFFFFF
 
 
 # TODO write tests for this constants / conversion
-class BasicType(enum.IntEnum):
-    VOID = 0
+class BaseType(enum.IntEnum):
+
+    NULL = 0
+
     BOOL = enum.auto()
+
     INT8 = enum.auto()
-    UINT8 = enum.auto()
     INT16 = enum.auto()
-    UINT16 = enum.auto()
     INT32 = enum.auto()
-    UINT32 = enum.auto()
     INT64 = enum.auto()
+
+    UINT8 = enum.auto()
+    UINT16 = enum.auto()
+    UINT32 = enum.auto()
     UINT64 = enum.auto()
+
     FLOAT32 = enum.auto()
     FLOAT64 = enum.auto()
-    BYTE = INT8
-    UBYTE = UINT8
-    SHORT = INT16
-    USHORT = UINT16
-    INT = INT32
-    UINT = UINT32
-    LONG = INT64
-    ULONG = UINT64
-    FLOAT = FLOAT32
-    DOUBLE = FLOAT64
+
     STRING = enum.auto()
     STRUCT = enum.auto()
     TABLE = enum.auto()
     UNION = enum.auto()
 
+    BYTE = INT8
+    SHORT = INT16
+    INT = INT32
+    LONG = INT64
 
-SCALAR_TYPES: FrozenSet[BasicType] = frozenset({
-    BasicType.INT8, BasicType.INT16,
-    BasicType.INT32, BasicType.INT64,
-    BasicType.UINT8, BasicType.UINT16,
-    BasicType.UINT32, BasicType.UINT64,
-    BasicType.FLOAT32, BasicType.FLOAT64,
-    BasicType.BOOL,
+    UBYTE = UINT8
+    USHORT = UINT16
+    UINT = UINT32
+    ULONG = UINT64
+
+    FLOAT = FLOAT32
+    DOUBLE = FLOAT64
+
+
+SIGNED_INTEGER_TYPES: FrozenSet[BaseType] = frozenset({
+    BaseType.INT8, BaseType.INT16,
+    BaseType.INT32, BaseType.INT64,
 })
 
-STRING_TO_TYPE_MAP: Dict[str, BasicType] = {
-    k.lower(): v for k, v in BasicType.__members__.items()
-    if v not in [BasicType.STRUCT, BasicType.TABLE,
-                 BasicType.UNION, BasicType.VOID]
+UNSIGNED_INTEGER_TYPES: FrozenSet[BaseType] = frozenset({
+    BaseType.UINT8, BaseType.UINT16,
+    BaseType.UINT32, BaseType.UINT64,
+})
+
+INTEGER_TYPES: FrozenSet[BaseType] = (
+    SIGNED_INTEGER_TYPES
+    | UNSIGNED_INTEGER_TYPES
+)
+
+FLOAT_TYPES: FrozenSet[BaseType] = frozenset({
+    BaseType.FLOAT32, BaseType.FLOAT64,
+})
+
+SCALAR_TYPES: FrozenSet[BaseType] = (
+    INTEGER_TYPES
+    | FLOAT_TYPES
+    | {BaseType.BOOL}
+)
+
+STRING_TO_TYPE_MAP: Dict[str, BaseType] = {
+    k.lower(): v for k, v in BaseType.__members__.items()
+    if v in SCALAR_TYPES | {BaseType.STRING}
 }
 
+FORMAT_MAP: Dict[BaseType, str] = {
 
-FORMAT_MAP: Dict[BasicType, str] = {
-    BasicType.VOID: 'P',
-    BasicType.BOOL: '?',
-    BasicType.INT8: 'b',
-    BasicType.UINT8: 'B',
-    BasicType.INT16: 'h',
-    BasicType.UINT16: 'H',
-    BasicType.INT32: 'i',
-    BasicType.UINT32: 'I',
-    BasicType.INT64: 'q',
-    BasicType.UINT64: 'Q',
-    BasicType.FLOAT32: 'f',
-    BasicType.FLOAT64: 'd',
-    BasicType.STRING: UOFFSET_FMT,
-    BasicType.STRUCT: UOFFSET_FMT,
-    BasicType.TABLE: UOFFSET_FMT,
-    BasicType.UNION: 'B',
+    BaseType.BOOL: '?',
+
+    BaseType.INT8: 'b',
+    BaseType.UINT8: 'B',
+    BaseType.INT16: 'h',
+    BaseType.UINT16: 'H',
+    BaseType.INT32: 'i',
+    BaseType.UINT32: 'I',
+    BaseType.INT64: 'q',
+    BaseType.UINT64: 'Q',
+
+    BaseType.FLOAT32: 'f',
+    BaseType.FLOAT64: 'd',
+
+    BaseType.STRING: UOFFSET_FMT,
+    BaseType.STRUCT: UOFFSET_FMT,
+    BaseType.TABLE: UOFFSET_FMT,
 }
 
-NBYTES_MAP: Dict[BasicType, USize] = {
+NBYTES_MAP: Dict[BaseType, USize] = {
     k: USize(struct.calcsize(v)) for k, v in FORMAT_MAP.items()
 }
 
-PYTYPE_MAP: Dict[BasicType, Optional[type]] = {
-    BasicType.VOID: None,
-    BasicType.BOOL: bool,
-    BasicType.INT8: int,
-    BasicType.UINT8: int,
-    BasicType.INT16: int,
-    BasicType.UINT16: int,
-    BasicType.INT32: int,
-    BasicType.UINT32: int,
-    BasicType.INT64: int,
-    BasicType.UINT64: int,
-    BasicType.FLOAT32: float,
-    BasicType.FLOAT64: float,
-    BasicType.STRING: str,
-    BasicType.STRUCT: None,
-    BasicType.TABLE: None,
-    BasicType.UNION: None,
+
+_IntLimits = collections.namedtuple('_IntLimits', ('min', 'max'))
+
+INTEGER_LIMITS: Dict[BaseType, _IntLimits] = {
+
+    BaseType.INT8: _IntLimits(-0x80, 0x7F),
+    BaseType.INT16: _IntLimits(-0x8000, 0x7FFF),
+    BaseType.INT32: _IntLimits(-0x80000000, 0x7FFFFFFF),
+    BaseType.INT64: _IntLimits(-0x8000000000000000, 0x7FFFFFFFFFFFFFFF),
+
+    BaseType.UINT8: _IntLimits(0, 0xFF),
+    BaseType.UINT16: _IntLimits(0, 0xFFFF),
+    BaseType.UINT32: _IntLimits(0, 0xFFFFFFFF),
+    BaseType.UINT64: _IntLimits(0, 0xFFFFFFFFFFFFFFFF),
+}
+
+
+PYTYPE_MAP: Dict[BaseType, type] = {
+    BaseType.BOOL: bool,
+    BaseType.INT8: int,
+    BaseType.UINT8: int,
+    BaseType.INT16: int,
+    BaseType.UINT16: int,
+    BaseType.INT32: int,
+    BaseType.UINT32: int,
+    BaseType.INT64: int,
+    BaseType.UINT64: int,
+    BaseType.FLOAT32: float,
+    BaseType.FLOAT64: float,
+    BaseType.STRING: str,
 }

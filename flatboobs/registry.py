@@ -5,14 +5,20 @@ Registry class is main access point for flatboobs functionality
 import collections
 import importlib
 import pathlib
-from typing import Any, Dict, Iterable, Optional, Set, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Set, Union
 
 import attr
 import toolz.functoolz as ft
 
 import flatboobs.abc as abc
-from flatboobs import logging, schema, parser
-from flatboobs.constants import PYTYPE_MAP, SCALAR_TYPES, BasicType
+from flatboobs import logging, parser, schema
+from flatboobs.constants import (
+    INTEGER_TYPES,
+    PYTYPE_MAP,
+    SCALAR_TYPES,
+    STRING_TO_TYPE_MAP,
+    BaseType
+)
 from flatboobs.typing import TemplateId, UOffset
 
 # pylint: disable=missing-docstring  # TODO write docstrings
@@ -170,10 +176,13 @@ class Registry:
     ) -> abc.TemplateId:
 
         bit_flags = 'bit_flags' in type_decl.metadata_map
-        type_map = self._type_map(type_decl.namespace)
-        value_type = schema.type_by_name(type_map, type_decl.type)
+        value_type = STRING_TO_TYPE_MAP.get(type_decl.type, BaseType.NULL)
 
-        assert isinstance(value_type, BasicType)
+        if value_type not in INTEGER_TYPES:
+            raise TypeError(
+                'Enum value type should be one of '
+                f'{INTEGER_TYPES}, but {value_type or type_decl.type} is given'
+            )
 
         template = self.backend.new_enum_template(
             type_decl, value_type, bit_flags)
@@ -189,6 +198,56 @@ class Registry:
 
         return template.finish()
 
+    @staticmethod
+    def _add_base_template_member(
+            adder: Callable[..., None],
+            member_type,
+            default: Any = UNDEFINED,
+    ) -> None:
+        if member_type in SCALAR_TYPES:
+            fun = ft.partial(adder, 'scalar', member_type)
+            if default is not UNDEFINED:
+                pytype = PYTYPE_MAP[member_type]
+                default = pytype(default) if default else pytype()
+                fun(default)
+            else:
+                fun()
+        elif member_type == BaseType.STRING:
+            adder('string')
+        else:
+            raise RuntimeError('We should not be here')
+
+    @staticmethod
+    def _add_reference_template_member(
+            adder: Callable[..., None],
+            member_type_decl: schema.TypeDeclaration,
+            member_template_id: TemplateId,
+            default: Any = UNDEFINED,
+    ) -> None:
+        if isinstance(member_type_decl, schema.Struct):
+            adder('struct', member_template_id)
+        elif isinstance(member_type_decl, schema.Table):
+            adder('table', member_template_id)
+        elif isinstance(member_type_decl, schema.Union):
+            adder('union', member_template_id)
+        elif isinstance(member_type_decl, schema.Enum):
+            fun = ft.partial(adder, 'enum', member_template_id)
+            if default is not UNDEFINED:
+                if not default:
+                    if 'bit_flags' in member_type_decl.metadata_map:
+                        default = 0
+                    else:
+                        default = member_type_decl.members[0].value
+                elif isinstance(default, str):
+                    default = member_type_decl.members_map[default]
+                else:
+                    default = int(default)
+                fun(default)
+            else:
+                fun()
+        else:
+            raise RuntimeError('We should not be here')
+
     def _add_template_member(
             # pylint: disable=too-many-arguments
             self: 'Registry',
@@ -197,58 +256,31 @@ class Registry:
             method_suffix: str,
             type_name: str,
             pre_args: Iterable[Any],
-            default=UNDEFINED,
+            default: Any = UNDEFINED,
     ) -> None:
 
         # pylint: disable=too-many-branches
-
-        type_map = self._type_map(namespace)
-
-        member_type = schema.type_by_name(type_map, type_name)
 
         def adder(type_, *args):
             meth = getattr(template, f'add_{type_}{method_suffix}')
             meth(*pre_args, *args)
 
-        if isinstance(member_type, (
-                schema.Struct, schema.Table, schema.Enum, schema.Union
-        )):
-            member_template_id = self._get_add_template(member_type)
-        else:
-            member_template_id = TemplateId(-1)
+        if type_name in STRING_TO_TYPE_MAP:
+            member_type: BaseType
+            member_type = STRING_TO_TYPE_MAP[type_name]
+            self._add_base_template_member(adder, member_type, default)
+            return
 
-        if member_type in SCALAR_TYPES:
-            fun = ft.partial(adder, 'scalar', member_type)
-            if default is not UNDEFINED:
-                # member_type here is always instance of BasicType
-                # because of all values in SCALAR_TYPES are BasicType instances
-                pytype = PYTYPE_MAP[member_type]  # type: ignore
-                fun(default and pytype(default) or pytype())  # type: ignore
-            else:
-                fun()
-        elif member_type == BasicType.STRING:
-            adder('string')
-        elif isinstance(member_type, schema.Struct):
-            adder('struct', member_template_id)
-        elif isinstance(member_type, schema.Table):
-            adder('table', member_template_id)
-        elif isinstance(member_type, schema.Union):
-            adder('union', member_template_id)
-        elif isinstance(member_type, schema.Enum):
-            fun = ft.partial(adder, 'enum', member_template_id)
-            if default is not UNDEFINED:
-                if not default:
-                    if 'bit_flags' in member_type.metadata_map:
-                        default = 0
-                    else:
-                        default = member_type.members[0].value
-                elif isinstance(default, str):
-                    default = member_type.members_map[default]
-                else:
-                    default = int(default)
-                fun(default)
-            else:
-                fun()
+        type_map = self._type_map(namespace)
+        if type_name in type_map:
+            member_type_decl: schema.TypeDeclaration
+            member_type_decl = type_map[type_name]
+            member_template_id = self._get_add_template(member_type_decl)
+            self._add_reference_template_member(
+                adder, member_type_decl, member_template_id, default)
+            return
+
+        raise TypeError(f'Unknown type "{type_name}"')
 
     def _add_struct_template(
             self: 'Registry',

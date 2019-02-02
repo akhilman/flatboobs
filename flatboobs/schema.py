@@ -2,15 +2,10 @@
 # pylint: disable=missing-docstring  # TODO add docstrings
 
 import collections
-import enum
-import operator as op
 import typing
 from types import MappingProxyType
 
 import attr
-from toolz import functoolz as ft
-
-from flatboobs.constants import STRING_TO_TYPE_MAP, BasicType
 
 MetadataMember = collections.namedtuple('MetadataMember', ('name', 'value'))
 EnumMember = collections.namedtuple('EnumMember', ('name', 'value'))
@@ -129,49 +124,3 @@ class Schema(typing.Mapping[str, TypeDeclaration]):
 
     def __len__(self: 'Schema') -> int:
         return len(self.type_map)
-
-
-def type_by_name(
-        known_types: typing.Union[typing.Mapping[str, TypeDeclaration],
-                                  typing.Iterable[TypeDeclaration]],
-        name: str
-) -> typing.Union[TypeDeclaration, BasicType]:
-
-    type_map: typing.Mapping[str, TypeDeclaration]
-    type_decl: typing.Union[TypeDeclaration, BasicType]
-
-    if isinstance(known_types, collections.abc.Mapping):
-        type_map = known_types
-    else:
-        type_map = {x.name: x for x in known_types}
-
-    try:
-        type_decl = STRING_TO_TYPE_MAP[name]
-    except KeyError:
-        try:
-            type_decl = type_map[name]
-        except KeyError:
-            raise NameError(f'Can not resolve type {name}')
-
-    return type_decl
-
-
-# pylint plays bad with currying
-@ft.memoize(  # pylint: disable=no-value-for-parameter
-    key=lambda args, kwargs: '.'.join([args[0].namespace, args[0].name]))
-def make_enum(type_decl: Enum) -> typing.Union[enum.IntEnum, enum.IntFlag]:
-
-    # pylint: disable=invalid-name
-    EnumMeta: typing.Union[typing.Type[enum.IntEnum],
-                           typing.Type[enum.IntFlag]]
-
-    members = [(x.name, x.value) for x in type_decl.members]
-
-    if 'bit_flags' in type_decl.metadata_map:
-        EnumMeta = enum.IntFlag
-        members = [('None', 0)] + members + [
-            ('All', sum(map(op.attrgetter('value'), type_decl.members)))]
-    else:
-        EnumMeta = enum.IntEnum
-
-    return EnumMeta(type_decl.name, members)  # type: ignore

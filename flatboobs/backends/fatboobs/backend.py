@@ -4,7 +4,7 @@ import itertools
 from typing import Any, Dict, Iterator, Mapping, Optional, Type, TypeVar
 
 from flatboobs import abc, schema
-from flatboobs.constants import BasicType
+from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
 
 from . import reader, table
@@ -57,7 +57,7 @@ class FatBoobs(abc.Backend):
     def new_enum_template(
             self: 'FatBoobs',
             type_decl: schema.Enum,
-            value_type: BasicType,
+            value_type: BaseType,
             bit_flags: bool
     ) -> abc.EnumTemplate:
         raise NotImplementedError

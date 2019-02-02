@@ -18,7 +18,7 @@ from typing import (
 import numpy as np
 
 import flatboobs.schema
-from flatboobs.constants import BasicType
+from flatboobs.constants import BaseType
 from flatboobs.typing import Number, Scalar, TemplateId, UOffset
 
 # pylint: disable=abstract-method
@@ -162,7 +162,7 @@ class StructTemplate(Template[flatboobs.schema.Struct]):
             self: 'StructTemplate',
             name: str,
             is_vector: bool,
-            value_type: BasicType,
+            value_type: BaseType,
             default: Scalar,
     ) -> None:
         pass
@@ -181,7 +181,7 @@ class TableTemplate(Template[flatboobs.schema.Table]):
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
-            value_type: BasicType,
+            value_type: BaseType,
             default: Scalar,
     ) -> None:
         pass
@@ -286,7 +286,7 @@ class Backend(ABC):
     def new_enum_template(
             self: 'Backend',
             type_decl: flatboobs.schema.Enum,
-            value_type: BasicType,
+            value_type: BaseType,
             bit_flags: bool,
     ) -> EnumTemplate:
         pass

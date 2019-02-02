@@ -39,7 +39,7 @@ from flatboobs.constants import (
     VOFFSET_SIZE,
     VSIZE_FMT,
     VSIZE_SIZE,
-    BasicType
+    BaseType
 )
 from flatboobs.typing import Integer, Scalar, TemplateId, UOffset, USize
 
@@ -57,7 +57,7 @@ class FieldTemplate:
     index: int
     name: str
     is_vector: bool
-    value_type: BasicType
+    value_type: BaseType
     default: Any
 
 
@@ -73,19 +73,19 @@ class EnumFieldTemplate(FieldTemplate):
 
 @attr.s(auto_attribs=True, slots=True)
 class PointerFieldTemplate(FieldTemplate):
-    value_type: BasicType
+    value_type: BaseType
     default: None = None
 
 
 @attr.s(auto_attribs=True, slots=True)
 class StringFieldTemplate(FieldTemplate):
-    value_type: BasicType = attr.ib(BasicType.STRING, init=False)
+    value_type: BaseType = attr.ib(BaseType.STRING, init=False)
     default: None = None
 
 
 @attr.s(auto_attribs=True, slots=True)
 class UnionFieldTemplate(FieldTemplate):
-    value_type: BasicType = attr.ib(BasicType.UNION, init=False)
+    value_type: BaseType = attr.ib(BaseType.UNION, init=False)
     default: None = None
 
 
@@ -119,7 +119,7 @@ class TableTemplate(Template[flatboobs.schema.Table], abc.TableTemplate):
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
-            value_type: BasicType,
+            value_type: BaseType,
             default: Scalar,
     ) -> None:
         index = next(self._field_counter)
