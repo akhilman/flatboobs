@@ -45,6 +45,8 @@ class BaseType(enum.IntEnum):
     TABLE = enum.auto()
     UNION = enum.auto()
 
+    VOID = enum.auto()
+
     BYTE = INT8
     SHORT = INT16
     INT = INT32
@@ -84,9 +86,9 @@ SCALAR_TYPES: FrozenSet[BaseType] = (
     | {BaseType.BOOL}
 )
 
-STRING_TO_TYPE_MAP: Dict[str, BaseType] = {
+STRING_TO_SCALAR_TYPE_MAP: Dict[str, BaseType] = {
     k.lower(): v for k, v in BaseType.__members__.items()
-    if v in SCALAR_TYPES | {BaseType.STRING}
+    if v in SCALAR_TYPES
 }
 
 FORMAT_MAP: Dict[BaseType, str] = {

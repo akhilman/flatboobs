@@ -32,7 +32,7 @@ class TypeDeclaration(DeclarationWithMetadata):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Enum(TypeDeclaration):
+class _BaseEnum(TypeDeclaration):
     type: str = 'byte'
     members: typing.Sequence[EnumMember] = tuple()
     members_map: typing.Mapping[str, EnumMember] = attr.ib(
@@ -42,11 +42,15 @@ class Enum(TypeDeclaration):
         ),
         hash=False, init=False, repr=False
     )
+
+
+@attr.s(auto_attribs=True, frozen=True, slots=True)
+class Enum(_BaseEnum):
     default: typing.Optional[int] = None
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class Union(Enum):
+class Union(_BaseEnum):
     pass
 
 

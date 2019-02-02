@@ -234,38 +234,7 @@ class TableTemplate(Template[flatboobs.schema.Table]):
 class UnionTemplate(Template[flatboobs.schema.Union]):
 
     @abstractmethod
-    def add_scalar_member(
-            self: 'UnionTemplate',
-            variant_id: enum.IntEnum,
-            value_type,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_string_member(
-            self: 'UnionTemplate',
-            variant_id: enum.IntEnum,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_struct_member(
-            self: 'UnionTemplate',
-            variant_id: enum.IntEnum,
-            value_template: TemplateId,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_table_member(
-            self: 'UnionTemplate',
-            variant_id: enum.IntEnum,
-            value_template: TemplateId,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_enum_member(
+    def add_member(
             self: 'UnionTemplate',
             variant_id: enum.IntEnum,
             value_template: TemplateId,
