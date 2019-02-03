@@ -5,7 +5,7 @@ import pathlib
 from typing import Any, Callable, FrozenSet, Iterator, Optional, Union
 
 import attr
-from parsy import regex, seq, string, success
+from parsy import ParseError, line_info_at, regex, seq, string, success
 from toolz import dicttoolz as dt
 from toolz import functoolz as ft
 from toolz import itertoolz as it
@@ -306,12 +306,26 @@ def _get_last_decl(declarations, key, default=None):
     )(declarations)
 
 
+def log_parse_error(
+        exc: ParseError,
+        schema_file: Optional[str] = None
+) -> None:
+    line_n, char_n = line_info_at(exc.stream, exc.index)
+    lines = exc.stream.split('\n')
+    error_msg = [f'Can not parse schema from "{schema_file}"']
+    error_msg.extend(lines[max(0, line_n-4):line_n+1])
+    error_msg.append(' ' * char_n + '^')
+    error_msg.append(str(exc))
+    logger.error('\n'.join(error_msg))
+
+
 def parse(source: str, schema_file: Optional[str] = None) -> s.Schema:
 
-    # from pprint import pprint
-    # pprint(SCHEMA.parse_partial(source))
-
-    parsed = SCHEMA.parse(source)
+    try:
+        parsed = SCHEMA.parse(source)
+    except ParseError as exc:
+        log_parse_error(exc)
+        raise
 
     declarations = parsed['declarations']
 
