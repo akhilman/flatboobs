@@ -428,22 +428,22 @@ class Registry:
             buffer: bytes,
             *,
             namespace: Optional[str] = None,
-            type_name: Optional[str] = None,
+            root_type: Optional[str] = None,
     ) -> abc.Container:
 
         header = self.backend.read_header(buffer)
 
-        if type_name:
-            type_decl = self._type_by_name(namespace, type_name)
+        if root_type:
+            root_type_decl = self._type_by_name(namespace, root_type)
         elif header.file_identifier:
-            type_decl = self._type_by_identifier(namespace,
-                                                 header.file_identifier)
+            root_type_decl = self._type_by_identifier(namespace,
+                                                      header.file_identifier)
         else:
             raise TypeError(
-                'Missing required type_name argument or file idenitifer.')
+                'Missing required root_type argument or file idenitifer.')
 
         return self._create_container(
-            type_decl,
+            root_type_decl,
             buffer,
             header.root_offset
         )
