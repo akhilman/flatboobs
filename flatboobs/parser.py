@@ -80,17 +80,23 @@ STRING_CONSTANT = (
         << string('"')
     )
 )
-SINGLE_VALUE = FLOAT_CONST | INTEGER_CONST | BOOL_CONST | STRING_CONSTANT
-VALUE = (
-    SINGLE_VALUE
-    # | OBJECT  # TODO add object tag
-    # | (
-    #     LBRACK
-    #     >> VALUE.sep_by(COMMA)  # TODO add value list recursion
-    #     << RBRACK
-    # )
-
+SINGLE_VALUE = (
+    FLOAT_CONST
+    | INTEGER_CONST
+    | BOOL_CONST
+    | STRING_CONSTANT
+    | IDENT
 )
+# VALUE = (
+#     SINGLE_VALUE
+#     | OBJECT  # TODO add object tag
+#     | (
+#         LBRACK
+#         >> VALUE.sep_by(COMMA)  # TODO add value list recursion
+#         << RBRACK
+#     )
+#
+# )
 TYPE = (
     seq(
         IDENT.tag('type'),
