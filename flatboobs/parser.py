@@ -233,9 +233,9 @@ def make_metadata(kwargs):
     )
 
 
-def make_enum_members(enum, start_value):
+def make_enum_members(members, start_value):
     next_value = start_value
-    for member in enum:
+    for member in members:
         if member['value'] is None:
             value = next_value
         else:
@@ -248,10 +248,8 @@ def make_enum_members(enum, start_value):
 
 
 def make_enum(kwargs, union=False):
-    if union or any(m['name'] == 'bit_flags' for m in kwargs['metadata']):
-        start_value = 1
-    else:
-        start_value = 0
+    bit_flags = any(m['name'] == 'bit_flags' for m in kwargs['metadata'])
+    start_value = 1 if union or bit_flags else 0
     kwargs = dt.assoc(kwargs, 'type', kwargs.get('type', 'byte'))
     return dt.assoc(
         kwargs, 'members', tuple(
