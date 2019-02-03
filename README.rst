@@ -1,30 +1,24 @@
 TODO
 -----
 
-- [ ] Make it work.
-   - [X] Parse schema file.
-   - [ ] Read messages.
-       - [X] Read tables.
-       - [ ] Read enums.
-       - [ ] Read structs.
-       - [ ] Read arrays of scalars.
-       - [ ] Read arrays of tables.
-       - [ ] Read arrasy of structs.
-       - [ ] Read unions.
-   - [ ] Write messages.
-       - [X] Write tables.
-       - [ ] Write enums.
-       - [ ] Write structs.
-       - [ ] Write arrays of scalars.
-       - [ ] Write arrays of tables.
-       - [ ] Write arrasy of structs.
-       - [ ] Write unions.
-- [ ] Tests.
-- [ ] Benchmarks.
+- [X] Parse schema file.
+- [ ] Unpack/pack types.
+   - [X] Table with scalar values.
+   - [ ] Enum.
+   - [ ] Union.
+   - [ ] Struct.
+   - [ ] Vector of scalars.
+   - [ ] Vector of tables.
+   - [ ] Vector of structs.
 - [ ] Examples.
 - [ ] Documentation.
+- [ ] Schema validation.
+- [ ] 100% test coverage.
+- [ ] Benchmarks against Goolge's FlatBuffers implementation.
+- [ ] gRPC or own WebSocket based RPC.
 - [ ] C++ backend.
-- [ ] Test against original FlatBuffers implementation.
+- [ ] JSON schema (not decided).
+
 
 Template for defining Python modules
 -------------------------------------
