@@ -14,7 +14,7 @@ syntax: flake8 pylint mypy
 
 
 test:
-	pytest -sv
+	pytest -sv tests
 
 coverage:
 	pytest --cov-report term-missing --cov=flatboobs -sv tests/
