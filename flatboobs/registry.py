@@ -5,7 +5,7 @@ Registry class is main access point for flatboobs functionality
 import collections
 import importlib
 import pathlib
-from typing import Dict, Iterable, Optional, Set, Union
+from typing import Dict, Iterable, Optional, Set, Union, cast
 
 import attr
 import toolz.functoolz as ft
@@ -19,7 +19,7 @@ from flatboobs.constants import (
     STRING_TO_SCALAR_TYPE_MAP,
     BaseType
 )
-from flatboobs.typing import TemplateId, UOffset
+from flatboobs.typing import Scalar, TemplateId, UOffset
 
 # pylint: disable=missing-docstring  # TODO write docstrings
 
@@ -212,9 +212,8 @@ class Registry:
 
             pytype = PYTYPE_MAP[value_type]
 
-            if field.is_vector:
-                default = None
-            elif field.default is None:
+            default: Scalar
+            if field.default is None:
                 default = pytype()
             else:
                 default = pytype(field.default)
@@ -261,8 +260,8 @@ class Registry:
                         f'Unknown member "{default}" '
                         f'for enum {template.schema.name}'
                     ) from exc
-            else:
-                default = int(default)
+
+            default = int(cast(int, default))
 
             template.add_enum_field(
                 field.name,

@@ -15,11 +15,16 @@ from typing import (
     Union
 )
 
-import numpy as np
-
 import flatboobs.schema
 from flatboobs.constants import BaseType
-from flatboobs.typing import Number, Scalar, TemplateId, UOffset
+from flatboobs.typing import (
+    DType,
+    NDArray,
+    Number,
+    Scalar,
+    TemplateId,
+    UOffset
+)
 
 # pylint: disable=abstract-method
 # pylint: disable=too-few-public-methods
@@ -68,7 +73,13 @@ class Container(Generic[_CT, _ST], ABC):
 
 
 class _TableLike(Container[_CT, _ST], Mapping[str, Any]):
-    dtype: np.dtype
+
+    @property
+    @abstractmethod
+    def dtype(
+            self: '_TableLike',
+    ) -> DType:
+        pass
 
     @abstractmethod
     def evolve(
@@ -97,12 +108,18 @@ _IT = TypeVar(
 
 
 class _Vector(Container[_CT, _ST], Sequence[_IT]):
-    dtype: np.dtype
+
+    @property
+    @abstractmethod
+    def dtype(
+            self: '_Vector',
+    ) -> DType:
+        pass
 
     @abstractmethod
     def evolve(
             self: '_Vector',
-            arr: Union[Iterable[_IT], np.ndarray]
+            arr: Union[Iterable[_IT], NDArray]
     ) -> _CT:
         pass
 

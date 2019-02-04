@@ -20,7 +20,6 @@ from typing import (
 )
 
 import attr
-import numpy as np
 import toolz.dicttoolz as dt
 import toolz.functoolz as ft
 import toolz.itertoolz as it
@@ -41,7 +40,7 @@ from flatboobs.constants import (
     VSIZE_SIZE,
     BaseType
 )
-from flatboobs.typing import Integer, Scalar, TemplateId, UOffset, USize
+from flatboobs.typing import DType, Integer, Scalar, TemplateId, UOffset, USize
 
 from . import builder, reader
 from .container import Container
@@ -206,7 +205,7 @@ class Table(Container[TableTemplate], abc.Table):
     @property
     def dtype(
             self: 'Table'
-    ) -> np.dtype:
+    ) -> DType:
         raise NotImplementedError
 
     def __getitem__(

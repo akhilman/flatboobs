@@ -3,7 +3,7 @@ from codecs import open  # To use a consistent encoding
 from os import path
 
 # Always prefer setuptools over distutils
-from setuptools import (setup, find_packages)
+from setuptools import find_packages, setup
 
 here = path.abspath(path.dirname(__file__))
 install_requirements = [
@@ -22,10 +22,24 @@ install_requirements = [
     # Example where we ask for a ``fake`` library and block a specific version.
     # 'fake>=1.0.0, !1.1.0, <2.0.0a0'
 ]
+test_require = [
+    'pytest', 'pytest-mock', 'pytest-cov', 'codecov',
+    'flatbuffers'
+]
+develop_require = [
+    'flake8', 'pylint', 'mypy',
+    'numpy', 'numpy-stub',
+    *test_require
+]
 extras_require = {
-    'test': ['pytest', 'pytest-mock', 'pytest-cov', 'codecov', 'flatbuffers']
+    'test': test_require,
+    'develop': develop_require,
+    'numpy': 'numpy'
 }
 setup_requires = ['pytest-runner']
+dependency_links = [
+    'git+https://github.com/numpy/numpy-stubs.git#egg=numpy-stub',
+],
 
 # The following are meant to avoid accidental upload/registration of this
 # package in the Python Package Index (PyPi)
@@ -94,10 +108,11 @@ setup(name='flatboobs', version=__version__,
       install_requires=install_requirements,
       setup_requires=setup_requires,
       extras_require=extras_require,
+      dependency_links=dependency_links,
       keywords=['module', 'library'],
       url="https://github.com/akhilman/flatboobs",
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Topic :: Utilities",
-          "License :: OSI Approved :: BIT License",
+          "License :: OSI Approved :: MIT License",
       ])
