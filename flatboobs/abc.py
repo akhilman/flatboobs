@@ -253,7 +253,7 @@ class UnionTemplate(Template[flatboobs.schema.Union]):
     @abstractmethod
     def add_member(
             self: 'UnionTemplate',
-            variant_id: enum.IntEnum,
+            variant_id: int,
             value_template: TemplateId,
     ) -> None:
         pass

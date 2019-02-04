@@ -1,14 +1,20 @@
 # pylint: disable=too-few-public-methods
 # pylint: disable=missing-docstring  # TODO add docstrings
 
-import collections
 import typing
 from types import MappingProxyType
 
 import attr
 
-MetadataMember = collections.namedtuple('MetadataMember', ('name', 'value'))
-EnumMember = collections.namedtuple('EnumMember', ('name', 'value'))
+
+class MetadataMember(typing.NamedTuple):
+    name: str
+    value: typing.Any
+
+
+class EnumMember(typing.NamedTuple):
+    name: str
+    value: int
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)

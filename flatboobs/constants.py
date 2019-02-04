@@ -1,9 +1,8 @@
 # pylint: disable=missing-docstring
 
-import collections
 import enum
 import struct
-from typing import Dict, FrozenSet
+from typing import Dict, FrozenSet, NamedTuple
 
 from flatboobs.typing import SOffset, UOffset, USize, VOffset, VSize
 
@@ -117,7 +116,10 @@ NBYTES_MAP: Dict[BaseType, USize] = {
 }
 
 
-_IntLimits = collections.namedtuple('_IntLimits', ('min', 'max'))
+class _IntLimits(NamedTuple):
+    min: int
+    max: int
+
 
 INTEGER_LIMITS: Dict[BaseType, _IntLimits] = {
 
