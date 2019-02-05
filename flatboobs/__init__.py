@@ -1,7 +1,7 @@
 # pylint: disable=missing-docstring
 from flatboobs.about import __version__
 from flatboobs.registry import Registry
-from flatboobs.util import asnative
+from flatboobs.utils import asnative
 
 __all__ = [
     'Registry',

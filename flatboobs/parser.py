@@ -12,7 +12,7 @@ from toolz import itertoolz as it
 
 import flatboobs.schema as s
 from flatboobs import logging
-from flatboobs.util import applykw
+from flatboobs.utils import applykw
 
 WHITESPACE = regex(r'\s*')
 COMMENT = regex(r'\s*//.*\s*').many()
