@@ -9,7 +9,7 @@ import click
 
 import flatboobs.parser
 import flatboobs.schema
-from flatboobs import Registry, asdict, logging
+from flatboobs import Registry, asnative, logging
 
 
 @click.command(help="Unpack FlatBuffers message.")
@@ -78,7 +78,7 @@ def unpack(
     container = registry.unpackb(
         message, namespace=namespace, root_type=root_type)
 
-    dct = asdict(container)
+    dct = asnative(container)
 
     if output_format == 'json':
         import json
