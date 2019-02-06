@@ -40,8 +40,8 @@ class FatBoobs(abc.Backend):
         self._templates[template_id] = template  # type: ignore
         return template
 
+    @staticmethod
     def read_header(
-            self: 'FatBoobs',
             buffer: bytes
     ) -> abc.FileHeader:
         return reader.read_header(buffer)
