@@ -24,3 +24,10 @@ def asnative(something: Any) -> Any:
         return {k: asnative(v) for k, v in something.items()}
 
     return something
+
+
+def hexdump(buffer: bytes) -> str:
+    lines = list()
+    for n in range(0, len(buffer), 8):
+        lines.append(f'{n:02x}\t'+''.join(f'{x:02x} ' for x in buffer[n:n+8]))
+    return '\n'.join(lines)

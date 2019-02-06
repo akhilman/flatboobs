@@ -1,5 +1,6 @@
 import pytest
 
+from flatboobs.utils import hexdump
 from flatc import flatc_packb, flatc_unpackb
 
 
@@ -52,8 +53,7 @@ def test_unpack(schema_str, data, registry, tmp_path):
     buffer = flatc_packb(schema_str, data, tmp_path)
 
     print('size', len(buffer))
-    for n in range(0, len(buffer), 8):
-        print(f'{n:02d}\t', ''.join(f'{x:02x} ' for x in buffer[n:n+8]))
+    print(hexdump(buffer))
 
     table = registry.unpackb(buffer)
 
@@ -72,7 +72,6 @@ def test_unpack(schema_str, data, registry, tmp_path):
         assert res[1] == pytest.approx(ref[1])
 
 
-
 # @pytest.mark.skip(reason="TODO")
 def test_pack(schema_str, data, registry, tmp_path):
 
@@ -82,8 +81,7 @@ def test_pack(schema_str, data, registry, tmp_path):
     buffer = table.packb()
 
     print('size', len(buffer))
-    for n in range(0, len(buffer), 8):
-        print(f'{n:02d}\t', ''.join(f'{x:02x} ' for x in buffer[n:n+8]))
+    print(hexdump(buffer))
 
     res = flatc_unpackb(schema_str, buffer, tmp_path)
 
