@@ -92,7 +92,8 @@ class UnionFieldTemplate(FieldTemplate):
 @attr.s(auto_attribs=True, slots=True)
 class TableTemplate(Template[flatboobs.schema.Table], abc.TableTemplate):
 
-    backend: Any = attr.ib(converter=weakref.proxy)
+    backend: weakref.ProxyType = (  # type: ignore
+        attr.ib(converter=weakref.proxy))
     id: abc.TemplateId
     schema: flatboobs.schema.Table
 
