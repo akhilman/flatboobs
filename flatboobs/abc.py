@@ -15,7 +15,6 @@ from typing import (
     Union
 )
 
-import flatboobs.schema
 from flatboobs.constants import BaseType
 from flatboobs.typing import (
     DType,
@@ -45,26 +44,28 @@ _CT = TypeVar(
     'VectorOfTables',
     covariant=True
 )  # container type for `self`
-_ST = TypeVar(
-    '_ST',
-    flatboobs.schema.Enum,
-    flatboobs.schema.Struct,
-    flatboobs.schema.Table,
-    flatboobs.schema.Union,
-    None
-)  # type declaration schema type of container, None for numbers and strings
 
 
-class Container(Generic[_CT, _ST], ABC):
+class Container(Generic[_CT], ABC):
 
     @property
     @abstractmethod
-    def enums(self: 'Container') -> Mapping[str, enum.Enum]:
+    def namespace(self: 'Container') -> str:
         pass
 
     @property
     @abstractmethod
-    def schema(self: 'Container') -> _ST:
+    def type_name(self: 'Container') -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def file_identifier(self: 'Container') -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def enums(self: 'Container') -> Mapping[str, enum.Enum]:
         pass
 
     @abstractmethod
@@ -72,7 +73,7 @@ class Container(Generic[_CT, _ST], ABC):
         pass
 
 
-class _TableLike(Container[_CT, _ST], Mapping[str, Any]):
+class _TableLike(Container[_CT], Mapping[str, Any]):
 
     @property
     @abstractmethod
@@ -89,11 +90,11 @@ class _TableLike(Container[_CT, _ST], Mapping[str, Any]):
         pass
 
 
-class Table(_TableLike['Table', flatboobs.schema.Table]):
+class Table(_TableLike['Table']):
     pass
 
 
-class Struct(_TableLike['Struct', flatboobs.schema.Struct]):
+class Struct(_TableLike['Struct']):
     pass
 
 
@@ -107,7 +108,7 @@ _IT = TypeVar(
 )  # generic vector item
 
 
-class _Vector(Container[_CT, _ST], Sequence[_IT]):
+class _Vector(Container[_CT], Sequence[_IT]):
 
     @property
     @abstractmethod
@@ -124,20 +125,20 @@ class _Vector(Container[_CT, _ST], Sequence[_IT]):
         pass
 
 
-class VectorOfNumbers(_Vector['VectorOfNumbers', None, Number]):
+class VectorOfNumbers(_Vector['VectorOfNumbers', Number]):
     pass
 
 
-class VectorOfStrings(_Vector['VectorOfStrings', None, str]):
+class VectorOfStrings(_Vector['VectorOfStrings', str]):
     pass
 
 
 class VectorOfStructs(
-        _Vector['VectorOfStructs', flatboobs.schema.Struct, Struct]):
+        _Vector['VectorOfStructs', Struct]):
     pass
 
 
-class VectorOfTables(_Vector['VectorOfTables', flatboobs.schema.Table, Table]):
+class VectorOfTables(_Vector['VectorOfTables', Table]):
     pass
 
 
@@ -151,17 +152,19 @@ class FileHeader(ABC):
     file_identifier: str
 
 
-class Template(ABC, Generic[_ST]):
+class Template(ABC):
 
     id: TemplateId
-    schema: _ST
+    namespace: str
+    type_name: str
+    file_identifier: str  # empty string if no file identifier
 
     @abstractmethod
     def finish(self: 'Template') -> TemplateId:
         pass
 
 
-class EnumTemplate(Template[flatboobs.schema.Enum]):
+class EnumTemplate(Template):
 
     @abstractmethod
     def add_member(
@@ -172,7 +175,7 @@ class EnumTemplate(Template[flatboobs.schema.Enum]):
         pass
 
 
-class StructTemplate(Template[flatboobs.schema.Struct]):
+class StructTemplate(Template):
 
     @abstractmethod
     def add_scalar_field(
@@ -185,7 +188,7 @@ class StructTemplate(Template[flatboobs.schema.Struct]):
         pass
 
 
-class TableTemplate(Template[flatboobs.schema.Table]):
+class TableTemplate(Template):
 
     @abstractmethod
     def add_depreacated_field(
@@ -248,7 +251,7 @@ class TableTemplate(Template[flatboobs.schema.Table]):
         pass
 
 
-class UnionTemplate(Template[flatboobs.schema.Union]):
+class UnionTemplate(Template):
 
     @abstractmethod
     def add_member(
@@ -270,8 +273,11 @@ class Backend(ABC):
 
     @abstractmethod
     def new_enum_template(
+            # pylint: disable=too-many-arguments
             self: 'Backend',
-            type_decl: flatboobs.schema.Enum,
+            namespace: str,
+            type_name: str,
+            file_identifier: str,
             value_type: BaseType,
             bit_flags: bool,
     ) -> EnumTemplate:
@@ -280,28 +286,35 @@ class Backend(ABC):
     @abstractmethod
     def new_struct_template(
             self: 'Backend',
-            type_decl: flatboobs.schema.Struct,
+            namespace: str,
+            type_name: str,
+            file_identifier: str
     ) -> StructTemplate:
         pass
 
     @abstractmethod
     def new_table_template(
             self: 'Backend',
-            type_decl: flatboobs.schema.Table
+            namespace: str,
+            type_name: str,
+            file_identifier: str
     ) -> TableTemplate:
         pass
 
     @abstractmethod
     def new_union_template(
             self: 'Backend',
-            type_decl: flatboobs.schema.Union
+            namespace: str,
+            type_name: str,
+            file_identifier: str
     ) -> UnionTemplate:
         pass
 
     @abstractmethod
     def get_template_id(
             self: 'Backend',
-            type_decl: flatboobs.schema.TypeDeclaration
+            namespace: str,
+            type_name: str,
     ) -> TemplateId:
         """
         -1 if template not exist

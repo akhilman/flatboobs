@@ -3,7 +3,7 @@
 import itertools
 from typing import Any, Dict, Iterator, Mapping, Optional, Type, TypeVar
 
-from flatboobs import abc, schema
+from flatboobs import abc
 from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
 
@@ -22,20 +22,24 @@ class FatBoobs(abc.Backend):
         self._template_count: Iterator[TemplateId] = itertools.count()
 
     @staticmethod
-    def _template_key(type_decl: schema.TypeDeclaration) -> str:
-        return f'{type_decl.namespace}.{type_decl.name}'
+    def _template_key(namespace: str, type_name: str) -> str:
+        return f'{namespace}.{type_name}'
 
     def _new_template(
             self: 'FatBoobs',
             factory: Type[_TT],
-            type_decl: schema.TypeDeclaration,
+            namespace: str,
+            type_name: str,
+            file_identifier: str,
             *args,
             **kwargs
     ) -> _TT:
         template_id = next(self._template_count)
         template = factory(  # type: ignore
-            self, template_id, type_decl, *args, **kwargs)
-        key = self._template_key(type_decl)
+            self, template_id, namespace, type_name, file_identifier,
+            *args, **kwargs
+        )
+        key = self._template_key(namespace, type_name)
         self._template_ids[key] = template_id
         self._templates[template_id] = template  # type: ignore
         return template
@@ -48,15 +52,19 @@ class FatBoobs(abc.Backend):
 
     def get_template_id(
             self: 'FatBoobs',
-            type_decl: schema.TypeDeclaration
+            namespace: str,
+            type_name: str,
     ) -> TemplateId:
-        key = self._template_key(type_decl)
+        key = self._template_key(namespace, type_name)
         template_id = self._template_ids.get(key, TemplateId(-1))
         return template_id
 
     def new_enum_template(
+            # pylint: disable=too-many-arguments
             self: 'FatBoobs',
-            type_decl: schema.Enum,
+            namespace: str,
+            type_name: str,
+            file_identifier: str,
             value_type: BaseType,
             bit_flags: bool
     ) -> abc.EnumTemplate:
@@ -64,22 +72,30 @@ class FatBoobs(abc.Backend):
 
     def new_struct_template(
             self: 'FatBoobs',
-            type_decl: schema.Struct
+            namespace: str,
+            type_name: str,
+            file_identifier: str
     ) -> abc.StructTemplate:
         raise NotImplementedError
 
     def new_table_template(
             self: 'FatBoobs',
-            type_decl: schema.Table
+            namespace: str,
+            type_name: str,
+            file_identifier: str
     ) -> table.TableTemplate:
         return self._new_template(
             table.TableTemplate,
-            type_decl
+            namespace,
+            type_name,
+            file_identifier
         )
 
     def new_union_template(
             self: 'FatBoobs',
-            type_decl: schema.Union
+            namespace: str,
+            type_name: str,
+            file_identifier: str
     ) -> abc.UnionTemplate:
         raise NotImplementedError
 

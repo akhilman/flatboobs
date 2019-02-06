@@ -184,7 +184,10 @@ class Registry:
             )
 
         template = self.backend.new_enum_template(
-            type_decl, value_type, bit_flags)
+            type_decl.namespace, type_decl.name,
+            type_decl.file_identifier or '',
+            value_type, bit_flags
+        )
 
         if bit_flags:
             template.add_member('NONE', 0)
@@ -239,7 +242,7 @@ class Registry:
         if field.type not in type_map:
             raise TypeError(
                 f'Unknown type "{field.type}" for field "{field.name}" '
-                f'of "{template.schema.name}"'
+                f'of "{template.type_name}"'
             )
 
         value_type_decl = type_map[field.type]
@@ -302,7 +305,10 @@ class Registry:
     ) -> TemplateId:
 
         type_map = self._type_map(type_decl.namespace)
-        template = self.backend.new_struct_template(type_decl)
+        template = self.backend.new_struct_template(
+            type_decl.namespace, type_decl.name,
+            type_decl.file_identifier or ''
+        )
 
         for field in type_decl.fields:
 
@@ -332,7 +338,10 @@ class Registry:
     ) -> TemplateId:
 
         type_map = self._type_map(type_decl.namespace)
-        template = self.backend.new_table_template(type_decl)
+        template = self.backend.new_table_template(
+            type_decl.namespace, type_decl.name,
+            type_decl.file_identifier or ''
+        )
 
         # TODO чего будем с векторами делать?
         for field in type_decl.fields:
@@ -351,7 +360,10 @@ class Registry:
     ) -> TemplateId:
 
         type_map = self._type_map(type_decl.namespace)
-        template = self.backend.new_union_template(type_decl)
+        template = self.backend.new_union_template(
+            type_decl.namespace, type_decl.name,
+            type_decl.file_identifier or ''
+        )
 
         for member in type_decl.members:
 
@@ -373,7 +385,8 @@ class Registry:
             type_decl: schema.TypeDeclaration,
     ) -> TemplateId:
 
-        template_id = self.backend.get_template_id(type_decl)
+        template_id = self.backend.get_template_id(
+            type_decl.namespace, type_decl.name)
         if template_id >= 0:
             # template already registered
             return template_id

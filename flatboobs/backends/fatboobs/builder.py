@@ -2,7 +2,7 @@
 
 import struct
 from functools import reduce
-from typing import Dict, Mapping, Optional, Tuple
+from typing import Dict, Mapping, Tuple
 
 import toolz.functoolz as ft
 import toolz.itertoolz as it
@@ -52,14 +52,11 @@ def write_string(
 def write_header(
         buffer: bytearray,
         root_offset: UOffset,
-        file_identifier: Optional[str],
+        file_identifier: str,
         cursor: UOffset,
 ) -> None:
 
-    if file_identifier:
-        ident = file_identifier.encode()[:FILE_IDENTIFIER_LENGTH]
-    else:
-        ident = b''
+    ident = file_identifier.encode()[:FILE_IDENTIFIER_LENGTH]
 
     # print(ident, type(ident))
     # print('cursor', len(buffer) - cursor)
@@ -101,9 +98,9 @@ def build(content: Container) -> bytes:
 
     root_block = blocks[-1]
     if isinstance(root_block, Container):
-        file_identifier = root_block.template.schema.file_identifier
+        file_identifier = root_block.template.file_identifier
     else:
-        file_identifier = None
+        file_identifier = ''
     write_header(
         buffer, offset_map[hash(root_block)], file_identifier, cursor)
 

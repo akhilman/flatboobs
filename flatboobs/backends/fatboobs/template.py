@@ -1,22 +1,19 @@
 # pylint: disable=missing-docstring
 
 import weakref
-from typing import Generic, TypeVar
 
-import flatboobs.schema
 from flatboobs import abc
-
-_ST = TypeVar('_ST', bound=flatboobs.schema.TypeDeclaration)
 
 
 class Template(
         abc.Template,
-        Generic[_ST]  # pylint: disable=unsubscriptable-object
 ):
     # pylint: disable=too-few-public-methods
     backend: weakref.ProxyType
     id: abc.TemplateId
-    schema: _ST
+    namespace: str
+    type_name: str
+    file_identifier: str
 
     finished: bool
 

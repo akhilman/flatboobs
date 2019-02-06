@@ -25,7 +25,6 @@ import toolz.functoolz as ft
 import toolz.itertoolz as it
 from multipledispatch import Dispatcher
 
-import flatboobs.schema
 from flatboobs import abc
 from flatboobs.constants import (
     FORMAT_MAP,
@@ -89,12 +88,14 @@ class UnionFieldTemplate(FieldTemplate):
 
 
 @attr.s(auto_attribs=True, slots=True)
-class TableTemplate(Template[flatboobs.schema.Table], abc.TableTemplate):
+class TableTemplate(Template, abc.TableTemplate):
 
     backend: weakref.ProxyType = (  # type: ignore
         attr.ib(converter=weakref.proxy))
     id: abc.TemplateId
-    schema: flatboobs.schema.Table
+    namespace: str
+    type_name: str
+    file_identifier: str
 
     fields: List[FieldTemplate] = attr.ib(factory=list, init=False)
     field_count: int = attr.ib(0, init=False)
@@ -194,12 +195,6 @@ class Table(Container[TableTemplate], abc.Table):
     def enums(
             self: 'Table'
     ) -> Mapping[str, enum.IntEnum]:
-        raise NotImplementedError
-
-    @property
-    def schema(
-            self: 'Table'
-    ) -> flatboobs.schema.Table:
         raise NotImplementedError
 
     @property
