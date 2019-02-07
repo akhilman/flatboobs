@@ -3,22 +3,32 @@
 import itertools
 from typing import Any, Dict, Iterator, Mapping, Optional, Type, TypeVar
 
+from multipledispatch import Dispatcher
+
 from flatboobs import abc
 from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
 
-from . import reader, table
-
+from . import reader
+from .template import EnumTemplate, TableTemplate
 
 _TT = TypeVar('_TT')  # Template type
+
+
+# Callable[[
+#   FatBoobs, Template, Optional[bytes], UOffset, Mapping[str, Any]
+# ], Container]
+new_container = Dispatcher(  # pylint: disable=invalid-name
+    f'{__name__}.new_container'
+)
 
 
 class FatBoobs(abc.Backend):
 
     def __init__(self):
 
-        self._template_ids: Dict[str, TemplateId] = dict()
-        self._templates: Dict[TemplateId, abc.Template] = dict()
+        self.template_ids: Dict[str, TemplateId] = dict()
+        self.templates: Dict[TemplateId, abc.Template] = dict()
         self._template_count: Iterator[TemplateId] = itertools.count()
 
     @staticmethod
@@ -36,12 +46,12 @@ class FatBoobs(abc.Backend):
     ) -> _TT:
         template_id = next(self._template_count)
         template = factory(  # type: ignore
-            self, template_id, namespace, type_name, file_identifier,
+            template_id, namespace, type_name, file_identifier,
             *args, **kwargs
         )
         key = self._template_key(namespace, type_name)
-        self._template_ids[key] = template_id
-        self._templates[template_id] = template  # type: ignore
+        self.template_ids[key] = template_id
+        self.templates[template_id] = template  # type: ignore
         return template
 
     @staticmethod
@@ -56,7 +66,7 @@ class FatBoobs(abc.Backend):
             type_name: str,
     ) -> TemplateId:
         key = self._template_key(namespace, type_name)
-        template_id = self._template_ids.get(key, TemplateId(-1))
+        template_id = self.template_ids.get(key, TemplateId(-1))
         return template_id
 
     def new_enum_template(
@@ -68,7 +78,14 @@ class FatBoobs(abc.Backend):
             value_type: BaseType,
             bit_flags: bool
     ) -> abc.EnumTemplate:
-        raise NotImplementedError
+        return self._new_template(
+            EnumTemplate,
+            namespace,
+            type_name,
+            file_identifier,
+            value_type,
+            bit_flags
+        )
 
     def new_struct_template(
             self: 'FatBoobs',
@@ -83,9 +100,9 @@ class FatBoobs(abc.Backend):
             namespace: str,
             type_name: str,
             file_identifier: str
-    ) -> table.TableTemplate:
+    ) -> TableTemplate:
         return self._new_template(
-            table.TableTemplate,
+            TableTemplate,
             namespace,
             type_name,
             file_identifier
@@ -106,12 +123,8 @@ class FatBoobs(abc.Backend):
             offset: UOffset = 0,
             mutation: Optional[Mapping[str, Any]] = None
     ) -> abc.Container:
-        template = self._templates[template_id]
-        if isinstance(template, table.TableTemplate):
-            return table.Table(
-                buffer=buffer,
-                offset=offset,
-                template=template,
-                mutation=mutation
-            )
-        raise NotImplementedError
+        template = self.templates[template_id]
+        mutation = mutation or dict()
+        return new_container(
+            self, template, buffer, offset, mutation
+        )

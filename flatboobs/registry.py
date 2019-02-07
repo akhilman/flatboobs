@@ -137,7 +137,7 @@ class Registry:
 
         return type_map
 
-    def _type_by_name(
+    def type_by_name(
             self: 'Registry',
             namespace: Optional[str],
             type_name: str
@@ -145,7 +145,7 @@ class Registry:
         type_decl = self._type_map(namespace)[type_name]
         return type_decl
 
-    def _type_by_identifier(
+    def type_by_identifier(
             self: 'Registry',
             namespace: Optional[str],
             file_identifier: str
@@ -427,9 +427,9 @@ class Registry:
     ) -> abc.Container:
 
         if type_name:
-            type_decl = self._type_by_name(namespace, type_name)
+            type_decl = self.type_by_name(namespace, type_name)
         elif file_identifier:
-            type_decl = self._type_by_identifier(namespace, file_identifier)
+            type_decl = self.type_by_identifier(namespace, file_identifier)
         else:
             raise TypeError('Missing required type or idenitifer argument.')
 
@@ -446,10 +446,10 @@ class Registry:
         header = self.backend.read_header(buffer)
 
         if root_type:
-            root_type_decl = self._type_by_name(namespace, root_type)
+            root_type_decl = self.type_by_name(namespace, root_type)
         elif header.file_identifier:
-            root_type_decl = self._type_by_identifier(namespace,
-                                                      header.file_identifier)
+            root_type_decl = self.type_by_identifier(namespace,
+                                                     header.file_identifier)
         else:
             raise TypeError(
                 'Missing required root_type argument or file idenitifer.')

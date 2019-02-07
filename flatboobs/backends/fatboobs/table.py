@@ -2,21 +2,17 @@
 # pylint: disable=too-few-public-methods
 
 import enum
-import itertools
 import operator as op
 import struct
-import weakref
 from typing import (
     Any,
     Generator,
     Iterator,
-    List,
     Mapping,
     Optional,
     Sequence,
     Tuple,
-    Union,
-    cast
+    Union
 )
 
 import attr
@@ -36,156 +32,39 @@ from flatboobs.constants import (
     VOFFSET_FMT,
     VOFFSET_SIZE,
     VSIZE_FMT,
-    VSIZE_SIZE,
-    BaseType
+    VSIZE_SIZE
 )
-from flatboobs.typing import DType, Integer, Scalar, TemplateId, UOffset, USize
+from flatboobs.typing import DType, UOffset, USize
 
 from . import builder, reader
+from .backend import FatBoobs, new_container
 from .container import Container
-from .template import Template
-
-###
-# Template
-##
-
-
-@attr.s(auto_attribs=True, slots=True)
-class FieldTemplate:
-    index: int
-    name: str
-    is_vector: bool
-    value_type: BaseType
-    default: Any
-
-
-@attr.s(auto_attribs=True, slots=True)
-class ScalarFieldTemplate(FieldTemplate):
-    default: Scalar
-
-
-@attr.s(auto_attribs=True, slots=True)
-class EnumFieldTemplate(FieldTemplate):
-    default: Integer
-
-
-@attr.s(auto_attribs=True, slots=True)
-class PointerFieldTemplate(FieldTemplate):
-    value_type: BaseType
-    default: None = None
-
-
-@attr.s(auto_attribs=True, slots=True)
-class StringFieldTemplate(FieldTemplate):
-    value_type: BaseType = attr.ib(BaseType.STRING, init=False)
-    default: None = None
-
-
-@attr.s(auto_attribs=True, slots=True)
-class UnionFieldTemplate(FieldTemplate):
-    value_type: BaseType = attr.ib(BaseType.UNION, init=False)
-    default: None = None
-
-
-@attr.s(auto_attribs=True, slots=True)
-class TableTemplate(Template, abc.TableTemplate):
-
-    backend: weakref.ProxyType = (  # type: ignore
-        attr.ib(converter=weakref.proxy))
-    id: abc.TemplateId
-    namespace: str
-    type_name: str
-    file_identifier: str
-
-    fields: List[FieldTemplate] = attr.ib(factory=list, init=False)
-    field_count: int = attr.ib(0, init=False)
-    _field_counter: Iterator[int] = attr.ib(  # type: ignore
-        factory=itertools.count,
-        hash=False, init=False, repr=False
-    )
-
-    field_map: Mapping[str, FieldTemplate] = cast(
-        Mapping[str, FieldTemplate],
-        attr.ib(
-            factory=dict,
-            hash=False, init=False, repr=False
-        )
-    )
-    finished: bool = attr.ib(False, init=False)
-
-    def add_depreacated_field(self: 'TableTemplate') -> None:
-        next(self._field_counter)
-
-    def add_scalar_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_type: BaseType,
-            default: Scalar,
-    ) -> None:
-        index = next(self._field_counter)
-        field = ScalarFieldTemplate(
-            index, name, is_vector, value_type, default)
-        self.fields.append(field)
-
-    def add_string_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-    ) -> None:
-        raise NotImplementedError
-
-    def add_struct_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template: TemplateId,
-    ) -> None:
-        raise NotImplementedError
-
-    def add_table_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template: TemplateId,
-    ) -> None:
-        raise NotImplementedError
-
-    def add_enum_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template: TemplateId,
-            default: int,
-    ) -> None:
-        raise NotImplementedError
-
-    def add_union_field(
-            self: 'TableTemplate',
-            name: str,
-            value_template: TemplateId,
-    ) -> None:
-        raise NotImplementedError
-
-    def finish(self: 'TableTemplate') -> TemplateId:
-        super().finish()
-        self.field_map = {f.name: f for f in self.fields}
-        self.field_count = next(self._field_counter)
-        return self.id
-
+from .template import (
+    EnumFieldTemplate,
+    EnumTemplate,
+    PointerFieldTemplate,
+    ScalarFieldTemplate,
+    StringFieldTemplate,
+    TableTemplate
+)
 
 ###
 # Container
 ##
 
+
+@new_container.register(FatBoobs, TableTemplate, bytes, int, dict)
+@new_container.register(FatBoobs, TableTemplate, bytearray, int, dict)
+@new_container.register(FatBoobs, TableTemplate, type(None), int, dict)
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class Table(Container[TableTemplate], abc.Table):
     # pylint: disable=too-many-ancestors
+    backend: FatBoobs
     template: TableTemplate
     buffer: Optional[bytes] = None
     offset: UOffset = 0
-    mutation: Optional[Mapping[str, Any]] = None
-    vtable: Optional[Sequence[UOffset]] = None
+    mutation: Mapping[str, Any] = attr.ib(factory=dict)
+    vtable: Optional[Sequence[UOffset]] = attr.ib(None, init=False)
 
     def __attrs_post_init__(self):
         if self.buffer:
@@ -242,6 +121,7 @@ class Table(Container[TableTemplate], abc.Table):
     def packb(self: 'Table') -> bytes:
         return builder.build(self)
 
+
 ###
 # Read
 ##
@@ -277,6 +157,40 @@ def read_scalar_field(
     )
 
 
+@read_field.register(Table, EnumFieldTemplate)
+def read_enum_field(
+        table: Table,
+        field_template: EnumFieldTemplate
+) -> abc.Scalar:
+
+    value_template = table.backend.templates[field_template.value_template]
+    assert isinstance(value_template, EnumTemplate)
+    enum_class = value_template.enum_class
+    assert enum_class
+
+    if not table.buffer or not table.offset:
+        return enum_class(field_template.default)
+
+    assert table.vtable
+    idx = field_template.index
+    if idx >= len(table.vtable):
+        return enum_class(field_template.default)
+
+    foffset = table.vtable[idx]
+    if not foffset:
+        return enum_class(field_template.default)
+
+    value = reader.read_scalar(
+        FORMAT_MAP[value_template.value_type],
+        table.buffer,
+        table.offset + foffset
+    )
+
+    assert isinstance(value, int)
+
+    return enum_class(value)
+
+
 ###
 # Write
 ##
@@ -302,6 +216,16 @@ field_format = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.field_format")
 
 
+@field_format.register(Table, EnumFieldTemplate)
+def enum_field_format(
+        table: Table,
+        field_template: EnumFieldTemplate
+) -> str:
+    value_template = table.backend.templates[field_template.value_template]
+    assert isinstance(value_template, EnumTemplate)
+    return FORMAT_MAP[value_template.value_type]
+
+
 @field_format.register(Table, ScalarFieldTemplate)
 def scalar_field_format(
         table: Table,
@@ -319,6 +243,16 @@ def pointer_field_format(
 ) -> str:
     # pylint: disable=unused-argument
     return UOFFSET_FMT
+
+
+@field_size.register(Table, EnumFieldTemplate)
+def enum_field_size(
+        table: Table,
+        field_template: EnumFieldTemplate
+) -> USize:
+    value_template = table.backend.templates[field_template.value_template]
+    assert isinstance(value_template, EnumTemplate)
+    return NBYTES_MAP[value_template.value_type]
 
 
 @field_size.register(Table, ScalarFieldTemplate)
