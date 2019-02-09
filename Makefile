@@ -1,4 +1,4 @@
-PACKAGE=flatboobs
+PACKAGE := flatboobs
 
 
 flake8:
@@ -14,12 +14,15 @@ syntax: flake8 pylint mypy
 
 
 test:
+	make -C tests/acceptance pybinds
 	pytest -sv tests
 
 coverage:
+	make -C tests/acceptance pybinds
 	pytest --cov-report term-missing --cov=flatboobs -sv tests/
 
 clean:
+	make -C tests/acceptance clean
 	find $(PACKAGE) -type d -name __pycache__ -exec rm -rv {} +
 	find tests -type d -name __pycache__ -exec rm -rv {} +
 	rm -rv .eggs $(PACKAGE).egg-info || true

@@ -23,7 +23,7 @@ install_requirements = [
     # 'fake>=1.0.0, !1.1.0, <2.0.0a0'
 ]
 extras_require = {
-    'test': ['pytest', 'pytest-mock', 'pytest-cov', 'codecov']
+    'test': ['pytest', 'pytest-mock', 'pytest-cov', 'codecov', 'flatbuffers']
 }
 setup_requires = ['pytest-runner']
 

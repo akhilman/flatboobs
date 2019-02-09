@@ -9,10 +9,9 @@ def backend(request):
 
 
 @pytest.fixture
-def registry(backend, schema_str):
+def registry(backend):
 
     reg = flatboobs.Registry(backend=backend)
-    reg.load_schema_from_string(schema_str)
+    reg.load_schema_from_package('fbtest.schema')
 
     return reg
-

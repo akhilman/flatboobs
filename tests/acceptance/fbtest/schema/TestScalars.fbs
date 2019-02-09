@@ -1,0 +1,20 @@
+namespace fbtest.schema;
+
+table TestScalars {
+    hidden:bool (deprecated);
+    int_8:byte;
+    int_16:short;
+    int_32:int;
+    int_64:long;
+    uint_8:ubyte;
+    uint_16:ushort;
+    uint_32:uint;
+    uint_64:ulong;
+    float_32:float;
+    float_64:double;
+    bool_true:bool;
+    bool_false:bool;
+}
+
+root_type TestScalars;
+file_identifier "TSCL";

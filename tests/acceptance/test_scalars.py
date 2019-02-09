@@ -1,33 +1,8 @@
+import flatbuffers
 import pytest
 
+from fbtest.schema import TestScalars
 from flatboobs.utils import hexdump
-from flatc import flatc_packb, flatc_unpackb
-
-
-@pytest.fixture
-def schema_str():
-    return """
-namespace flatboobs.test;
-
-table Content {
-    hidden:bool (deprecated);
-    int_8:byte;
-    int_16:short;
-    int_32:int;
-    int_64:long;
-    uint_8:ubyte;
-    uint_16:ushort;
-    uint_32:uint;
-    uint_64:ulong;
-    float_32:float;
-    float_64:double;
-    true:bool;
-    false:bool;
-}
-
-root_type Content;
-file_identifier "TEST";
-"""
 
 
 @pytest.fixture
@@ -43,19 +18,50 @@ def data():
         'uint_64': 6464646464,
         'float_32': 32e32,
         'float_64': 64e64,
-        'true': True,
-        'false': False,
+        'bool_true': True,
+        'bool_false': False,
     }
 
 
-def test_unpack(schema_str, data, registry, tmp_path):
+def flatbuffers_pack(data):
 
-    buffer = flatc_packb(schema_str, data, tmp_path)
+    builder = flatbuffers.Builder(1024)
+    TestScalars.TestScalarsStart(builder)
+
+    TestScalars.TestScalarsAddInt8(builder, data['int_8'])
+    TestScalars.TestScalarsAddInt16(builder, data['int_16'])
+    TestScalars.TestScalarsAddInt32(builder, data['int_32'])
+    TestScalars.TestScalarsAddInt64(builder, data['int_64'])
+
+    TestScalars.TestScalarsAddUint8(builder, data['uint_8'])
+    TestScalars.TestScalarsAddUint16(builder, data['uint_16'])
+    TestScalars.TestScalarsAddUint32(builder, data['uint_32'])
+    TestScalars.TestScalarsAddUint64(builder, data['uint_64'])
+
+    TestScalars.TestScalarsAddFloat32(builder, data['float_32'])
+    TestScalars.TestScalarsAddFloat64(builder, data['float_64'])
+
+    TestScalars.TestScalarsAddBoolTrue(builder, data['bool_true'])
+    TestScalars.TestScalarsAddBoolFalse(builder, data['bool_false'])
+
+    root = TestScalars.TestScalarsEnd(builder)
+    builder.Finish(root)
+
+    return builder.Output()
+
+
+def flatbuffers_unpack(buffer):
+    return TestScalars.TestScalars.GetRootAsTestScalars(buffer, 0)
+
+
+def test_unpack(registry, data):
+
+    buffer = flatbuffers_pack(data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = registry.unpackb(buffer)
+    table = registry.unpackb(buffer, root_type='TestScalars')
 
     assert len(table) == len(data)
     assert frozenset(table) == frozenset(data)
@@ -73,9 +79,9 @@ def test_unpack(schema_str, data, registry, tmp_path):
 
 
 # @pytest.mark.skip(reason="TODO")
-def test_pack(schema_str, data, registry, tmp_path):
+def test_pack(registry, data):
 
-    table = registry.new(file_identifier='TEST')
+    table = registry.new(type_name='TestScalars')
     table = table.evolve(**data)
 
     buffer = table.packb()
@@ -83,10 +89,20 @@ def test_pack(schema_str, data, registry, tmp_path):
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    res = flatc_unpackb(schema_str, buffer, tmp_path)
+    res = flatbuffers_unpack(buffer)
 
-    for k in data.keys():
-        if 'float' in k:
-            assert res[k] == pytest.approx(data[k])
-        else:
-            assert res[k] == data[k]
+    assert res.Int8() == data['int_8']
+    assert res.Int16() == data['int_16']
+    assert res.Int32() == data['int_32']
+    assert res.Int64() == data['int_64']
+
+    assert res.Uint8() == data['uint_8']
+    assert res.Uint16() == data['uint_16']
+    assert res.Uint32() == data['uint_32']
+    assert res.Uint64() == data['uint_64']
+
+    assert res.Float32() == pytest.approx(data['float_32'])
+    assert res.Float64() == pytest.approx(data['float_64'])
+
+    assert res.BoolTrue() == data['bool_true']
+    assert res.BoolFalse() == data['bool_false']
