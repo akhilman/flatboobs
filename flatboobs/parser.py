@@ -296,7 +296,7 @@ def make_types(types_gen):
     )
 
 
-def _get_last_decl(declarations, key, default=None):
+def get_last_decl(declarations, key, default=None):
     # pylint: disable=no-value-for-parameter
     return ft.compose(
         it.first,
@@ -332,11 +332,11 @@ def parse(source: str, schema_file: Optional[str] = None) -> s.Schema:
 
     includes = frozenset(parsed.get('includes', []))
 
-    namespace = '.'.join(_get_last_decl(declarations, 'namespace', ['']))
-    file_identifier = _get_last_decl(declarations, 'file_identifier', None)
-    file_identifier = _get_last_decl(declarations, 'file_identifier', None)
-    file_extension = _get_last_decl(declarations, 'file_extension', 'bin')
-    root_type = _get_last_decl(declarations, 'root_type', None)
+    namespace = '.'.join(get_last_decl(declarations, 'namespace', ['']))
+    file_identifier = get_last_decl(declarations, 'file_identifier', None)
+    file_identifier = get_last_decl(declarations, 'file_identifier', None)
+    file_extension = get_last_decl(declarations, 'file_extension', 'bin')
+    root_type = get_last_decl(declarations, 'root_type', None)
 
     # attributes
     attributes = ft.compose(
@@ -402,7 +402,7 @@ def load_from_string(
     return schema
 
 
-def _load_with_includes(
+def load_with_includes(
         join_path: Callable[[Any, str], str],
         read: Callable[[Any, str], str],
         visited: FrozenSet[str],
@@ -427,7 +427,7 @@ def _load_with_includes(
         ),
         ft.curry(filter)(None),
         ft.curry(map)(
-            ft.partial(_load_with_includes,
+            ft.partial(load_with_includes,
                        join_path, read, visited, package)
         ),
     )(schema.includes)
@@ -468,7 +468,7 @@ def load_from_file(
 
     logger.debug('Loading schema from %s', fpath)
 
-    schema = _load_with_includes(
+    schema = load_with_includes(
         lambda p, r: str(p / r),
         lambda p, r: (p / r).read_text(),
         frozenset(),
@@ -504,7 +504,7 @@ def load_from_package(
         if not name.endswith(suffix):
             continue
         logger.debug('Loading schema from %s/%s', package, name)
-        schema = _load_with_includes(
+        schema = load_with_includes(
             lambda p, r: f'{p}/{r}',
             importlib.resources.read_text,
             frozenset(),
