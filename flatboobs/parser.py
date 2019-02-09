@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring  # TODO write docstrings
 
+import importlib.resources
 import operator as op
 import pathlib
 from typing import Any, Callable, FrozenSet, Iterator, Optional, Union
@@ -233,7 +234,7 @@ def make_metadata(kwargs):
     )
 
 
-def make_enum_members(members, start_value):
+def make_enum_members(members, start_value, bit_flags):
     next_value = start_value
     for member in members:
         if member['value'] is None:
@@ -244,17 +245,19 @@ def make_enum_members(members, start_value):
             raise ValueError(
                 "Enum values must be specified in ascending order.")
         next_value = value + 1
+        if bit_flags:
+            value = 1 << value
         yield dt.assoc(member, 'value', value)
 
 
 def make_enum(kwargs, union=False):
     bit_flags = any(m['name'] == 'bit_flags' for m in kwargs['metadata'])
-    start_value = 1 if union or bit_flags else 0
+    start_value = 1 if union else 0
     kwargs = dt.assoc(kwargs, 'type', kwargs.get('type', 'byte'))
     return dt.assoc(
         kwargs, 'members', tuple(
             map(ft.curry(applykw)(s.EnumMember),
-                make_enum_members(kwargs['members'], start_value))
+                make_enum_members(kwargs['members'], start_value, bit_flags))
         )
     )
 
@@ -496,4 +499,17 @@ def load_from_package(
         package: str,
         suffix: str = '.fbs'
 ) -> Iterator[s.Schema]:
-    raise NotImplementedError
+
+    for name in importlib.resources.contents(package):
+        if not name.endswith(suffix):
+            continue
+        logger.debug('Loading schema from %s/%s', package, name)
+        schema = _load_with_includes(
+            lambda p, r: f'{p}/{r}',
+            importlib.resources.read_text,
+            frozenset(),
+            package,
+            name,
+        )
+        if schema:
+            yield schema
