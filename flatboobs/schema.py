@@ -1,10 +1,13 @@
 # pylint: disable=too-few-public-methods
 # pylint: disable=missing-docstring  # TODO add docstrings
 
+import enum
+import operator as op
 import typing
 from types import MappingProxyType
 
 import attr
+import toolz.itertoolz as it
 
 
 class MetadataMember(typing.NamedTuple):
@@ -52,12 +55,40 @@ class _BaseEnum(TypeDeclaration):
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Enum(_BaseEnum):
+
     default: typing.Optional[int] = None
+
+    def asenum(self: 'Enum') -> typing.Union[enum.IntEnum, enum.IntFlag]:
+
+        # pylint: disable=invalid-name
+        EnumMeta: typing.Union[typing.Type[enum.IntEnum],
+                               typing.Type[enum.IntFlag]]
+
+        # pylint: disable=unsupported-membership-test
+        if 'bit_flags' in self.metadata_map:
+            EnumMeta = enum.IntFlag
+            members = it.unique(it.concatv(
+                self.members,
+                [('NONE', 0)],
+                [('ALL', sum(map(op.attrgetter('value'), self.members)))]
+            ), key=lambda x: x[0])
+        else:
+            EnumMeta = enum.IntEnum
+
+        return EnumMeta(self.name, members)  # type: ignore
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Union(_BaseEnum):
-    pass
+
+    def asenum(self: 'Union') -> enum.IntEnum:
+
+        members = it.unique(it.concatv(
+            self.members,
+            [('NONE', 0)],
+        ), key=lambda x: x[0])
+
+        return enum.IntEnum(self.name, members)  # type: ignore
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
