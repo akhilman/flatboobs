@@ -107,12 +107,6 @@ class Table(Container[TableTemplate], abc.Table):
         ))
 
     @property
-    def enums(
-            self: 'Table'
-    ) -> Mapping[str, enum.IntEnum]:
-        raise NotImplementedError
-
-    @property
     def dtype(
             self: 'Table'
     ) -> DType:

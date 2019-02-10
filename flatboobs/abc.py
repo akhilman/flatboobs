@@ -2,7 +2,6 @@
 Abstract classes to define API
 """
 
-import enum
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -61,11 +60,6 @@ class Container(Generic[_CT], ABC):
     @property
     @abstractmethod
     def file_identifier(self: 'Container') -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def enums(self: 'Container') -> Mapping[str, enum.Enum]:
         pass
 
     @abstractmethod
