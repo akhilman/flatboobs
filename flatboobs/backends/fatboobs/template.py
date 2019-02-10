@@ -125,7 +125,10 @@ class TableTemplate(Template, abc.TableTemplate):
             is_vector: bool,
             value_template: TemplateId
     ) -> None:
-        raise NotImplementedError
+        index = next(self._field_counter)
+        field = PointerFieldTemplate(
+            index, name, is_vector, value_template)
+        self.fields.append(field)
 
     def add_enum_field(
             self: 'TableTemplate',

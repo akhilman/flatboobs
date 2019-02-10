@@ -106,3 +106,17 @@ def test_pack(registry, data):
 
     assert res.BoolTrue() == data['bool_true']
     assert res.BoolFalse() == data['bool_false']
+
+
+def test_bad_values(registry):
+
+    table = registry.new(type_name='TestScalars')
+
+    with pytest.raises(ValueError):
+        table.evolve(float_32='hi there')
+
+    with pytest.raises(ValueError):
+        table.evolve(int_8=1 << 32)
+
+    with pytest.raises(ValueError):
+        table.evolve(uint_64=-1)

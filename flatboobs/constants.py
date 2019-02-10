@@ -6,6 +6,8 @@ from typing import Dict, FrozenSet, NamedTuple
 
 from flatboobs.typing import SOffset, UOffset, USize, VOffset, VSize
 
+UNDEFINED = object()
+
 FILE_IDENTIFIER_LENGTH = USize(4)
 UOFFSET_FMT = 'I'
 SOFFSET_FMT = 'i'

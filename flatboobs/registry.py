@@ -5,7 +5,7 @@ Registry class is main access point for flatboobs functionality
 import collections
 import importlib
 import pathlib
-from typing import Dict, Iterable, Optional, Set, Union, cast
+from typing import Any, Dict, Iterable, Optional, Set, Union, cast
 
 import attr
 import toolz.functoolz as ft
@@ -406,20 +406,20 @@ class Registry:
             self: 'Registry',
             type_decl: schema.TypeDeclaration,
             buffer: Optional[bytes] = None,
-            offset: UOffset = 0
+            offset: UOffset = 0,
+            mutation: Any = None
     ) -> abc.Container:
 
         template = self._get_add_template(type_decl)
 
-        if buffer:
-            container = self.backend.new_container(template, buffer, offset)
-        else:
-            container = self.backend.new_container(template, buffer)
+        container = self.backend.new_container(
+            template, buffer, offset, mutation)
 
         return container
 
     def new(
             self: 'Registry',
+            mutation: Any = None,
             *,
             namespace: Optional[str] = None,
             type_name: Optional[str] = None,
@@ -433,7 +433,7 @@ class Registry:
         else:
             raise TypeError('Missing required type or idenitifer argument.')
 
-        return self._create_container(type_decl)
+        return self._create_container(type_decl, mutation=mutation)
 
     def unpackb(
             self: 'Registry',

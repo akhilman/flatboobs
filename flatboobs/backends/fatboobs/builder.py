@@ -92,9 +92,12 @@ def build(content: Container) -> bytes:
         cursor, offset = write(
             buffer, cursor, offset_map, block)
         offset_map[hash(block)] = offset
-        cursor += 1
 
-    cursor = len(buffer)
+    cursor += FILE_IDENTIFIER_LENGTH
+    cursor += UOFFSET_SIZE
+    cursor += -cursor % UOFFSET_SIZE
+
+    buffer = buffer[-cursor:]
 
     root_block = blocks[-1]
     if isinstance(root_block, Container):

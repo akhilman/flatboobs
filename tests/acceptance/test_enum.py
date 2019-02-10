@@ -54,6 +54,22 @@ def test_unpack(registry, data):
         assert table[key] == data[key]
 
 
+def test_pack(registry, data):
+
+    table = registry.new(type_name='TestEnum')
+    table = table.evolve(**data)
+
+    buffer = table.packb()
+
+    print('size', len(buffer))
+    print(hexdump(buffer))
+
+    res = flatbuffers_unpack(buffer)
+
+    assert res.TestEnum() == data['test_enum']
+    assert res.TestFlag() == data['test_flag']
+
+
 @pytest.mark.parametrize('key,enum_class, flatbuffers_enum', [
     ('test_enum', enum.IntEnum, TestEnumEnum.TestEnumEnum),
     ('test_flag', enum.IntFlag, TestEnumFlag.TestEnumFlag)
@@ -69,17 +85,11 @@ def test_enum(registry, key, enum_class, flatbuffers_enum):
         assert getattr(enum_class, name) == getattr(flatbuffers_enum, name)
 
 
-def test_pack(registry, data):
+def test_convert(registry):
 
     table = registry.new(type_name='TestEnum')
-    table = table.evolve(**data)
+    enum_class = type(table['test_enum'])
 
-    buffer = table.packb()
-
-    print('size', len(buffer))
-    print(hexdump(buffer))
-
-    res = flatbuffers_unpack(buffer)
-
-    assert res.TestEnum() == data['test_enum']
-    assert res.TestFlag() == data['test_flag']
+    table = table.evolve(test_enum='Bar')
+    assert isinstance(table['test_enum'], enum_class)
+    assert table['test_enum'] == enum_class.Bar
