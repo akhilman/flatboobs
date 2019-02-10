@@ -66,6 +66,40 @@ class EnumTemplate(Template, abc.EnumTemplate):
         return super().finish()
 
 
+@attr.s(auto_attribs=True, slots=True, cmp=False)
+class UnionTemplate(Template, abc.UnionTemplate):
+
+    value_type: BaseType = attr.ib(BaseType.BYTE, init=False)
+    bit_flags: bool = attr.ib(False, init=False)
+
+    enum_class: Optional[Type[enum.IntEnum]] = attr.ib(None, init=False)
+    value_templates: Dict[int, int] = attr.ib(factory=dict, init=False)
+    _members: Dict[str, int] = attr.ib(factory=dict, init=False, repr=False)
+
+    def add_member(
+            self: 'UnionTemplate',
+            name: str,
+            variant_id: int,
+            value_template: TemplateId
+    ) -> None:
+        # pylint: disable=unsupported-assignment-operation
+        self._members[name] = variant_id
+        self.value_templates[variant_id] = value_template
+
+    def finish(self: 'UnionTemplate') -> TemplateId:
+
+        # pylint: disable=unsupported-assignment-operation
+        # pylint: disable=unsupported-membership-test
+
+        if 'NONE' not in self._members:
+            self._members['NONE'] = 0
+
+        cls = enum.IntFlag if self.bit_flags else enum.IntEnum
+        self.enum_class = cls(self.type_name, self._members)
+
+        return super().finish()
+
+
 class StructTemplate:
     value_type: BaseType = attr.ib(BaseType.STRUCT, init=False)
 
@@ -147,16 +181,15 @@ class TableTemplate(Template, abc.TableTemplate):
             name: str,
             value_template: TemplateId
     ) -> None:
-        raise NotImplementedError
+        self.add_enum_field(f'{name}_type', False, value_template, 0)
+        index = next(self._field_counter)
+        field = UnionFieldTemplate(index, name, value_template)
+        self.fields.append(field)
 
     def finish(self: 'TableTemplate') -> TemplateId:
         self.field_map = {f.name: f for f in self.fields}
         self.field_count = next(self._field_counter)
         return super().finish()
-
-
-class UnionTemplate:
-    value_type: BaseType = attr.ib(BaseType.UNION, init=False)
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
@@ -194,4 +227,5 @@ class StringFieldTemplate(FieldTemplate):
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class UnionFieldTemplate(FieldTemplate):
     value_template: TemplateId
+    is_vector: bool = attr.ib(False, init=False)
     default: None = attr.ib(None, init=False)

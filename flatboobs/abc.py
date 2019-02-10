@@ -250,6 +250,7 @@ class UnionTemplate(Template):
     @abstractmethod
     def add_member(
             self: 'UnionTemplate',
+            name: str,
             variant_id: int,
             value_template: TemplateId,
     ) -> None:

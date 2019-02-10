@@ -4,8 +4,8 @@ TODO
 - [X] Parse schema file.
 - [ ] Unpack/pack types.
    - [X] Table with scalar values.
-   - [ ] Enum.
-   - [ ] Union.
+   - [X] Enum.
+   - [X] Union.
    - [ ] Struct.
    - [ ] Vector of scalars.
    - [ ] Vector of tables.

@@ -1,85 +1,170 @@
+import enum
+
+import flatbuffers
 import pytest
 
+from fbtest.schema import (
+    TestUnion,
+    TestUnionBar,
+    TestUnionFoo,
+    TestUnionFooBar
+)
 from flatboobs.utils import hexdump
-from flatc import flatc_packb, flatc_unpackb
 
-
-@pytest.fixture
-def schema_str():
-    return """
-namespace flatboobs.test;
-
-table Foo {
-    foo_value:byte;
-}
-
-table Bar {
-    bar_value:byte;
-}
-
-union FooBar { Foo, Bar }
-
-table Content {
-    first: FooBar;
-    second: FooBar;
-}
-
-root_type Content;
-file_identifier "TEST";
-"""
-
-
-@pytest.fixture
-def data():
-    return {
-        "first_type": "Foo",
-        "first": {
+data_variants = [
+    {
+        "foobar_type": TestUnionFooBar.TestUnionFooBar.NONE,
+        "foobar": None
+    },
+    {
+        "foobar_type": TestUnionFooBar.TestUnionFooBar.TestUnionFoo,
+        "foobar": {
             "foo_value": 10
         }
-    }
+    },
+    {
+        "foobar_type": TestUnionFooBar.TestUnionFooBar.TestUnionBar,
+        "foobar": {
+            "bar_value_a": 0xFFFFFFFF,
+            "bar_value_b": 0xFFAAFFAA
+        }
+    },
+]
 
 
-def test_unpack(schema_str, data, registry, tmp_path):
+def flatbuffers_pack(data):
 
-    buffer = flatc_packb(schema_str, data, tmp_path)
+    builder = flatbuffers.Builder(1024)
+
+    if data['foobar_type'] == TestUnionFooBar.TestUnionFooBar.NONE:
+        foobar = 0
+    elif data['foobar_type'] == TestUnionFooBar.TestUnionFooBar.TestUnionFoo:
+        TestUnionFoo.TestUnionFooStart(builder)
+        TestUnionFoo.TestUnionFooAddFooValue(
+            builder, data['foobar']['foo_value'])
+        foobar = TestUnionFoo.TestUnionFooEnd(builder)
+    elif data['foobar_type'] == TestUnionFooBar.TestUnionFooBar.TestUnionBar:
+        TestUnionBar.TestUnionBarStart(builder)
+        TestUnionBar.TestUnionBarAddBarValueA(
+            builder, data['foobar']['bar_value_a'])
+        TestUnionBar.TestUnionBarAddBarValueB(
+            builder, data['foobar']['bar_value_b'])
+        foobar = TestUnionBar.TestUnionBarEnd(builder)
+    else:
+        raise RuntimeError
+
+    TestUnion.TestUnionStart(builder)
+    if foobar:
+        TestUnion.TestUnionAddFoobarType(builder, data['foobar_type'])
+        TestUnion.TestUnionAddFoobar(builder, foobar)
+    root = TestUnion.TestUnionEnd(builder)
+
+    builder.Finish(root)
+
+    return builder.Output()
+
+
+def flatbuffers_unpack(buffer):
+    return TestUnion.TestUnion.GetRootAsTestUnion(buffer, 0)
+
+
+@pytest.mark.parametrize("data", data_variants)
+def test_unpack(registry, data):
+
+    buffer = flatbuffers_pack(data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = registry.unpackb(buffer)
+    table = registry.unpackb(buffer, root_type='TestUnion')
 
     from pprint import pprint
     pprint(table)
-    # assert len(table) == len(data)
-    # assert frozenset(table) == frozenset(data)
-    # assert frozenset(table.keys()) == frozenset(data.keys())
-
-    # for k in data.keys():
-    #     if 'float' in k:
-    #         assert table[k] == pytest.approx(data[k])
-    #     else:
-    #         assert table[k] == data[k]
-
-    # for res, ref in zip(sorted(table.items()), sorted(data.items())):
-    #     assert res[0] == ref[0]
-    #     assert res[1] == pytest.approx(ref[1])
+    assert len(table) == len(data)
+    assert table.keys() == data.keys()
+    assert table['foobar_type'] == data['foobar_type']
+    assert isinstance(table['foobar_type'], enum.IntEnum)
+    if data['foobar']:
+        assert dict(table['foobar']) == data['foobar']
+    else:
+        assert not table['foobar']
 
 
-@pytest.mark.skip(reason="TODO")
-def test_pack(schema_str, data, registry, tmp_path):
+@pytest.mark.parametrize("data", data_variants)
+def test_pack(registry, data):
 
-    table = registry.new(file_identifier='TEST')
-    table = table.evolve(**data)
+    table = registry.new('TestUnion', data)
 
     buffer = table.packb()
 
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    res = flatc_unpackb(schema_str, buffer, tmp_path)
+    res = flatbuffers_unpack(buffer)
 
-    for k in data.keys():
-        if 'float' in k:
-            assert res[k] == pytest.approx(data[k])
-        else:
-            assert res[k] == data[k]
+    union_type = res.FoobarType()
+    assert union_type == data['foobar_type']
+
+    if data['foobar']:
+
+        if union_type == TestUnionFooBar.TestUnionFooBar.TestUnionFoo:
+            union_value_class = TestUnionFoo.TestUnionFoo
+        elif union_type == TestUnionFooBar.TestUnionFooBar.TestUnionBar:
+            union_value_class = TestUnionBar.TestUnionBar
+
+        for key in data['foobar'].keys():
+            foobar = union_value_class()
+            foobar.Init(res.Foobar().Bytes, res.Foobar().Pos)
+            getter = ''.join(x.capitalize() or '_' for x in key.split('_'))
+            assert getattr(foobar, getter)() == data['foobar'][key]
+    else:
+        assert res.Foobar() is None
+
+
+def test_evolve_with_table(registry):
+
+    table = registry.new('TestUnion')
+    bar = registry.new('TestUnionBar')
+
+    assert table['foobar_type'] == 0
+    assert table['foobar_type'].name == 'NONE'
+
+    table = table.evolve(foobar=bar)
+
+    assert table['foobar'] == bar
+    assert table['foobar_type'].name == 'TestUnionBar'
+
+
+def test_evolve_with_dict(registry):
+
+    enum_class = registry.type_by_name('TestUnionFooBar').asenum()
+
+    table = registry.new('TestUnion')
+    table = table.evolve(
+        foobar_type='TestUnionFoo',
+        foobar={'foo_value': 2}
+    )
+
+    assert table['foobar_type'] == enum_class.TestUnionFoo
+    assert table['foobar_type'].name == 'TestUnionFoo'
+    assert table['foobar']['foo_value'] == 2
+
+
+def test_bad_evolution(registry):
+
+    table = registry.new('TestUnion')
+    foo = registry.new('TestUnionFoo')
+
+    with pytest.raises(ValueError):
+        registry.new('TestUnion', {'foobar': table})
+
+    with pytest.raises(ValueError):
+        table.evolve(
+            foobar_type='TestUnionBar',
+            foobar=foo
+        )
+
+    with pytest.raises(ValueError):
+        table.evolve(
+            foobar={'foo_value': 2}
+        )

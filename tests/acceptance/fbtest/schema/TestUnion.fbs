@@ -1,0 +1,19 @@
+namespace fbtest.schema;
+
+table TestUnionFoo {
+    foo_value:byte;
+}
+
+table TestUnionBar {
+    bar_value_a:uint64;
+    bar_value_b:uint64;
+}
+
+union TestUnionFooBar { TestUnionFoo, TestUnionBar }
+
+table TestUnion {
+    foobar: TestUnionFooBar;
+}
+
+root_type TestUnion;
+file_identifier "TUNN";

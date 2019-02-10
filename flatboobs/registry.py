@@ -375,7 +375,7 @@ class Registry:
                 )
 
             value_template_id = self._get_add_template(value_type_decl)
-            template.add_member(member.value, value_template_id)
+            template.add_member(member.name, member.value, value_template_id)
 
         return template.finish()
 
@@ -395,7 +395,7 @@ class Registry:
         elif isinstance(type_decl, schema.Table):
             template_id = self._add_table_template(type_decl)
         elif isinstance(type_decl, schema.Union):
-            pass
+            template_id = self._add_union_template(type_decl)
         elif isinstance(type_decl, schema.Enum):
             template_id = self._add_enum_template(type_decl)
 

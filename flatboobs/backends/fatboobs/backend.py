@@ -10,7 +10,7 @@ from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
 
 from . import reader
-from .template import EnumTemplate, TableTemplate
+from .template import EnumTemplate, TableTemplate, UnionTemplate
 
 _TT = TypeVar('_TT')  # Template type
 
@@ -114,7 +114,12 @@ class FatBoobs(abc.Backend):
             type_name: str,
             file_identifier: str
     ) -> abc.UnionTemplate:
-        raise NotImplementedError
+        return self._new_template(
+            UnionTemplate,
+            namespace,
+            type_name,
+            file_identifier,
+        )
 
     def new_container(
             self: 'FatBoobs',
