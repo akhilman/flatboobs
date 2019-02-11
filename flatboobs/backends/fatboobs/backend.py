@@ -8,6 +8,7 @@ from multipledispatch import Dispatcher
 from flatboobs import abc
 from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
+from .abc import Backend, Container
 
 from . import reader
 from .template import EnumTemplate, TableTemplate, UnionTemplate
@@ -23,7 +24,7 @@ new_container = Dispatcher(  # pylint: disable=invalid-name
 )
 
 
-class FatBoobs(abc.Backend):
+class FatBoobs(Backend):
 
     def __init__(self):
 
@@ -127,7 +128,7 @@ class FatBoobs(abc.Backend):
             buffer: Optional[bytes] = None,
             offset: UOffset = 0,
             mutation: Optional[Mapping[str, Any]] = None
-    ) -> abc.Container:
+    ) -> Container:
         template = self.templates[template_id]
         mutation = mutation or dict()
         return new_container(

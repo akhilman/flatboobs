@@ -16,7 +16,7 @@ from flatboobs.constants import (
 )
 from flatboobs.typing import UOffset, USize
 
-from .container import Container
+from .abc import Container
 
 
 # Callable[[Container], Generator[Container, None, None]]

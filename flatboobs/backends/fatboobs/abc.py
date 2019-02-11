@@ -1,17 +1,19 @@
 # pylint: disable=missing-docstring
 
-from typing import Optional, TypeVar, Generic
+from abc import abstractmethod
+from typing import Any, Dict, Generic, Mapping, Optional, TypeVar
 
-from flatboobs.typing import UOffset
+from flatboobs import abc
+from flatboobs.typing import TemplateId, UOffset
+
 from .template import Template
-from .backend import FatBoobs
 
 _TT = TypeVar('_TT', bound=Template)
 
 
 class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
     # pylint: disable=too-few-public-methods
-    backend: FatBoobs
+    backend: 'Backend'
     template: _TT
     buffer: Optional[bytes] = None
     offset: UOffset = 0
@@ -30,3 +32,19 @@ class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
 
     def __hash__(self):
         return id(self)
+
+
+class Backend(abc.Backend):
+    template_ids: Dict[str, TemplateId]
+    templates: Dict[TemplateId, abc.Template]
+
+    # TODO rename to new_table()
+    @abstractmethod
+    def new_container(
+            self: 'Backend',
+            template_id: TemplateId,
+            buffer: Optional[bytes] = None,
+            offset: UOffset = 0,
+            mutation: Optional[Mapping[str, Any]] = None
+    ) -> Container:
+        pass

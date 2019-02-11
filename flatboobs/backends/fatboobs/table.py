@@ -42,8 +42,8 @@ from flatboobs.typing import DType, Scalar, TemplateId, UOffset, USize
 from flatboobs.utils import remove_prefix
 
 from . import builder, reader
-from .backend import FatBoobs, new_container
-from .container import Container
+from .abc import Backend, Container
+from .backend import new_container
 from .template import (
     EnumFieldTemplate,
     EnumTemplate,
@@ -60,9 +60,9 @@ from .template import (
 ##
 
 @new_container.register(
-    FatBoobs, TableTemplate, (type(None), bytes, bytearray), int, object)
+    Backend, TableTemplate, (type(None), bytes, bytearray), int, object)
 def new_table(
-        backend: FatBoobs,
+        backend: Backend,
         template: TableTemplate,
         buffer: Optional[bytes],
         offset: UOffset,
@@ -104,7 +104,7 @@ def new_table(
 @attr.s(auto_attribs=True, slots=True, cmp=False, repr=False)
 class Table(Container[TableTemplate], abc.Table):
     # pylint: disable=too-many-ancestors
-    backend: FatBoobs
+    backend: Backend
     template: TableTemplate
     buffer: Optional[bytes] = None
     offset: UOffset = 0
@@ -178,9 +178,8 @@ class Table(Container[TableTemplate], abc.Table):
             self.mutation or {},
             kwargs
         )
-        return new_container(
-            self.backend,
-            self.template,
+        return self.backend.new_container(
+            self.template.id,
             self.buffer,
             self.offset,
             mutation
@@ -194,14 +193,14 @@ class Table(Container[TableTemplate], abc.Table):
 # Field value converter
 ##
 
-# Callable[[FatBoobs, FieldTemplate, value], Any]
+# Callable[[Backend, FieldTemplate, value], Any]
 convert_field_value = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.convert_field_value")
 
 
-@convert_field_value.register(FatBoobs, ScalarFieldTemplate, object)
+@convert_field_value.register(Backend, ScalarFieldTemplate, object)
 def convert_scalar_field_value(
-        backend: FatBoobs,
+        backend: Backend,
         field_template: ScalarFieldTemplate,
         value: Any
 ) -> Scalar:
@@ -223,9 +222,9 @@ def convert_scalar_field_value(
     return value
 
 
-@convert_field_value.register(FatBoobs, EnumFieldTemplate, object)
+@convert_field_value.register(Backend, EnumFieldTemplate, object)
 def convert_enum_field_value(
-        backend: FatBoobs,
+        backend: Backend,
         field_template: EnumFieldTemplate,
         value: Any
 ) -> enum.IntEnum:
@@ -244,9 +243,9 @@ def convert_enum_field_value(
     return value
 
 
-@convert_field_value.register(FatBoobs, EnumFieldTemplate, str)
+@convert_field_value.register(Backend, EnumFieldTemplate, str)
 def convert_enum_field_value_from_string(
-        backend: FatBoobs,
+        backend: Backend,
         field_template: EnumFieldTemplate,
         value: str
 ) -> enum.IntEnum:
@@ -273,9 +272,9 @@ def convert_enum_field_value_from_string(
     return ret
 
 
-@convert_field_value.register(FatBoobs, PointerFieldTemplate, type(None))
+@convert_field_value.register(Backend, PointerFieldTemplate, type(None))
 def convert_pointer_field_value_from_none(
-        backend: FatBoobs,
+        backend: Backend,
         field_template: PointerFieldTemplate,
         value: None
 ) -> Optional[Container]:
@@ -283,9 +282,9 @@ def convert_pointer_field_value_from_none(
     return None
 
 
-@convert_field_value.register(FatBoobs, PointerFieldTemplate, Container)
+@convert_field_value.register(Backend, PointerFieldTemplate, Container)
 def convert_pointer_field_value_from_container(
-        backend: FatBoobs,
+        backend: Backend,
         field_template: PointerFieldTemplate,
         value: Container
 ) -> Optional[Container]:
@@ -300,18 +299,17 @@ def convert_pointer_field_value_from_container(
     return value
 
 
-@convert_field_value.register(FatBoobs, PointerFieldTemplate, object)
+@convert_field_value.register(Backend, PointerFieldTemplate, object)
 def convert_pointer_field_value(
-        backend: FatBoobs,
+        backend: Backend,
         field_template: PointerFieldTemplate,
         value: Any
 ) -> Optional[Container]:
 
     value_template = backend.templates[field_template.value_template]
 
-    return new_container(
-        backend,
-        value_template,
+    return backend.new_container(
+        value_template.id,
         None,
         0,
         value
@@ -319,7 +317,7 @@ def convert_pointer_field_value(
 
 
 def convert_union_fields(
-        backend: FatBoobs,
+        backend: Backend,
         field_template: UnionFieldTemplate,
         union_type: int,
         value: Any
@@ -356,9 +354,8 @@ def convert_union_fields(
 
         value_template_id = union_template.value_templates[union_type]
         value_template = backend.templates[cast(TemplateId, value_template_id)]
-        container = new_container(
-            backend,
-            value_template,
+        container = backend.new_container(
+            value_template.id,
             None,
             0,
             value
@@ -454,9 +451,8 @@ def read_pointer_field(
     assert isinstance(offset, int)
     offset += foffset + table.offset
 
-    return new_container(
-        table.backend,
-        value_template,
+    return table.backend.new_container(
+        value_template.id,
         table.buffer,
         offset,
         dict()
