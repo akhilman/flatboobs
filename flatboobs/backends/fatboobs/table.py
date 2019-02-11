@@ -21,7 +21,6 @@ import attr
 import toolz.dicttoolz as dt
 import toolz.functoolz as ft
 import toolz.itertoolz as it
-from multipledispatch import Dispatcher
 
 from flatboobs import abc
 from flatboobs.constants import (
@@ -39,8 +38,8 @@ from flatboobs.constants import (
 )
 from flatboobs.typing import DType, Scalar, TemplateId, UOffset, USize
 
-from . import builder, reader
-from .backend import FatBoobs, new_container
+from . import builder, dispatch, reader
+from .backend import FatBoobs
 from .container import Container
 from .template import (
     EnumFieldTemplate,
@@ -57,7 +56,7 @@ from .template import (
 # Container
 ##
 
-@new_container.register(
+@dispatch.new_container.register(
     FatBoobs, TableTemplate, (type(None), bytes, bytearray), int, object)
 def new_table(
         backend: FatBoobs,
@@ -77,7 +76,7 @@ def new_table(
         raise KeyError(', '.join(bad_keys))
 
     non_unions = {
-        k: convert_field_value(backend, template.field_map[k], v)
+        k: dispatch.convert_field_value(backend, template.field_map[k], v)
         for k, v in mutation.items()
         if not isinstance(template.field_map[k], UnionFieldTemplate)
     }
@@ -147,7 +146,7 @@ class Table(Container[TableTemplate], abc.Table):
             value = self.mutation[key]
         elif key in self.template.field_map:
             field_template = self.template.field_map[key]
-            value = read_field(self, field_template)
+            value = dispatch.read_field(self, field_template)
         else:
             raise KeyError(key)
 
@@ -176,7 +175,7 @@ class Table(Container[TableTemplate], abc.Table):
             self.mutation or {},
             kwargs
         )
-        return new_container(
+        return dispatch.new_container(
             self.backend,
             self.template,
             self.buffer,
@@ -192,12 +191,8 @@ class Table(Container[TableTemplate], abc.Table):
 # Field value converter
 ##
 
-# Callable[[FatBoobs, FieldTemplate, value], Any]
-convert_field_value = Dispatcher(  # pylint: disable=invalid-name
-    f"{__name__}.convert_field_value")
 
-
-@convert_field_value.register(FatBoobs, ScalarFieldTemplate, object)
+@dispatch.convert_field_value.register(FatBoobs, ScalarFieldTemplate, object)
 def convert_scalar_field_value(
         backend: FatBoobs,
         field_template: ScalarFieldTemplate,
@@ -221,7 +216,7 @@ def convert_scalar_field_value(
     return value
 
 
-@convert_field_value.register(FatBoobs, EnumFieldTemplate, object)
+@dispatch.convert_field_value.register(FatBoobs, EnumFieldTemplate, object)
 def convert_enum_field_value(
         backend: FatBoobs,
         field_template: EnumFieldTemplate,
@@ -242,7 +237,7 @@ def convert_enum_field_value(
     return value
 
 
-@convert_field_value.register(FatBoobs, EnumFieldTemplate, str)
+@dispatch.convert_field_value.register(FatBoobs, EnumFieldTemplate, str)
 def convert_enum_field_value_from_string(
         backend: FatBoobs,
         field_template: EnumFieldTemplate,
@@ -263,7 +258,8 @@ def convert_enum_field_value_from_string(
     return ret
 
 
-@convert_field_value.register(FatBoobs, PointerFieldTemplate, type(None))
+@dispatch.convert_field_value.register(
+    FatBoobs, PointerFieldTemplate, type(None))
 def convert_pointer_field_value_from_none(
         backend: FatBoobs,
         field_template: PointerFieldTemplate,
@@ -273,7 +269,8 @@ def convert_pointer_field_value_from_none(
     return None
 
 
-@convert_field_value.register(FatBoobs, PointerFieldTemplate, Container)
+@dispatch.convert_field_value.register(
+    FatBoobs, PointerFieldTemplate, Container)
 def convert_pointer_field_value_from_container(
         backend: FatBoobs,
         field_template: PointerFieldTemplate,
@@ -290,7 +287,7 @@ def convert_pointer_field_value_from_container(
     return value
 
 
-@convert_field_value.register(FatBoobs, PointerFieldTemplate, object)
+@dispatch.convert_field_value.register(FatBoobs, PointerFieldTemplate, object)
 def convert_pointer_field_value(
         backend: FatBoobs,
         field_template: PointerFieldTemplate,
@@ -299,7 +296,7 @@ def convert_pointer_field_value(
 
     value_template = backend.templates[field_template.value_template]
 
-    return new_container(
+    return dispatch.new_container(
         backend,
         value_template,
         None,
@@ -346,7 +343,7 @@ def convert_union_fields(
 
         value_template_id = union_template.value_templates[union_type]
         value_template = backend.templates[cast(TemplateId, value_template_id)]
-        container = new_container(
+        container = dispatch.new_container(
             backend,
             value_template,
             None,
@@ -362,12 +359,9 @@ def convert_union_fields(
 ###
 # Read
 ##
-# Callable[[Table, FieldTemplate], Any]
-read_field = Dispatcher(  # pylint: disable=invalid-name
-    f"{__name__}.read_field")
 
 
-@read_field.register(Table, ScalarFieldTemplate)
+@dispatch.read_field.register(Table, ScalarFieldTemplate)
 def read_scalar_field(
         table: Table,
         field_template: ScalarFieldTemplate
@@ -392,7 +386,7 @@ def read_scalar_field(
     )
 
 
-@read_field.register(Table, EnumFieldTemplate)
+@dispatch.read_field.register(Table, EnumFieldTemplate)
 def read_enum_field(
         table: Table,
         field_template: EnumFieldTemplate
@@ -416,7 +410,7 @@ def read_enum_field(
     return enum_class(value)  # type: ignore
 
 
-@read_field.register(Table, PointerFieldTemplate)
+@dispatch.read_field.register(Table, PointerFieldTemplate)
 def read_pointer_field(
         table: Table,
         field_template: PointerFieldTemplate
@@ -444,7 +438,7 @@ def read_pointer_field(
     assert isinstance(offset, int)
     offset += foffset + table.offset
 
-    return new_container(
+    return dispatch.new_container(
         table.backend,
         value_template,
         table.buffer,
@@ -453,7 +447,7 @@ def read_pointer_field(
     )
 
 
-@read_field.register(Table, UnionFieldTemplate)
+@dispatch.read_field.register(Table, UnionFieldTemplate)
 def read_union_field(
         table: Table,
         field_template: UnionFieldTemplate
@@ -482,27 +476,18 @@ def read_union_field(
 ##
 
 
-@builder.flatten.register(Table)
+@dispatch.flatten.register(Table)
 def flatten_table(
         table: Table
 ) -> Generator[Container, None, None]:
     for value in table.values():
         if isinstance(value, Container):
-            yield from builder.flatten(value)
+            yield from dispatch.flatten(value)
 
     yield table
 
 
-# Callable[[Table, FieldTemplate], USize]
-field_size = Dispatcher(  # pylint: disable=invalid-name
-    f"{__name__}.field_size")
-
-# Callable[[Table, FieldTemplate], str]
-field_format = Dispatcher(  # pylint: disable=invalid-name
-    f"{__name__}.field_format")
-
-
-@field_format.register(Table, EnumFieldTemplate)
+@dispatch.field_format.register(Table, EnumFieldTemplate)
 def enum_field_format(
         table: Table,
         field_template: EnumFieldTemplate
@@ -512,7 +497,7 @@ def enum_field_format(
     return FORMAT_MAP[value_template.value_type]
 
 
-@field_format.register(Table, ScalarFieldTemplate)
+@dispatch.field_format.register(Table, ScalarFieldTemplate)
 def scalar_field_format(
         table: Table,
         field_template: ScalarFieldTemplate
@@ -521,9 +506,9 @@ def scalar_field_format(
     return FORMAT_MAP[field_template.value_type]
 
 
-@field_format.register(Table, UnionFieldTemplate)
-@field_format.register(Table, PointerFieldTemplate)
-@field_format.register(Table, StringFieldTemplate)
+@dispatch.field_format.register(Table, UnionFieldTemplate)
+@dispatch.field_format.register(Table, PointerFieldTemplate)
+@dispatch.field_format.register(Table, StringFieldTemplate)
 def pointer_field_format(
         table: Table,
         field_template: Union[PointerFieldTemplate, StringFieldTemplate]
@@ -532,7 +517,7 @@ def pointer_field_format(
     return UOFFSET_FMT
 
 
-@field_size.register(Table, EnumFieldTemplate)
+@dispatch.field_size.register(Table, EnumFieldTemplate)
 def enum_field_size(
         table: Table,
         field_template: EnumFieldTemplate
@@ -542,7 +527,7 @@ def enum_field_size(
     return NBYTES_MAP[value_template.value_type]
 
 
-@field_size.register(Table, ScalarFieldTemplate)
+@dispatch.field_size.register(Table, ScalarFieldTemplate)
 def scalar_field_size(
         table: Table,
         field_template: ScalarFieldTemplate
@@ -551,9 +536,9 @@ def scalar_field_size(
     return NBYTES_MAP[field_template.value_type]
 
 
-@field_size.register(Table, UnionFieldTemplate)
-@field_size.register(Table, PointerFieldTemplate)
-@field_size.register(Table, StringFieldTemplate)
+@dispatch.field_size.register(Table, UnionFieldTemplate)
+@dispatch.field_size.register(Table, PointerFieldTemplate)
+@dispatch.field_size.register(Table, StringFieldTemplate)
 def pointer_field_size(
         table: Table,
         field_template: Union[PointerFieldTemplate, StringFieldTemplate]
@@ -562,7 +547,7 @@ def pointer_field_size(
     return UOFFSET_SIZE
 
 
-@builder.calc_size.register(int, Table)
+@dispatch.calc_size.register(int, Table)
 def calc_table_size(
         size: UOffset,
         table: Table
@@ -571,7 +556,7 @@ def calc_table_size(
         field_template = table.template.field_map[key]
         if value == field_template.default:
             continue
-        size += field_size(table, field_template)
+        size += dispatch.field_size(table, field_template)
 
     size += -size % UOFFSET_SIZE
     size += UOFFSET_SIZE
@@ -580,7 +565,7 @@ def calc_table_size(
     return size
 
 
-@builder.write.register(bytearray, int, dict, Table)
+@dispatch.write.register(bytearray, int, dict, Table)
 def write_table(
         buffer: bytearray,
         cursor: UOffset,
@@ -593,8 +578,8 @@ def write_table(
     field_map = table.template.field_map
     body_values = {k: v for k, v in table.items() if v != field_map[k].default}
     keys = list(body_values.keys())
-    size_map = {k: field_size(table, field_map[k]) for k in keys}
-    format_map = {k: field_format(table, field_map[k]) for k in keys}
+    size_map = {k: dispatch.field_size(table, field_map[k]) for k in keys}
+    format_map = {k: dispatch.field_format(table, field_map[k]) for k in keys}
 
     if keys:
         pad_left = - SOFFSET_SIZE % min(SOFFSET_SIZE, max(size_map.values()))

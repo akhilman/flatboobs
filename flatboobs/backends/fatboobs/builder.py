@@ -6,7 +6,6 @@ from typing import Dict, Mapping, Tuple
 
 import toolz.functoolz as ft
 import toolz.itertoolz as it
-from multipledispatch import Dispatcher
 
 from flatboobs.constants import (
     FILE_IDENTIFIER_LENGTH,
@@ -17,17 +16,7 @@ from flatboobs.constants import (
 from flatboobs.typing import UOffset, USize
 
 from .container import Container
-
-
-# Callable[[Container], Generator[Container, None, None]]
-flatten = Dispatcher(f'{__name__}.flatten')  # pylint: disable=invalid-name
-
-# Callable[[USize, Container], USize]
-calc_size = Dispatcher(f'{__name__}.calc_size')  # pylint: disable=invalid-name
-
-# Callable[[bytearray, UOffset, Mapping[int, UOffset], Container],
-#          Tuple[UOffset, UOffset]]
-write = Dispatcher(f'{__name__}.write')  # pylint: disable=invalid-name
+from .dispatch import calc_size, flatten, write
 
 
 @calc_size.register(int, str)
