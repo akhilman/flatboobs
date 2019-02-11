@@ -40,7 +40,7 @@ class Backend(abc.Backend):
 
     # TODO rename to new_table()
     @abstractmethod
-    def new_container(
+    def new_table(
             self: 'Backend',
             template_id: TemplateId,
             buffer: Optional[bytes] = None,

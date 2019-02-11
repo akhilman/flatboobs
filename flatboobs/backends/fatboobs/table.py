@@ -43,7 +43,6 @@ from flatboobs.utils import remove_prefix
 
 from . import builder, reader
 from .abc import Backend, Container
-from .backend import new_container
 from .template import (
     EnumFieldTemplate,
     EnumTemplate,
@@ -59,21 +58,18 @@ from .template import (
 # Container
 ##
 
-@new_container.register(
-    Backend, TableTemplate, (type(None), bytes, bytearray), int, object)
+
 def new_table(
         backend: Backend,
         template: TableTemplate,
         buffer: Optional[bytes],
         offset: UOffset,
-        mutation: Any
+        mutation: Dict[str, Any]
 ) -> 'Table':
     # TODO Replace this by @mutation.converter when
     # converter decorator will be implemented
     # https://github.com/python-attrs/attrs/issues/240
 
-    if not isinstance(mutation, dict):
-        raise TypeError(f"Mutation should be dict, {mutation} is given")
     bad_keys = set(mutation) - set(template.field_map)
     if bad_keys:
         raise KeyError(', '.join(bad_keys))
@@ -178,7 +174,7 @@ class Table(Container[TableTemplate], abc.Table):
             self.mutation or {},
             kwargs
         )
-        return self.backend.new_container(
+        return self.backend.new_table(
             self.template.id,
             self.buffer,
             self.offset,
@@ -308,7 +304,7 @@ def convert_pointer_field_value(
 
     value_template = backend.templates[field_template.value_template]
 
-    return backend.new_container(
+    return backend.new_table(
         value_template.id,
         None,
         0,
@@ -354,7 +350,7 @@ def convert_union_fields(
 
         value_template_id = union_template.value_templates[union_type]
         value_template = backend.templates[cast(TemplateId, value_template_id)]
-        container = backend.new_container(
+        container = backend.new_table(
             value_template.id,
             None,
             0,
@@ -451,7 +447,7 @@ def read_pointer_field(
     assert isinstance(offset, int)
     offset += foffset + table.offset
 
-    return table.backend.new_container(
+    return table.backend.new_table(
         value_template.id,
         table.buffer,
         offset,

@@ -316,7 +316,7 @@ class Backend(ABC):
         """
 
     @abstractmethod
-    def new_container(
+    def new_table(
             self: 'Backend',
             template_id: TemplateId,
             buffer: Optional[bytes] = None,

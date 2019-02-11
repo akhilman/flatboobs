@@ -3,25 +3,16 @@
 import itertools
 from typing import Any, Dict, Iterator, Mapping, Optional, Type, TypeVar
 
-from multipledispatch import Dispatcher
-
 from flatboobs import abc
 from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
-from .abc import Backend, Container
 
 from . import reader
+from .abc import Backend
+from .table import Table, new_table
 from .template import EnumTemplate, TableTemplate, UnionTemplate
 
 _TT = TypeVar('_TT')  # Template type
-
-
-# Callable[[
-#   FatBoobs, Template, Optional[bytes], UOffset, Mapping[str, Any]
-# ], Container]
-new_container = Dispatcher(  # pylint: disable=invalid-name
-    f'{__name__}.new_container'
-)
 
 
 class FatBoobs(Backend):
@@ -122,15 +113,17 @@ class FatBoobs(Backend):
             file_identifier,
         )
 
-    def new_container(
+    def new_table(
             self: 'FatBoobs',
             template_id: TemplateId,
             buffer: Optional[bytes] = None,
             offset: UOffset = 0,
             mutation: Optional[Mapping[str, Any]] = None
-    ) -> Container:
+    ) -> Table:
         template = self.templates[template_id]
         mutation = mutation or dict()
-        return new_container(
+        if not isinstance(mutation, dict):
+            raise TypeError(f"Mutation should be dict, {mutation} is given")
+        return new_table(
             self, template, buffer, offset, mutation
         )

@@ -411,7 +411,7 @@ class Registry:
 
         template = self._get_add_template(type_decl)
 
-        container = self.backend.new_container(
+        container = self.backend.new_table(
             template, buffer, offset, mutation)
 
         return container
