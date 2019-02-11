@@ -9,7 +9,7 @@ from flatboobs.typing import TemplateId, UOffset
 
 from . import reader
 from .abc import Backend
-from .table import Table, new_table
+from .table import Table
 from .template import EnumTemplate, TableTemplate, UnionTemplate
 
 _TT = TypeVar('_TT')  # Template type
@@ -124,6 +124,6 @@ class FatBoobs(Backend):
         mutation = mutation or dict()
         if not isinstance(mutation, dict):
             raise TypeError(f"Mutation should be dict, {mutation} is given")
-        return new_table(
+        return Table.new(
             self, template, buffer, offset, mutation
         )

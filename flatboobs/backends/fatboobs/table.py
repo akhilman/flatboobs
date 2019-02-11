@@ -59,44 +59,6 @@ from .template import (
 ##
 
 
-def new_table(
-        backend: Backend,
-        template: TableTemplate,
-        buffer: Optional[bytes],
-        offset: UOffset,
-        mutation: Dict[str, Any]
-) -> 'Table':
-    # TODO Replace this by @mutation.converter when
-    # converter decorator will be implemented
-    # https://github.com/python-attrs/attrs/issues/240
-
-    bad_keys = set(mutation) - set(template.field_map)
-    if bad_keys:
-        raise KeyError(', '.join(bad_keys))
-
-    non_unions = {
-        k: convert_field_value(backend, template.field_map[k], v)
-        for k, v in mutation.items()
-        if not isinstance(template.field_map[k], UnionFieldTemplate)
-    }
-
-    unions = ft.compose(
-        dict,
-        it.concat,
-        ft.curry(map)(lambda x: convert_union_fields(backend, *x)),
-        ft.curry(filter)(lambda x: isinstance(x[0], UnionFieldTemplate)),
-        ft.curry(map)(lambda x: (
-            template.field_map[x[0]],
-            non_unions.get(f'{x[0]}_type', 0),
-            x[1]
-        ))
-    )(mutation.items())
-
-    mutation = dt.merge(non_unions, unions)
-
-    return Table(backend, template, buffer, offset, mutation)
-
-
 @attr.s(auto_attribs=True, slots=True, cmp=False, repr=False)
 class Table(Container[TableTemplate], abc.Table):
     # pylint: disable=too-many-ancestors
@@ -120,6 +82,44 @@ class Table(Container[TableTemplate], abc.Table):
             self.offset,
             tuple(self.mutation.items())
         ))
+
+    @staticmethod
+    def new(
+            backend: Backend,
+            template: TableTemplate,
+            buffer: Optional[bytes],
+            offset: UOffset,
+            mutation: Dict[str, Any]
+    ) -> 'Table':
+        # TODO Replace this by @mutation.converter when
+        # converter decorator will be implemented
+        # https://github.com/python-attrs/attrs/issues/240
+
+        bad_keys = set(mutation) - set(template.field_map)
+        if bad_keys:
+            raise KeyError(', '.join(bad_keys))
+
+        non_unions = {
+            k: convert_field_value(backend, template.field_map[k], v)
+            for k, v in mutation.items()
+            if not isinstance(template.field_map[k], UnionFieldTemplate)
+        }
+
+        unions = ft.compose(
+            dict,
+            it.concat,
+            ft.curry(map)(lambda x: convert_union_fields(backend, *x)),
+            ft.curry(filter)(lambda x: isinstance(x[0], UnionFieldTemplate)),
+            ft.curry(map)(lambda x: (
+                template.field_map[x[0]],
+                non_unions.get(f'{x[0]}_type', 0),
+                x[1]
+            ))
+        )(mutation.items())
+
+        mutation = dt.merge(non_unions, unions)
+
+        return Table(backend, template, buffer, offset, mutation)
 
     @property
     def dtype(
@@ -174,8 +174,9 @@ class Table(Container[TableTemplate], abc.Table):
             self.mutation or {},
             kwargs
         )
-        return self.backend.new_table(
-            self.template.id,
+        return self.new(
+            self.backend,
+            self.template,
             self.buffer,
             self.offset,
             mutation
