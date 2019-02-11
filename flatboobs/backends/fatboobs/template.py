@@ -5,7 +5,17 @@ import enum
 import itertools
 import operator as op
 from functools import reduce
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Type, cast
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    Union,
+    cast
+)
 
 import attr
 
@@ -13,13 +23,16 @@ from flatboobs import abc
 from flatboobs.constants import BaseType
 from flatboobs.typing import Scalar, TemplateId
 
+from .abc import Backend, Template
+
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class Template(
-        abc.Template,
+class BaseTemplate(
+        Template,
 ):
     # pylint: disable=too-few-public-methods
 
+    backend: Backend
     id: TemplateId
     namespace: str
     type_name: str
@@ -28,13 +41,13 @@ class Template(
     value_type: BaseType = attr.ib(BaseType.NULL, init=False)
     finished: bool = attr.ib(False, init=False)
 
-    def finish(self: 'Template') -> TemplateId:
+    def finish(self: 'BaseTemplate') -> TemplateId:
         self.finished = True
         return self.id
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class EnumTemplate(Template, abc.EnumTemplate):
+class EnumTemplate(BaseTemplate, abc.EnumTemplate):
 
     value_type: BaseType
     bit_flags: bool
@@ -67,7 +80,7 @@ class EnumTemplate(Template, abc.EnumTemplate):
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class UnionTemplate(Template, abc.UnionTemplate):
+class UnionTemplate(BaseTemplate, abc.UnionTemplate):
 
     value_type: BaseType = attr.ib(BaseType.BYTE, init=False)
     bit_flags: bool = attr.ib(False, init=False)
@@ -80,10 +93,11 @@ class UnionTemplate(Template, abc.UnionTemplate):
             self: 'UnionTemplate',
             name: str,
             variant_id: int,
-            value_template: TemplateId
+            value_template_id: TemplateId
     ) -> None:
         # pylint: disable=unsupported-assignment-operation
         self._members[name] = variant_id
+        value_template = self.backend.templates[value_template_id]
         self.value_templates[variant_id] = value_template
 
     def finish(self: 'UnionTemplate') -> TemplateId:
@@ -105,7 +119,7 @@ class StructTemplate:
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class TableTemplate(Template, abc.TableTemplate):
+class TableTemplate(BaseTemplate, abc.TableTemplate):
 
     value_type: BaseType = attr.ib(BaseType.TABLE, init=False)
     fields: List['FieldTemplate'] = attr.ib(factory=list, init=False)
@@ -149,7 +163,7 @@ class TableTemplate(Template, abc.TableTemplate):
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
-            value_template: TemplateId
+            value_template_id: TemplateId
     ) -> None:
         raise NotImplementedError
 
@@ -157,9 +171,10 @@ class TableTemplate(Template, abc.TableTemplate):
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
-            value_template: TemplateId
+            value_template_id: TemplateId
     ) -> None:
         index = next(self._field_counter)
+        value_template = self.backend.templates[value_template_id]
         field = PointerFieldTemplate(
             index, name, is_vector, value_template)
         self.fields.append(field)
@@ -168,10 +183,11 @@ class TableTemplate(Template, abc.TableTemplate):
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
-            value_template: TemplateId,
+            value_template_id: TemplateId,
             default: int,
     ) -> None:
         index = next(self._field_counter)
+        value_template = self.backend.templates[value_template_id]
         field = EnumFieldTemplate(
             index, name, is_vector, value_template, default)
         self.fields.append(field)
@@ -179,10 +195,11 @@ class TableTemplate(Template, abc.TableTemplate):
     def add_union_field(
             self: 'TableTemplate',
             name: str,
-            value_template: TemplateId
+            value_template_id: TemplateId
     ) -> None:
-        self.add_enum_field(f'{name}_type', False, value_template, 0)
+        self.add_enum_field(f'{name}_type', False, value_template_id, 0)
         index = next(self._field_counter)
+        value_template = self.backend.templates[value_template_id]
         field = UnionFieldTemplate(index, name, value_template)
         self.fields.append(field)
 
@@ -209,13 +226,13 @@ class ScalarFieldTemplate(FieldTemplate):
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class EnumFieldTemplate(FieldTemplate):
 
-    value_template: TemplateId
+    value_template: Union[EnumTemplate, UnionTemplate]
     default: int
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class PointerFieldTemplate(FieldTemplate):
-    value_template: TemplateId
+    value_template: BaseTemplate
     default: None = attr.ib(None, init=False)
 
 
@@ -226,6 +243,6 @@ class StringFieldTemplate(FieldTemplate):
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class UnionFieldTemplate(FieldTemplate):
-    value_template: TemplateId
+    value_template: UnionTemplate
     is_vector: bool = attr.ib(False, init=False)
     default: None = attr.ib(None, init=False)

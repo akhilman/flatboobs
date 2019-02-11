@@ -38,7 +38,7 @@ class FatBoobs(Backend):
     ) -> _TT:
         template_id = next(self._template_count)
         template = factory(  # type: ignore
-            template_id, namespace, type_name, file_identifier,
+            self, template_id, namespace, type_name, file_identifier,
             *args, **kwargs
         )
         key = self._template_key(namespace, type_name)

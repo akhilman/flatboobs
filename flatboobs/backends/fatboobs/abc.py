@@ -5,8 +5,21 @@ from typing import Any, Dict, Generic, Mapping, Optional, TypeVar
 
 from flatboobs import abc
 from flatboobs.typing import TemplateId, UOffset
+from flatboobs.constants import BaseType
 
-from .template import Template
+
+class Template(
+        abc.Template,
+):
+    # pylint: disable=too-few-public-methods
+
+    backend: 'Backend'
+    id: TemplateId
+    namespace: str
+    type_name: str
+    file_identifier: str
+    value_type: BaseType
+
 
 _TT = TypeVar('_TT', bound=Template)
 

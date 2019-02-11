@@ -225,7 +225,7 @@ def convert_enum_field_value(
         field_template: EnumFieldTemplate,
         value: Any
 ) -> enum.IntEnum:
-    value_template = backend.templates[field_template.value_template]
+    value_template = field_template.value_template
     assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     enum_class = value_template.enum_class
     assert enum_class
@@ -246,7 +246,7 @@ def convert_enum_field_value_from_string(
         field_template: EnumFieldTemplate,
         value: str
 ) -> enum.IntEnum:
-    value_template = backend.templates[field_template.value_template]
+    value_template = field_template.value_template
     assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     enum_class = value_template.enum_class
     assert enum_class
@@ -286,7 +286,7 @@ def convert_pointer_field_value_from_container(
         value: Container
 ) -> Optional[Container]:
 
-    value_template = backend.templates[field_template.value_template]
+    value_template = field_template.value_template
     if (not isinstance(value, Table)
             or value.template != value_template):
         raise ValueError(
@@ -303,7 +303,7 @@ def convert_pointer_field_value(
         value: Any
 ) -> Optional[Container]:
 
-    value_template = backend.templates[field_template.value_template]
+    value_template = field_template.value_template
 
     return backend.new_table(
         value_template.id,
@@ -320,7 +320,7 @@ def convert_union_fields(
         value: Any
 ) -> Tuple[Tuple[str, enum.IntEnum], Tuple[str, Optional[Table]]]:
 
-    union_template = backend.templates[field_template.value_template]
+    union_template = field_template.value_template
     assert isinstance(union_template, UnionTemplate)
     enum_class = union_template.enum_class
     assert issubclass(enum_class, enum.IntEnum)  # type: ignore
@@ -337,7 +337,7 @@ def convert_union_fields(
                 f'instance value of {enum_key} should be 0 (NONE)'
             )
         union_type_map = {
-            v: k for k, v in union_template.value_templates.items()
+            v.id: k for k, v in union_template.value_templates.items()
         }
         try:
             union_type = union_type_map[value.template.id]
@@ -349,10 +349,10 @@ def convert_union_fields(
         if union_type == 0:
             raise ValueError(f'Union type "{enum_key}" is not provided.')
 
-        value_template_id = union_template.value_templates[union_type]
-        value_template = backend.templates[cast(TemplateId, value_template_id)]
-        container = backend.new_table(
-            value_template.id,
+        value_template = union_template.value_templates[union_type]
+        container = Table.new(
+            backend,
+            value_template,
             None,
             0,
             value
@@ -402,7 +402,7 @@ def read_enum_field(
         field_template: EnumFieldTemplate
 ) -> Scalar:
 
-    value_template = table.backend.templates[field_template.value_template]
+    value_template = field_template.value_template
     assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     enum_class = value_template.enum_class
     assert issubclass(enum_class, (enum.IntEnum, enum.IntFlag))  # type: ignore
@@ -429,7 +429,7 @@ def read_pointer_field(
     if not table.buffer or not table.offset:
         return None
 
-    value_template = table.backend.templates[field_template.value_template]
+    value_template = field_template.value_template
 
     assert isinstance(table.vtable, tuple)
     idx = field_template.index
@@ -462,7 +462,7 @@ def read_union_field(
         field_template: UnionFieldTemplate
 ) -> Optional[Container]:
 
-    union_template = table.backend.templates[field_template.value_template]
+    union_template = field_template.value_template
     assert isinstance(union_template, UnionTemplate)
 
     union_type = table[f'{field_template.name}_type']
@@ -510,7 +510,7 @@ def enum_field_format(
         table: Table,
         field_template: EnumFieldTemplate
 ) -> str:
-    value_template = table.backend.templates[field_template.value_template]
+    value_template = field_template.value_template
     assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     return FORMAT_MAP[value_template.value_type]
 
@@ -540,7 +540,7 @@ def enum_field_size(
         table: Table,
         field_template: EnumFieldTemplate
 ) -> USize:
-    value_template = table.backend.templates[field_template.value_template]
+    value_template = field_template.value_template
     assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     return NBYTES_MAP[value_template.value_type]
 

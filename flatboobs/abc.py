@@ -213,7 +213,7 @@ class TableTemplate(Template):
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
-            value_template: TemplateId,
+            value_template_id: TemplateId,
     ) -> None:
         pass
 
@@ -222,7 +222,7 @@ class TableTemplate(Template):
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
-            value_template: TemplateId,
+            value_template_id: TemplateId,
     ) -> None:
         pass
 
@@ -231,7 +231,7 @@ class TableTemplate(Template):
             self: 'TableTemplate',
             name: str,
             is_vector: bool,
-            value_template: TemplateId,
+            value_template_id: TemplateId,
             default: int,
     ) -> None:
         pass
@@ -240,7 +240,7 @@ class TableTemplate(Template):
     def add_union_field(
             self: 'TableTemplate',
             name: str,
-            value_template: TemplateId,
+            value_template_id: TemplateId,
     ) -> None:
         pass
 
@@ -252,7 +252,7 @@ class UnionTemplate(Template):
             self: 'UnionTemplate',
             name: str,
             variant_id: int,
-            value_template: TemplateId,
+            value_template_id: TemplateId,
     ) -> None:
         pass
 
