@@ -3,15 +3,24 @@
 import itertools
 from typing import Any, Dict, Iterator, Mapping, Optional, Type, TypeVar
 
+from multipledispatch import Dispatcher
+
 from flatboobs import abc
 from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
 
 from . import reader
-from .dispatch import new_container
 from .template import EnumTemplate, TableTemplate, UnionTemplate
 
 _TT = TypeVar('_TT')  # Template type
+
+
+# Callable[[
+#   FatBoobs, Template, Optional[bytes], UOffset, Mapping[str, Any]
+# ], Container]
+new_container = Dispatcher(  # pylint: disable=invalid-name
+    f'{__name__}.new_container'
+)
 
 
 class FatBoobs(abc.Backend):
