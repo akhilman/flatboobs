@@ -56,7 +56,7 @@ def test_unpack(registry, data):
 
 def test_pack(registry, data):
 
-    table = registry.new(type_name='TestEnum')
+    table = registry.new('TestEnum')
     table = table.evolve(**data)
 
     buffer = table.packb()
@@ -76,7 +76,7 @@ def test_pack(registry, data):
 ])
 def test_enum(registry, key, enum_class, flatbuffers_enum):
 
-    table = registry.new(type_name='TestEnum')
+    table = registry.new('TestEnum')
     enum_class = type(table[key])
 
     assert isinstance(table[key], enum_class)
@@ -87,7 +87,7 @@ def test_enum(registry, key, enum_class, flatbuffers_enum):
 
 def test_convert(registry):
 
-    table = registry.new(type_name='TestEnum')
+    table = registry.new('TestEnum')
     enum_class = type(table['test_enum'])
 
     table = table.evolve(test_enum='Bar')

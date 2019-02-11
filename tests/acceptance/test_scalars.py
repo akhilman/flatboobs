@@ -81,7 +81,7 @@ def test_unpack(registry, data):
 # @pytest.mark.skip(reason="TODO")
 def test_pack(registry, data):
 
-    table = registry.new(type_name='TestScalars')
+    table = registry.new('TestScalars')
     table = table.evolve(**data)
 
     buffer = table.packb()
@@ -110,7 +110,7 @@ def test_pack(registry, data):
 
 def test_bad_values(registry):
 
-    table = registry.new(type_name='TestScalars')
+    table = registry.new('TestScalars')
 
     with pytest.raises(ValueError):
         table.evolve(float_32='hi there')

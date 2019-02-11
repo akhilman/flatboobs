@@ -83,7 +83,7 @@ def test_unpack(registry, data):
 # @pytest.mark.skip(reason="TODO")
 def test_pack(registry, data):
 
-    table = registry.new(data, type_name='TestTable')
+    table = registry.new('TestTable', data)
 
     buffer = table.packb()
 
@@ -105,7 +105,7 @@ def test_pack(registry, data):
 
 def test_empty(registry):
 
-    table = registry.new(type_name='TestTable')
+    table = registry.new('TestTable')
 
     assert table['inner_a'] is None
     assert table['inner_b'] is None
@@ -183,10 +183,10 @@ def test_mutation_erase(registry, data):
 
 def test_bad_mutation(registry):
 
-    table = registry.new(type_name='TestTable')
+    table = registry.new('TestTable')
 
     with pytest.raises(TypeError):
         table.evolve(inner_a="hello")
 
     with pytest.raises(ValueError):
-        table.evolve(inner_a=registry.new(type_name='TestTableInnerB'))
+        table.evolve(inner_a=registry.new('TestTableInnerB'))

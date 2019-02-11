@@ -139,16 +139,16 @@ class Registry:
 
     def type_by_name(
             self: 'Registry',
-            namespace: Optional[str],
-            type_name: str
+            type_name: str,
+            namespace: Optional[str] = None
     ) -> schema.TypeDeclaration:
         type_decl = self._type_map(namespace)[type_name]
         return type_decl
 
     def type_by_identifier(
             self: 'Registry',
-            namespace: Optional[str],
-            file_identifier: str
+            file_identifier: str,
+            namespace: Optional[str] = None
     ) -> schema.TypeDeclaration:
 
         namespace = namespace or ''
@@ -162,9 +162,8 @@ class Registry:
         ident_map = {x.file_identifier: x
                      for x in type_map.values() if x.file_identifier}
         type_decl = ident_map[file_identifier]
-        # pylint: disable=unsubscriptable-object  # attr.ib
-        self._cached_types_by_identifier[namespace][file_identifier] \
-            = type_decl
+        # pylint: disable=unsupported-assignment-operation  # attr.ib
+        self._cached_types_by_identifier[namespace] = ident_map
 
         return type_decl
 
@@ -419,20 +418,13 @@ class Registry:
 
     def new(
             self: 'Registry',
+            type_name: str,
             mutation: Any = None,
             *,
             namespace: Optional[str] = None,
-            type_name: Optional[str] = None,
-            file_identifier: Optional[str] = None,
     ) -> abc.Container:
 
-        if type_name:
-            type_decl = self.type_by_name(namespace, type_name)
-        elif file_identifier:
-            type_decl = self.type_by_identifier(namespace, file_identifier)
-        else:
-            raise TypeError('Missing required type or idenitifer argument.')
-
+        type_decl = self.type_by_name(type_name, namespace)
         return self._create_container(type_decl, mutation=mutation)
 
     def unpackb(
@@ -446,10 +438,10 @@ class Registry:
         header = self.backend.read_header(buffer)
 
         if root_type:
-            root_type_decl = self.type_by_name(namespace, root_type)
+            root_type_decl = self.type_by_name(root_type, namespace)
         elif header.file_identifier:
-            root_type_decl = self.type_by_identifier(namespace,
-                                                     header.file_identifier)
+            root_type_decl = self.type_by_identifier(header.file_identifier,
+                                                     namespace)
         else:
             raise TypeError(
                 'Missing required root_type argument or file idenitifer.')
