@@ -312,7 +312,7 @@ class Backend(ABC):
             type_name: str,
     ) -> TemplateId:
         """
-        -1 if template not exist
+        0 if template not exist
         """
 
     @abstractmethod

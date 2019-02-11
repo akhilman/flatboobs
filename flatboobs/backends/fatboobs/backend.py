@@ -21,7 +21,7 @@ class FatBoobs(Backend):
 
         self.template_ids: Dict[str, TemplateId] = dict()
         self.templates: Dict[TemplateId, abc.Template] = dict()
-        self._template_count: Iterator[TemplateId] = itertools.count()
+        self._template_count: Iterator[TemplateId] = itertools.count(1)
 
     @staticmethod
     def _template_key(namespace: str, type_name: str) -> str:
@@ -58,7 +58,7 @@ class FatBoobs(Backend):
             type_name: str,
     ) -> TemplateId:
         key = self._template_key(namespace, type_name)
-        template_id = self.template_ids.get(key, TemplateId(-1))
+        template_id = self.template_ids.get(key, TemplateId(0))
         return template_id
 
     def new_enum_template(

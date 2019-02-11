@@ -386,7 +386,7 @@ class Registry:
 
         template_id = self.backend.get_template_id(
             type_decl.namespace, type_decl.name)
-        if template_id >= 0:
+        if template_id:
             # template already registered
             return template_id
 
