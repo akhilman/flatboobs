@@ -4,6 +4,7 @@
 import enum
 import operator as op
 import struct
+from functools import reduce
 from typing import (
     Any,
     Dict,
@@ -38,6 +39,7 @@ from flatboobs.constants import (
     VSIZE_SIZE
 )
 from flatboobs.typing import DType, Scalar, TemplateId, UOffset, USize
+from flatboobs.utils import remove_prefix
 
 from . import builder, reader
 from .backend import FatBoobs, new_container
@@ -252,8 +254,16 @@ def convert_enum_field_value_from_string(
     assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     enum_class = value_template.enum_class
     assert enum_class
+    value = remove_prefix(f'{enum_class.__name__}.', value)
+    if value_template.bit_flags:
+        values = set(value.split('|'))
+    else:
+        values = {value}
     try:
-        ret = enum_class.__members__[value]  # typing: ignore
+        ret = reduce(
+            op.or_,
+            map(lambda x: enum_class.__members__[x], values)  # type: ignore
+        )
     except KeyError as exc:
         raise ValueError(
             f"Bad value for {field_template.name}: "

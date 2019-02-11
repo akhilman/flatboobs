@@ -31,3 +31,7 @@ def hexdump(buffer: bytes) -> str:
     for n in range(0, len(buffer), 8):
         lines.append(f'{n:02x}\t'+''.join(f'{x:02x} ' for x in buffer[n:n+8]))
     return '\n'.join(lines)
+
+
+def remove_prefix(prefix: str, text: str) -> str:
+    return text[text.startswith(prefix) and len(prefix):]

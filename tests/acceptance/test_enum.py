@@ -89,7 +89,15 @@ def test_convert(registry):
 
     table = registry.new('TestEnum')
     enum_class = type(table['test_enum'])
+    flag_class = type(table['test_flag'])
 
     table = table.evolve(test_enum='Bar')
     assert isinstance(table['test_enum'], enum_class)
     assert table['test_enum'] == enum_class.Bar
+
+    table = table.evolve(test_flag='Bar|Buz')
+    assert isinstance(table['test_flag'], flag_class)
+    assert table['test_flag'] == flag_class.Bar | flag_class.Buz
+
+    table = table.evolve(test_flag=str(flag_class.Foo | flag_class.Bar))
+    assert table['test_flag'] == flag_class.Foo | flag_class.Bar
