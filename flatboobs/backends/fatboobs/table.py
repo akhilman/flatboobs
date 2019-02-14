@@ -1,14 +1,17 @@
 # pylint: disable=missing-docstring
 # pylint: disable=too-few-public-methods
 
+import collections
 import enum
 import operator as op
 import struct
 from functools import reduce
 from typing import (
     Any,
+    Deque,
     Dict,
     Generator,
+    Iterable,
     Iterator,
     Mapping,
     Optional,
@@ -27,10 +30,8 @@ from multipledispatch import Dispatcher
 from flatboobs import abc
 from flatboobs.constants import (
     FORMAT_MAP,
-    NBYTES_MAP,
     PYTYPE_MAP,
     SOFFSET_FMT,
-    SOFFSET_SIZE,
     UOFFSET_FMT,
     UOFFSET_SIZE,
     VOFFSET_FMT,
@@ -38,19 +39,16 @@ from flatboobs.constants import (
     VSIZE_FMT,
     VSIZE_SIZE
 )
-from flatboobs.typing import DType, Scalar, TemplateId, UOffset, USize
+from flatboobs.typing import DType, Scalar, UOffset, USize
 from flatboobs.utils import remove_prefix
 
 from . import builder, reader
 from .abc import Backend, Container
 from .template import (
-    EnumFieldTemplate,
     EnumTemplate,
-    PointerFieldTemplate,
     ScalarFieldTemplate,
-    StringFieldTemplate,
+    ScalarTemplate,
     TableTemplate,
-    UnionFieldTemplate,
     UnionTemplate
 )
 
@@ -95,23 +93,33 @@ class Table(Container[TableTemplate], abc.Table):
         # converter decorator will be implemented
         # https://github.com/python-attrs/attrs/issues/240
 
+        if not isinstance(mutation, collections.abc.Mapping):
+            raise TypeError('Mutation should be mapping type, '
+                            f'{type(mutation)} is given')
+
         bad_keys = set(mutation) - set(template.field_map)
         if bad_keys:
             raise KeyError(', '.join(bad_keys))
 
         non_unions = {
-            k: convert_field_value(backend, template.field_map[k], v)
+            k: convert_field_value(
+                template.field_map[k],
+                template.field_map[k].value_template,
+                v
+            )
             for k, v in mutation.items()
-            if not isinstance(template.field_map[k], UnionFieldTemplate)
+            if not isinstance(
+                template.field_map[k].value_template, UnionTemplate)
         }
 
         unions = ft.compose(
             dict,
             it.concat,
             ft.curry(map)(lambda x: convert_union_fields(backend, *x)),
-            ft.curry(filter)(lambda x: isinstance(x[0], UnionFieldTemplate)),
+            ft.curry(filter)(lambda x: isinstance(x[1], UnionTemplate)),
             ft.curry(map)(lambda x: (
                 template.field_map[x[0]],
+                template.field_map[x[0]].value_template,
                 non_unions.get(f'{x[0]}_type', 0),
                 x[1]
             ))
@@ -145,7 +153,8 @@ class Table(Container[TableTemplate], abc.Table):
             value = self.mutation[key]
         elif key in self.template.field_map:
             field_template = self.template.field_map[key]
-            value = read_field(self, field_template)
+            value_template = field_template.value_template
+            value = read_field(self, field_template, value_template)
         else:
             raise KeyError(key)
 
@@ -190,21 +199,21 @@ class Table(Container[TableTemplate], abc.Table):
 # Field value converter
 ##
 
-# Callable[[Backend, FieldTemplate, value], Any]
+# Callable[[ScalarFieldTemplate, Template, value], Any]
 convert_field_value = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.convert_field_value")
 
 
-@convert_field_value.register(Backend, ScalarFieldTemplate, object)
+@convert_field_value.register(ScalarFieldTemplate, ScalarTemplate, object)
 def convert_scalar_field_value(
-        backend: Backend,
         field_template: ScalarFieldTemplate,
+        value_template: ScalarTemplate,
         value: Any
 ) -> Scalar:
     # pylint: disable=unused-argument
 
-    pytype = PYTYPE_MAP[field_template.value_type]
-    format_ = FORMAT_MAP[field_template.value_type]
+    pytype = PYTYPE_MAP[value_template.value_type]
+    format_ = FORMAT_MAP[value_template.value_type]
 
     value = pytype(value)
 
@@ -219,13 +228,12 @@ def convert_scalar_field_value(
     return value
 
 
-@convert_field_value.register(Backend, EnumFieldTemplate, object)
+@convert_field_value.register(ScalarFieldTemplate, EnumTemplate, object)
 def convert_enum_field_value(
-        backend: Backend,
-        field_template: EnumFieldTemplate,
+        field_template: ScalarFieldTemplate,
+        value_template: EnumTemplate,
         value: Any
 ) -> enum.IntEnum:
-    value_template = field_template.value_template
     assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     enum_class = value_template.enum_class
     assert enum_class
@@ -240,14 +248,12 @@ def convert_enum_field_value(
     return value
 
 
-@convert_field_value.register(Backend, EnumFieldTemplate, str)
+@convert_field_value.register(ScalarFieldTemplate, EnumTemplate, str)
 def convert_enum_field_value_from_string(
-        backend: Backend,
-        field_template: EnumFieldTemplate,
+        field_template: ScalarFieldTemplate,
+        value_template: EnumTemplate,
         value: str
 ) -> enum.IntEnum:
-    value_template = field_template.value_template
-    assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     enum_class = value_template.enum_class
     assert enum_class
     value = remove_prefix(f'{enum_class.__name__}.', value)
@@ -269,24 +275,23 @@ def convert_enum_field_value_from_string(
     return ret
 
 
-@convert_field_value.register(Backend, PointerFieldTemplate, type(None))
-def convert_pointer_field_value_from_none(
-        backend: Backend,
-        field_template: PointerFieldTemplate,
+@convert_field_value.register(ScalarFieldTemplate, TableTemplate, type(None))
+def convert_table_field_value_from_none(
+        field_template: ScalarFieldTemplate,
+        value_template: TableTemplate,
         value: None
 ) -> Optional[Container]:
     # pylint: disable=unused-argument
     return None
 
 
-@convert_field_value.register(Backend, PointerFieldTemplate, Container)
-def convert_pointer_field_value_from_container(
-        backend: Backend,
-        field_template: PointerFieldTemplate,
+@convert_field_value.register(ScalarFieldTemplate, TableTemplate, Container)
+def convert_table_field_value_from_container(
+        field_template: ScalarFieldTemplate,
+        value_template: TableTemplate,
         value: Container
 ) -> Optional[Container]:
 
-    value_template = field_template.value_template
     if (not isinstance(value, Table)
             or value.template != value_template):
         raise ValueError(
@@ -296,17 +301,16 @@ def convert_pointer_field_value_from_container(
     return value
 
 
-@convert_field_value.register(Backend, PointerFieldTemplate, object)
-def convert_pointer_field_value(
-        backend: Backend,
-        field_template: PointerFieldTemplate,
+@convert_field_value.register(ScalarFieldTemplate, TableTemplate, object)
+def convert_table_field_value(
+        field_template: ScalarFieldTemplate,
+        value_template: TableTemplate,
         value: Any
 ) -> Optional[Container]:
-
-    value_template = field_template.value_template
-
-    return backend.new_table(
-        value_template.id,
+    # pylint: disable=unused-argument
+    return Table.new(
+        value_template.backend,
+        value_template,
         None,
         0,
         value
@@ -315,14 +319,13 @@ def convert_pointer_field_value(
 
 def convert_union_fields(
         backend: Backend,
-        field_template: UnionFieldTemplate,
+        field_template: ScalarFieldTemplate,
+        union_template: UnionTemplate,
         union_type: int,
         value: Any
 ) -> Tuple[Tuple[str, enum.IntEnum], Tuple[str, Optional[Table]]]:
 
-    union_template = field_template.value_template
-    assert isinstance(union_template, UnionTemplate)
-    enum_class = union_template.enum_class
+    enum_class = union_template.enum_template.enum_class
     assert issubclass(enum_class, enum.IntEnum)  # type: ignore
     key = field_template.name
     enum_key = f'{key}_type'
@@ -350,6 +353,7 @@ def convert_union_fields(
             raise ValueError(f'Union type "{enum_key}" is not provided.')
 
         value_template = union_template.value_templates[union_type]
+        assert isinstance(value_template, TableTemplate)
         container = Table.new(
             backend,
             value_template,
@@ -366,15 +370,16 @@ def convert_union_fields(
 ###
 # Read
 ##
-# Callable[[Table, FieldTemplate], Any]
+# Callable[[Table, ScalarFieldTemplate, Template], Any]
 read_field = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.read_field")
 
 
-@read_field.register(Table, ScalarFieldTemplate)
+@read_field.register(Table, ScalarFieldTemplate, ScalarTemplate)
 def read_scalar_field(
         table: Table,
-        field_template: ScalarFieldTemplate
+        field_template: ScalarFieldTemplate,
+        value_template: Union[ScalarTemplate, EnumTemplate]
 ) -> Scalar:
 
     if not table.buffer or not table.offset:
@@ -390,46 +395,37 @@ def read_scalar_field(
         return field_template.default
 
     return reader.read_scalar(
-        FORMAT_MAP[field_template.value_type],
+        FORMAT_MAP[value_template.value_type],
         table.buffer,
         table.offset + foffset
     )
 
 
-@read_field.register(Table, EnumFieldTemplate)
+@read_field.register(Table, ScalarFieldTemplate, EnumTemplate)
 def read_enum_field(
         table: Table,
-        field_template: EnumFieldTemplate
+        field_template: ScalarFieldTemplate,
+        value_template: EnumTemplate
 ) -> Scalar:
 
-    value_template = field_template.value_template
-    assert isinstance(value_template, (EnumTemplate, UnionTemplate))
     enum_class = value_template.enum_class
     assert issubclass(enum_class, (enum.IntEnum, enum.IntFlag))  # type: ignore
 
-    scalar_field_template = ScalarFieldTemplate(
-        field_template.index,
-        field_template.name,
-        field_template.is_vector,
-        value_template.value_type,
-        field_template.default
-    )
-    value = read_scalar_field(table, scalar_field_template)
+    value = read_scalar_field(table, field_template, value_template)
     assert isinstance(value, int)
 
     return enum_class(value)  # type: ignore
 
 
-@read_field.register(Table, PointerFieldTemplate)
-def read_pointer_field(
+@read_field.register(Table, ScalarFieldTemplate, TableTemplate)
+def read_table_field(
         table: Table,
-        field_template: PointerFieldTemplate
+        field_template: ScalarFieldTemplate,
+        value_template: TableTemplate
 ) -> Optional[Container]:
 
     if not table.buffer or not table.offset:
         return None
-
-    value_template = field_template.value_template
 
     assert isinstance(table.vtable, tuple)
     idx = field_template.index
@@ -447,37 +443,31 @@ def read_pointer_field(
     )
     assert isinstance(offset, int)
     offset += foffset + table.offset
+    offset = cast(UOffset, offset)
 
-    return table.backend.new_table(
-        value_template.id,
+    return Table.new(
+        table.backend,
+        value_template,
         table.buffer,
         offset,
         dict()
     )
 
 
-@read_field.register(Table, UnionFieldTemplate)
+@read_field.register(Table, ScalarFieldTemplate, UnionTemplate)
 def read_union_field(
         table: Table,
-        field_template: UnionFieldTemplate
+        field_template: ScalarFieldTemplate,
+        union_template: UnionTemplate
 ) -> Optional[Container]:
-
-    union_template = field_template.value_template
-    assert isinstance(union_template, UnionTemplate)
 
     union_type = table[f'{field_template.name}_type']
     if union_type == 0:
         return None
 
     value_template = union_template.value_templates[union_type]
-    value_field_template = PointerFieldTemplate(
-        field_template.index,
-        field_template.name,
-        False,
-        cast(TemplateId, value_template)
-    )
 
-    return read_pointer_field(table, value_field_template)
+    return read_table_field(table, field_template, value_template)
 
 
 ###
@@ -485,84 +475,18 @@ def read_union_field(
 ##
 
 
-@builder.flatten.register(Table)
+@builder.flatten.register(int, Table)
 def flatten_table(
+        recursion_limit: int,
         table: Table
 ) -> Generator[Container, None, None]:
+    if recursion_limit < 1:
+        raise RecursionError('Maximum recursion limit reached')
     for value in table.values():
         if isinstance(value, Container):
-            yield from builder.flatten(value)
+            yield from builder.flatten(recursion_limit - 1, value)
 
     yield table
-
-
-# Callable[[Table, FieldTemplate], USize]
-field_size = Dispatcher(  # pylint: disable=invalid-name
-    f"{__name__}.field_size")
-
-# Callable[[Table, FieldTemplate], str]
-field_format = Dispatcher(  # pylint: disable=invalid-name
-    f"{__name__}.field_format")
-
-
-@field_format.register(Table, EnumFieldTemplate)
-def enum_field_format(
-        table: Table,
-        field_template: EnumFieldTemplate
-) -> str:
-    value_template = field_template.value_template
-    assert isinstance(value_template, (EnumTemplate, UnionTemplate))
-    return FORMAT_MAP[value_template.value_type]
-
-
-@field_format.register(Table, ScalarFieldTemplate)
-def scalar_field_format(
-        table: Table,
-        field_template: ScalarFieldTemplate
-) -> str:
-    # pylint: disable=unused-argument
-    return FORMAT_MAP[field_template.value_type]
-
-
-@field_format.register(Table, UnionFieldTemplate)
-@field_format.register(Table, PointerFieldTemplate)
-@field_format.register(Table, StringFieldTemplate)
-def pointer_field_format(
-        table: Table,
-        field_template: Union[PointerFieldTemplate, StringFieldTemplate]
-) -> str:
-    # pylint: disable=unused-argument
-    return UOFFSET_FMT
-
-
-@field_size.register(Table, EnumFieldTemplate)
-def enum_field_size(
-        table: Table,
-        field_template: EnumFieldTemplate
-) -> USize:
-    value_template = field_template.value_template
-    assert isinstance(value_template, (EnumTemplate, UnionTemplate))
-    return NBYTES_MAP[value_template.value_type]
-
-
-@field_size.register(Table, ScalarFieldTemplate)
-def scalar_field_size(
-        table: Table,
-        field_template: ScalarFieldTemplate
-) -> USize:
-    # pylint: disable=unused-argument
-    return NBYTES_MAP[field_template.value_type]
-
-
-@field_size.register(Table, UnionFieldTemplate)
-@field_size.register(Table, PointerFieldTemplate)
-@field_size.register(Table, StringFieldTemplate)
-def pointer_field_size(
-        table: Table,
-        field_template: Union[PointerFieldTemplate, StringFieldTemplate]
-) -> USize:
-    # pylint: disable=unused-argument
-    return UOFFSET_SIZE
 
 
 @builder.calc_size.register(int, Table)
@@ -570,17 +494,80 @@ def calc_table_size(
         size: UOffset,
         table: Table
 ) -> USize:
+    field_count = 0
     for key, value in table.items():
         field_template = table.template.field_map[key]
         if value == field_template.default:
             continue
-        size += field_size(table, field_template)
+        value_template = field_template.value_template
+        size += value_template.inline_size
+        size += -size % value_template.inline_align
+        field_count = max(field_count, field_template.index + 1)
 
-    size += -size % UOFFSET_SIZE
     size += UOFFSET_SIZE
-    size += table.template.field_count * VOFFSET_SIZE + 2 * VSIZE_SIZE
+    size += -size % UOFFSET_SIZE
+    size += field_count * VOFFSET_SIZE + 2 * VSIZE_SIZE
 
     return size
+
+
+# Callable[[UOffset, Mapping[int, UOffset], Any],
+#          Generator[Scalar, None, None,]]
+inline_value = Dispatcher(  # pylint: disable=invalid-name
+    f"{__name__}.field_size")
+
+
+@inline_value.register(int, dict, object)
+def inline_scalar_value(offset, offset_map, value):
+    # pylint: disable=unused-argument
+    yield value
+
+
+@inline_value.register(int, dict, Table)
+def inline_table_value(offset, offset_map, table):
+    yield offset - offset_map[hash(table)]
+
+
+@attr.s(auto_attribs=True, frozen=True, slots=True)
+class InlineBlock:
+    index: int = -1  # -1 for padding
+    size: USize = 0
+    align: USize = 0
+    format: str = ''
+    value: Any = None
+    pinned: bool = False
+
+
+def align_blocks(
+        cursor: USize,
+        blocks: Iterable[InlineBlock]
+) -> Sequence[InlineBlock]:
+    packed: Deque[InlineBlock] = collections.deque()
+    pending = sorted(blocks, key=op.attrgetter('size'), reverse=True)
+
+    if not pending:
+        return packed
+
+    while pending:
+        gap = -cursor % pending[0].align if cursor else 0
+        if gap:
+            for block in pending:
+                if block.align <= gap:
+                    pending.remove(block)
+                    break
+            else:
+                block = InlineBlock(size=gap, format='x'*gap)
+        else:
+            block = pending.pop(0)
+        packed.appendleft(block)
+        cursor += block.size
+
+    gap = -cursor % UOFFSET_SIZE
+    if gap:
+        block = InlineBlock(size=gap, format='x'*gap)
+        packed.appendleft(block)
+
+    return packed
 
 
 @builder.write.register(bytearray, int, dict, Table)
@@ -593,94 +580,60 @@ def write_table(
     # pylint: disable=unused-argument
     # pylint: disable=too-many-locals  # TODO split to smaller functions?
 
-    field_map = table.template.field_map
-    body_values = {k: v for k, v in table.items() if v != field_map[k].default}
-    keys = list(body_values.keys())
-    size_map = {k: field_size(table, field_map[k]) for k in keys}
-    format_map = {k: field_format(table, field_map[k]) for k in keys}
+    inline_blocks = ft.compose(
+        ft.curry(align_blocks)(cursor),
+        ft.curry(map)(lambda x: InlineBlock(
+            table.template.field_map[x].index,
+            table.template.field_map[x].value_template.inline_size,
+            table.template.field_map[x].value_template.inline_align,
+            table.template.field_map[x].value_template.inline_format,
+            table[x],
+        )),
+        ft.curry(filter)(lambda x: table[x]
+                         != table.template.field_map[x].default)
+    )(table.keys())
 
-    if keys:
-        pad_left = - SOFFSET_SIZE % min(SOFFSET_SIZE, max(size_map.values()))
+    if inline_blocks:
+        vtable = [0] * (max(map(op.attrgetter('index'), inline_blocks)) + 1)
     else:
-        pad_left = 0
-    # Fill space between table's UOffset and first largest value
-    # by smaller values
-    keys = sorted(keys, key=lambda k: size_map[k], reverse=True)
-    for key in keys:
-        if not pad_left:
-            break
-        if size_map[key] <= pad_left:
-            keys.remove(key)
-            keys.insert(0, key)
-            pad_left -= size_map[key]
+        vtable = []
+    vtable_size = VSIZE_SIZE * 2 + VOFFSET_SIZE * len(vtable)
 
-    body_size = sum(it.cons(0, size_map.values()))
-    pad_right = -(body_size+cursor) % SOFFSET_SIZE
+    body_size = UOFFSET_SIZE
+    for block in inline_blocks:
+        if block.index >= 0:
+            vtable[block.index] = body_size
+        body_size += block.size
 
-    print('table', table.type_name)
-    print('cursor', hex(cursor), 'offset_map',
-          {k: hex(v) for k, v in offset_map.items()})
-    print('items', dict(body_values))
-    print('hashes', {k: hash(v) for k, v in body_values.items()})
-    # print('sizes', [size_map[k] for k in keys])
-    # print('formats', [format_map[k] for k in keys])
-    # print('pad_left', pad_left, 'pad_right', pad_right)
+    cursor += body_size
+    offset = cursor
+    cursor += vtable_size
 
-    # field_count = table.template.field_count
-    if keys:
-        field_count = max(map(lambda x: field_map[x].index, keys)) + 1
-    else:
-        field_count = 0
-    vtable_size = VSIZE_SIZE * 2 + VOFFSET_SIZE * field_count
-
-    composed_format = ''.join((
+    format_ = ''.join([
         '<',
         VSIZE_FMT * 2,
-        VOFFSET_FMT * field_count,
+        VOFFSET_FMT * len(vtable),
         SOFFSET_FMT,
-        'x'*pad_left,
-        *(format_map[k] for k in keys),
-        'x'*pad_right,
-    ))
-    print(composed_format)
+        *map(op.attrgetter('format'), inline_blocks)
+    ])
 
-    vtable_offsets = dict(zip(
-        keys,
-        ft.compose(
-            ft.curry(it.accumulate)(op.add),
-            ft.curry(it.cons)(pad_left+SOFFSET_SIZE),
-            ft.curry(map)(lambda k: size_map[k])
-        )(keys)
-    ))
-    vtable_offsets_by_index = {
-        field_map[k].index: vtable_offsets[k]
-        for k in keys
-    }
+    values = ft.compose(
+        list,
+        it.concat,
+        ft.curry(it.cons)([vtable_size, body_size]),
+        ft.curry(it.cons)(vtable),
+        ft.curry(it.cons)([vtable_size]),
+        ft.curry(map)(lambda x: inline_value(
+            offset - vtable[x.index], offset_map, x.value)),
+        ft.curry(filter)(lambda x: x.value is not None)
+    )(inline_blocks)
 
-    vtable = map(
-        lambda n: vtable_offsets_by_index.get(n, 0),
-        range(field_count)
-    )
-
-    offset = cursor + pad_right + body_size + pad_left + SOFFSET_SIZE
-    cursor = offset + vtable_size
-
-    # replace containers with offsets
-    for key, value in body_values.items():
-        if isinstance(value, Container):
-            body_values[key] = (
-                offset - vtable_offsets[key] - offset_map[hash(value)])
-            print(hex(body_values[key]), hex(offset), hex(
-                vtable_offsets[key]), hex(offset_map[hash(value)]))
-
-    struct.pack_into(
-        composed_format,
-        buffer,
-        len(buffer) - cursor,
-        vtable_size, SOFFSET_SIZE + pad_left + body_size, *vtable,
-        vtable_size, *(body_values[k] for k in keys)
-    )
-
+    # from pprint import pprint
+    # pprint(inline_blocks)
+    print('format:', format_)
+    print('values:', values)
     print('cursor', hex(cursor), 'offset', hex(offset))
+
+    struct.pack_into(format_, buffer, len(buffer) - cursor, *values)
 
     return cursor, offset

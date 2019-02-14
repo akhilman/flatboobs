@@ -8,7 +8,7 @@ from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
 
 from . import reader
-from .abc import Backend
+from .abc import Backend, Template
 from .table import Table
 from .template import EnumTemplate, TableTemplate, UnionTemplate
 
@@ -20,7 +20,7 @@ class FatBoobs(Backend):
     def __init__(self):
 
         self.template_ids: Dict[str, TemplateId] = dict()
-        self.templates: Dict[TemplateId, abc.Template] = dict()
+        self.templates: Dict[TemplateId, Template] = dict()
         self._template_count: Iterator[TemplateId] = itertools.count(1)
 
     @staticmethod
@@ -121,6 +121,7 @@ class FatBoobs(Backend):
             mutation: Optional[Mapping[str, Any]] = None
     ) -> Table:
         template = self.templates[template_id]
+        assert isinstance(template, TableTemplate)
         mutation = mutation or dict()
         if not isinstance(mutation, dict):
             raise TypeError(f"Mutation should be dict, {mutation} is given")

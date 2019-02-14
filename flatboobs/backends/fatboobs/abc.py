@@ -4,7 +4,7 @@ from abc import abstractmethod
 from typing import Any, Dict, Generic, Mapping, Optional, TypeVar
 
 from flatboobs import abc
-from flatboobs.typing import TemplateId, UOffset
+from flatboobs.typing import TemplateId, UOffset, USize
 from flatboobs.constants import BaseType
 
 
@@ -12,6 +12,7 @@ class Template(
         abc.Template,
 ):
     # pylint: disable=too-few-public-methods
+    # pylint: disable=abstract-method
 
     backend: 'Backend'
     id: TemplateId
@@ -19,6 +20,9 @@ class Template(
     type_name: str
     file_identifier: str
     value_type: BaseType
+    inline_format: str
+    inline_size: USize
+    inline_align: USize
 
 
 _TT = TypeVar('_TT', bound=Template)
@@ -49,7 +53,7 @@ class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
 
 class Backend(abc.Backend):
     template_ids: Dict[str, TemplateId]
-    templates: Dict[TemplateId, abc.Template]
+    templates: Dict[TemplateId, Template]
 
     # TODO rename to new_table()
     @abstractmethod
@@ -59,5 +63,5 @@ class Backend(abc.Backend):
             buffer: Optional[bytes] = None,
             offset: UOffset = 0,
             mutation: Optional[Mapping[str, Any]] = None
-    ) -> Container:
+    ) -> abc.Table:
         pass

@@ -1,6 +1,10 @@
 # pylint: disable=missing-docstring
-
+import itertools
+import string
 from typing import Any
+
+import toolz.functoolz as ft
+import toolz.itertoolz as it
 
 from .abc import Struct, Table
 
@@ -27,10 +31,30 @@ def asnative(something: Any) -> Any:
 
 
 def hexdump(buffer: bytes) -> str:
-    lines = list()
-    for n in range(0, len(buffer), 8):
-        lines.append(f'{n:02x}\t'+''.join(f'{x:02x} ' for x in buffer[n:n+8]))
-    return '\n'.join(lines)
+
+    printable = string.ascii_letters + string.digits
+
+    def format_hex(values):
+        return ''.join(f'{x:02x} ' for x in values)
+
+    def format_chr(values):
+        return ''.join(chr(x) if chr(x) in printable else '.'
+                       for x in values)
+
+    def format_line(line_n, values):
+        return '{:04x}   {:<52} {:<19}'.format(
+            line_n * 16,
+            ' '.join(map(format_hex, values)),
+            ' '.join(map(format_chr, values))
+        )
+
+    return ft.compose(
+        '\n'.join,
+        ft.curry(map)(
+            lambda x, cnt=itertools.count(): format_line(next(cnt), x)),
+        ft.partial(it.partition_all, 4),
+        ft.partial(it.partition_all, 4),
+    )(buffer)
 
 
 def remove_prefix(prefix: str, text: str) -> str:

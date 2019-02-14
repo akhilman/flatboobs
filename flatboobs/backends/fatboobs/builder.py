@@ -2,7 +2,7 @@
 
 import struct
 from functools import reduce
-from typing import Dict, Mapping, Tuple
+from typing import Any, Dict, List, Mapping, Tuple
 
 import toolz.functoolz as ft
 import toolz.itertoolz as it
@@ -18,8 +18,7 @@ from flatboobs.typing import UOffset, USize
 
 from .abc import Container
 
-
-# Callable[[Container], Generator[Container, None, None]]
+# Callable[[int, Container], Generator[Container, None, None]]
 flatten = Dispatcher(f'{__name__}.flatten')  # pylint: disable=invalid-name
 
 # Callable[[USize, Container], USize]
@@ -54,35 +53,47 @@ def write_header(
         root_offset: UOffset,
         file_identifier: str,
         cursor: UOffset,
-) -> None:
+) -> UOffset:
 
     ident = file_identifier.encode()[:FILE_IDENTIFIER_LENGTH]
 
-    # print(ident, type(ident))
-    # print('cursor', len(buffer) - cursor)
-    # print('root_offset', root_offset, len(buffer) - root_offset)
+    format_ = ''
+    values: List[Any] = []
+    if ident:
+        format_ = f'{FILE_IDENTIFIER_LENGTH}s{format_}'
+        cursor += FILE_IDENTIFIER_LENGTH
+        values = [ident, *values]
+
+    format_ = f'{UOFFSET_FMT}{format_}'
+    cursor += UOFFSET_SIZE
+    cursor += -cursor % 8
+    values = [cursor - root_offset, *values]
+
+    assert cursor <= len(buffer)
 
     struct.pack_into(
-        f'{UOFFSET_FMT}{FILE_IDENTIFIER_LENGTH}s',
+        format_,
         buffer,
         len(buffer) - cursor,
-        len(buffer) - root_offset,
-        ident
+        *values,
     )
+    return cursor
 
 
 def build(content: Container) -> bytes:
 
+    max_recursion = 100
     blocks = ft.compose(
         list,
         it.unique,
-        flatten,
+        ft.partial(flatten, max_recursion),
     )(content)
 
     size: USize = reduce(calc_size, blocks, 0)
+    # print('calc size:', size)
     size += FILE_IDENTIFIER_LENGTH
-    size += -size % UOFFSET_SIZE
     size += UOFFSET_SIZE
+    size += -size % 8
 
     buffer = bytearray(size)
     offset_map: Dict[int, UOffset] = {}
@@ -93,18 +104,12 @@ def build(content: Container) -> bytes:
             buffer, cursor, offset_map, block)
         offset_map[hash(block)] = offset
 
-    cursor += FILE_IDENTIFIER_LENGTH
-    cursor += UOFFSET_SIZE
-    cursor += -cursor % UOFFSET_SIZE
+    # print('cursor:', cursor)
+
+    file_identifier = content.template.file_identifier
+    cursor = write_header(
+        buffer, offset_map[hash(content)], file_identifier, cursor)
 
     buffer = buffer[-cursor:]
-
-    root_block = blocks[-1]
-    if isinstance(root_block, Container):
-        file_identifier = root_block.template.file_identifier
-    else:
-        file_identifier = ''
-    write_header(
-        buffer, offset_map[hash(root_block)], file_identifier, cursor)
 
     return buffer

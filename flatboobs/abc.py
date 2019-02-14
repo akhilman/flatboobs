@@ -322,5 +322,5 @@ class Backend(ABC):
             buffer: Optional[bytes] = None,
             offset: UOffset = UOffset(0),
             mutation: Optional[Mapping[str, Any]] = None
-    ) -> Container:
+    ) -> Table:
         pass
