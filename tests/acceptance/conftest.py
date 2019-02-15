@@ -4,14 +4,14 @@ import flatboobs
 
 
 @pytest.fixture(params=['fatboobs'])
-def backend(request):
+def serializer(request):
     return request.param
 
 
 @pytest.fixture
-def registry(backend):
+def registry(serializer):
 
-    reg = flatboobs.Registry(backend=backend)
+    reg = flatboobs.Registry(serializer=serializer)
     reg.load_schema_from_package('fbtest.schema')
 
     return reg

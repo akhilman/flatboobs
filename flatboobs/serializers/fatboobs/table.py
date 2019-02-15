@@ -43,7 +43,7 @@ from flatboobs.typing import DType, Scalar, UOffset, USize
 from flatboobs.utils import remove_prefix
 
 from . import builder, reader
-from .abc import Backend, Container
+from .abc import Serializer, Container
 from .template import (
     EnumTemplate,
     ScalarFieldTemplate,
@@ -60,7 +60,7 @@ from .template import (
 @attr.s(auto_attribs=True, slots=True, cmp=False, repr=False)
 class Table(Container[TableTemplate], abc.Table):
     # pylint: disable=too-many-ancestors
-    backend: Backend
+    serializer: Serializer
     template: TableTemplate
     buffer: Optional[bytes] = None
     offset: UOffset = 0
@@ -83,7 +83,7 @@ class Table(Container[TableTemplate], abc.Table):
 
     @staticmethod
     def new(
-            backend: Backend,
+            serializer: Serializer,
             template: TableTemplate,
             buffer: Optional[bytes],
             offset: UOffset,
@@ -115,7 +115,7 @@ class Table(Container[TableTemplate], abc.Table):
         unions = ft.compose(
             dict,
             it.concat,
-            ft.curry(map)(lambda x: convert_union_fields(backend, *x)),
+            ft.curry(map)(lambda x: convert_union_fields(serializer, *x)),
             ft.curry(filter)(lambda x: isinstance(x[1], UnionTemplate)),
             ft.curry(map)(lambda x: (
                 template.field_map[x[0]],
@@ -127,7 +127,7 @@ class Table(Container[TableTemplate], abc.Table):
 
         mutation = dt.merge(non_unions, unions)
 
-        return Table(backend, template, buffer, offset, mutation)
+        return Table(serializer, template, buffer, offset, mutation)
 
     @property
     def dtype(
@@ -184,7 +184,7 @@ class Table(Container[TableTemplate], abc.Table):
             kwargs
         )
         return self.new(
-            self.backend,
+            self.serializer,
             self.template,
             self.buffer,
             self.offset,
@@ -309,7 +309,7 @@ def convert_table_field_value(
 ) -> Optional[Container]:
     # pylint: disable=unused-argument
     return Table.new(
-        value_template.backend,
+        value_template.serializer,
         value_template,
         None,
         0,
@@ -318,7 +318,7 @@ def convert_table_field_value(
 
 
 def convert_union_fields(
-        backend: Backend,
+        serializer: Serializer,
         field_template: ScalarFieldTemplate,
         union_template: UnionTemplate,
         union_type: int,
@@ -355,7 +355,7 @@ def convert_union_fields(
         value_template = union_template.value_templates[union_type]
         assert isinstance(value_template, TableTemplate)
         container = Table.new(
-            backend,
+            serializer,
             value_template,
             None,
             0,
@@ -446,7 +446,7 @@ def read_table_field(
     offset = cast(UOffset, offset)
 
     return Table.new(
-        table.backend,
+        table.serializer,
         value_template,
         table.buffer,
         offset,

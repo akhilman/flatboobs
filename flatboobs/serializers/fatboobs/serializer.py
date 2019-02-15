@@ -8,14 +8,14 @@ from flatboobs.constants import BaseType
 from flatboobs.typing import TemplateId, UOffset
 
 from . import reader
-from .abc import Backend, Template
+from .abc import Serializer, Template
 from .table import Table
 from .template import EnumTemplate, TableTemplate, UnionTemplate
 
 _TT = TypeVar('_TT')  # Template type
 
 
-class FatBoobs(Backend):
+class FatBoobs(Serializer):
 
     def __init__(self):
 

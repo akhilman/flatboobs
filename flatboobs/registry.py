@@ -26,44 +26,44 @@ from flatboobs.typing import Scalar, TemplateId, UOffset
 logger = logging.getLogger('flatboobs')
 
 
-def _load_backend(
-        arg: Union[None, Iterable[str], str, abc.Backend] = 'auto'
-) -> abc.Backend:
+def _load_serializer(
+        arg: Union[None, Iterable[str], str, abc.Serializer] = 'auto'
+) -> abc.Serializer:
 
-    if isinstance(arg, abc.Backend):
+    if isinstance(arg, abc.Serializer):
         return arg
 
     if not arg or arg == 'auto':
-        import flatboobs.backends
-        variants = flatboobs.backends.BACKENDS
+        import flatboobs.serializers
+        variants = flatboobs.serializers.BACKENDS
     elif isinstance(arg, str):
         variants = [arg]
 
-    backend = None
+    serializer = None
     error = None
     for variant in variants:
-        logger.debug(f'Trying to load backend "{variant}"')
-        mod_name = f"flatboobs.backends.{variant}"
+        logger.debug(f'Trying to load serializer "{variant}"')
+        mod_name = f"flatboobs.serializers.{variant}"
         try:
             mod = importlib.import_module(mod_name)
-            backend = mod.BACKEND  # type: ignore
+            serializer = mod.BACKEND  # type: ignore
         except ImportError as exc:
-            logger.debug(f'Can not import backend module "{mod_name}"')
+            logger.debug(f'Can not import serializer module "{mod_name}"')
             error = exc
         else:
-            logger.debug(f'Backend module "{mod_name}" loaded')
+            logger.debug(f'Serializer module "{mod_name}" loaded')
             break
 
-    if not backend:
-        raise RuntimeError(f'Can not load any backend from: {arg}') from error
+    if not serializer:
+        raise RuntimeError(f'Can not load any serializer from: {arg}') from error
 
-    return backend()
+    return serializer()
 
 
 @attr.s(auto_attribs=True)
 class Registry:
 
-    backend: abc.Backend = attr.ib(None, converter=_load_backend)
+    serializer: abc.Serializer = attr.ib(None, converter=_load_serializer)
     types: Set[schema.TypeDeclaration] = attr.ib(factory=set)
 
     _cached_type_maps: \
@@ -182,7 +182,7 @@ class Registry:
                 f'{INTEGER_TYPES}, but {value_type or type_decl.type} is given'
             )
 
-        template = self.backend.new_enum_template(
+        template = self.serializer.new_enum_template(
             type_decl.namespace, type_decl.name,
             type_decl.file_identifier or '',
             value_type, bit_flags
@@ -304,7 +304,7 @@ class Registry:
     ) -> TemplateId:
 
         type_map = self._type_map(type_decl.namespace)
-        template = self.backend.new_struct_template(
+        template = self.serializer.new_struct_template(
             type_decl.namespace, type_decl.name,
             type_decl.file_identifier or ''
         )
@@ -337,7 +337,7 @@ class Registry:
     ) -> TemplateId:
 
         type_map = self._type_map(type_decl.namespace)
-        template = self.backend.new_table_template(
+        template = self.serializer.new_table_template(
             type_decl.namespace, type_decl.name,
             type_decl.file_identifier or ''
         )
@@ -359,7 +359,7 @@ class Registry:
     ) -> TemplateId:
 
         type_map = self._type_map(type_decl.namespace)
-        template = self.backend.new_union_template(
+        template = self.serializer.new_union_template(
             type_decl.namespace, type_decl.name,
             type_decl.file_identifier or ''
         )
@@ -384,7 +384,7 @@ class Registry:
             type_decl: schema.TypeDeclaration,
     ) -> TemplateId:
 
-        template_id = self.backend.get_template_id(
+        template_id = self.serializer.get_template_id(
             type_decl.namespace, type_decl.name)
         if template_id:
             # template already registered
@@ -411,7 +411,7 @@ class Registry:
 
         template = self._get_add_template(type_decl)
 
-        container = self.backend.new_table(
+        container = self.serializer.new_table(
             template, buffer, offset, mutation)
 
         return container
@@ -435,7 +435,7 @@ class Registry:
             root_type: Optional[str] = None,
     ) -> abc.Container:
 
-        header = self.backend.read_header(buffer)
+        header = self.serializer.read_header(buffer)
 
         if root_type:
             root_type_decl = self.type_by_name(root_type, namespace)

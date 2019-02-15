@@ -137,7 +137,7 @@ class VectorOfTables(_Vector['VectorOfTables', Table]):
 
 
 ####
-# Backend
+# Serializer
 ##
 
 
@@ -257,11 +257,11 @@ class UnionTemplate(Template):
         pass
 
 
-class Backend(ABC):
+class Serializer(ABC):
 
     @abstractmethod
     def read_header(
-            self: 'Backend',
+            self: 'Serializer',
             buffer: bytes
     ) -> FileHeader:
         pass
@@ -269,7 +269,7 @@ class Backend(ABC):
     @abstractmethod
     def new_enum_template(
             # pylint: disable=too-many-arguments
-            self: 'Backend',
+            self: 'Serializer',
             namespace: str,
             type_name: str,
             file_identifier: str,
@@ -280,7 +280,7 @@ class Backend(ABC):
 
     @abstractmethod
     def new_struct_template(
-            self: 'Backend',
+            self: 'Serializer',
             namespace: str,
             type_name: str,
             file_identifier: str
@@ -289,7 +289,7 @@ class Backend(ABC):
 
     @abstractmethod
     def new_table_template(
-            self: 'Backend',
+            self: 'Serializer',
             namespace: str,
             type_name: str,
             file_identifier: str
@@ -298,7 +298,7 @@ class Backend(ABC):
 
     @abstractmethod
     def new_union_template(
-            self: 'Backend',
+            self: 'Serializer',
             namespace: str,
             type_name: str,
             file_identifier: str
@@ -307,7 +307,7 @@ class Backend(ABC):
 
     @abstractmethod
     def get_template_id(
-            self: 'Backend',
+            self: 'Serializer',
             namespace: str,
             type_name: str,
     ) -> TemplateId:
@@ -317,7 +317,7 @@ class Backend(ABC):
 
     @abstractmethod
     def new_table(
-            self: 'Backend',
+            self: 'Serializer',
             template_id: TemplateId,
             buffer: Optional[bytes] = None,
             offset: UOffset = UOffset(0),

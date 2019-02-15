@@ -14,7 +14,7 @@ from flatboobs import abc
 from flatboobs.constants import FORMAT_MAP, UOFFSET_FMT, BaseType
 from flatboobs.typing import Scalar, TemplateId, USize
 
-from .abc import Backend, Template
+from .abc import Serializer, Template
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
@@ -23,7 +23,7 @@ class BaseTemplate(
 ):
     # pylint: disable=too-few-public-methods
 
-    backend: Backend
+    serializer: Serializer
     id: TemplateId
     namespace: str
     type_name: str
@@ -105,7 +105,7 @@ class UnionTemplate(BaseTemplate, abc.UnionTemplate):
     value_type: BaseType = attr.ib(BaseType.UNION, init=False)
     value_templates: Dict[int, Template] = attr.ib(factory=dict, init=False)
     enum_template: EnumTemplate = attr.ib(attr.Factory(
-        lambda self: self.backend.new_enum_template(
+        lambda self: self.serializer.new_enum_template(
             self.namespace,
             f'_{self.type_name}Type',
             '',
@@ -123,7 +123,7 @@ class UnionTemplate(BaseTemplate, abc.UnionTemplate):
     ) -> None:
         # pylint: disable=unsupported-assignment-operation
         self.enum_template.add_member(name, variant_id)
-        value_template = self.backend.templates[value_template_id]
+        value_template = self.serializer.templates[value_template_id]
         self.value_templates[variant_id] = value_template
 
     def finish(self: 'UnionTemplate') -> TemplateId:
@@ -196,7 +196,7 @@ class TableTemplate(BaseTemplate, abc.TableTemplate):
             default: Scalar,
     ) -> None:
         index = next(self._field_counter)
-        value_template = ScalarTemplate(self.backend, value_type)
+        value_template = ScalarTemplate(self.serializer, value_type)
         field = (VectorFieldTemplate if is_vector else ScalarFieldTemplate)(
             index, name, value_template, default)
         self.fields.append(field)
@@ -223,7 +223,7 @@ class TableTemplate(BaseTemplate, abc.TableTemplate):
             value_template_id: TemplateId
     ) -> None:
         index = next(self._field_counter)
-        value_template = self.backend.templates[value_template_id]
+        value_template = self.serializer.templates[value_template_id]
         field = (VectorFieldTemplate if is_vector else ScalarFieldTemplate)(
             index, name, value_template)
         self.fields.append(field)
@@ -236,7 +236,7 @@ class TableTemplate(BaseTemplate, abc.TableTemplate):
             default: int,
     ) -> None:
         index = next(self._field_counter)
-        value_template = self.backend.templates[value_template_id]
+        value_template = self.serializer.templates[value_template_id]
         field = (VectorFieldTemplate if is_vector else ScalarFieldTemplate)(
             index, name, value_template, default)
         self.fields.append(field)
@@ -246,7 +246,7 @@ class TableTemplate(BaseTemplate, abc.TableTemplate):
             name: str,
             value_template_id: TemplateId
     ) -> None:
-        value_template = self.backend.templates[value_template_id]
+        value_template = self.serializer.templates[value_template_id]
         assert isinstance(value_template, UnionTemplate)
         self.add_enum_field(
             f'{name}_type', False, value_template.enum_template.id, 0)

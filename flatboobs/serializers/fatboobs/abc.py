@@ -14,7 +14,7 @@ class Template(
     # pylint: disable=too-few-public-methods
     # pylint: disable=abstract-method
 
-    backend: 'Backend'
+    serializer: 'Serializer'
     id: TemplateId
     namespace: str
     type_name: str
@@ -30,7 +30,7 @@ _TT = TypeVar('_TT', bound=Template)
 
 class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
     # pylint: disable=too-few-public-methods
-    backend: 'Backend'
+    serializer: 'Serializer'
     template: _TT
     buffer: Optional[bytes] = None
     offset: UOffset = 0
@@ -51,14 +51,14 @@ class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
         return id(self)
 
 
-class Backend(abc.Backend):
+class Serializer(abc.Serializer):
     template_ids: Dict[str, TemplateId]
     templates: Dict[TemplateId, Template]
 
     # TODO rename to new_table()
     @abstractmethod
     def new_table(
-            self: 'Backend',
+            self: 'Serializer',
             template_id: TemplateId,
             buffer: Optional[bytes] = None,
             offset: UOffset = 0,

@@ -1,6 +1,6 @@
 # pylint: disable=missing-docstring
 
-from .backend import FatBoobs
+from .serializer import FatBoobs
 from . import table  # NOQA
 
 
