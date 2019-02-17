@@ -251,7 +251,8 @@ def make_enum_members(members, start_value, bit_flags):
 
 
 def make_enum(kwargs, union=False):
-    bit_flags = any(m['name'] == 'bit_flags' for m in kwargs['metadata'])
+    bit_flags = any(m['name'] == 'bit_flags' and m['value']
+                    for m in kwargs['metadata'])
     start_value = 1 if union else 0
     kwargs = dt.assoc(kwargs, 'type', kwargs.get('type', 'byte'))
     return dt.assoc(

@@ -66,7 +66,7 @@ class Enum(_BaseEnum):
                                typing.Type[enum.IntFlag]]
 
         # pylint: disable=unsupported-membership-test
-        if 'bit_flags' in self.metadata_map:
+        if self.metadata_map.get('bit_flags', False):
             EnumMeta = enum.IntFlag
             members = ft.compose(
                 ft.partial(sorted, key=op.itemgetter(0)),
