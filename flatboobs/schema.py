@@ -7,6 +7,7 @@ import typing
 from types import MappingProxyType
 
 import attr
+import toolz.functoolz as ft
 import toolz.itertoolz as it
 
 
@@ -67,13 +68,16 @@ class Enum(_BaseEnum):
         # pylint: disable=unsupported-membership-test
         if 'bit_flags' in self.metadata_map:
             EnumMeta = enum.IntFlag
-            members = it.unique(it.concatv(
-                self.members,
-                [('NONE', 0)],
-                [('ALL', sum(map(op.attrgetter('value'), self.members)))]
-            ), key=lambda x: x[0])
+            members = ft.compose(
+                ft.partial(sorted, key=op.itemgetter(0)),
+                ft.partial(ft.flip(it.concatv), [
+                    ('NONE', 0),
+                    ('ALL', sum(map(op.attrgetter('value'), self.members)))
+                ]),
+            )(self.members)
         else:
             EnumMeta = enum.IntEnum
+            members = self.members
 
         return EnumMeta(self.name, members)  # type: ignore
 
@@ -83,10 +87,10 @@ class Union(_BaseEnum):
 
     def asenum(self: 'Union') -> enum.IntEnum:
 
-        members = it.unique(it.concatv(
-            self.members,
-            [('NONE', 0)],
-        ), key=lambda x: x[0])
+        members = ft.compose(
+            ft.partial(sorted, key=op.itemgetter(0)),
+            ft.partial(ft.flip(it.concatv), [('NONE', 0)]),
+        )(self.members)
 
         return enum.IntEnum(self.name, members)  # type: ignore
 
