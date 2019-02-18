@@ -211,7 +211,6 @@ class Serializer(ABC):
         If type_name is None, then type will be detected by file_identifier
         in message itself.
         """
-        pass
 
     def packb(
             self: 'Serializer',
