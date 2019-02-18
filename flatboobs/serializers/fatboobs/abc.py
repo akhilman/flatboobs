@@ -3,12 +3,11 @@
 # pylint: disable=too-few-public-methods
 
 from abc import abstractmethod
-
-from typing import Dict, Generic, Optional, TypeVar
+from typing import Any, Callable, Dict, Generic, Optional, TypeVar
 
 from flatboobs import abc, schema
-from flatboobs.typing import UOffset, USize
 from flatboobs.constants import BaseType
+from flatboobs.typing import UOffset, USize
 
 
 class Template:
@@ -20,7 +19,7 @@ class Template:
     type_name: str
     file_identifier: str
     value_type: BaseType
-    value_pytype: Optional[type]
+    value_factory: Callable[..., Any]
     inline_format: str
     inline_size: USize
     inline_align: USize
@@ -47,6 +46,9 @@ class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
     @property
     def file_identifier(self: 'Container') -> str:
         return self.template.file_identifier
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
 
     @abstractmethod
     def __hash__(self):

@@ -1,7 +1,7 @@
 # pylint: disable=missing-docstring
 
 from struct import calcsize, unpack_from
-from typing import Sequence
+from typing import Sequence, Tuple, cast
 
 import attr
 
@@ -11,7 +11,7 @@ from flatboobs.constants import (
     UOFFSET_FMT,
     VOFFSET_FMT
 )
-from flatboobs.typing import UOffset, Scalar
+from flatboobs.typing import Scalar, UOffset
 
 FILE_HEADER_FMT = UOFFSET_FMT + f"{FILE_IDENTIFIER_LENGTH}s"
 
@@ -48,3 +48,12 @@ def read_scalar(
 ) -> Scalar:
 
     return unpack_from(format_, buffer, offset)[0]
+
+
+def read_struct(
+        format_: str,
+        buffer: bytes,
+        offset: UOffset
+) -> Tuple[Scalar, ...]:
+
+    return cast(Tuple[Scalar, ...], unpack_from(format_, buffer, offset))

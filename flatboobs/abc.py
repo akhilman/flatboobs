@@ -74,24 +74,8 @@ class Container(Generic[_CT], ABC):
     def type_name(self: 'Container') -> str:
         pass
 
-    @property
-    @abstractmethod
-    def file_identifier(self: 'Container') -> str:
-        pass
-
-    @abstractmethod
-    def packb(self: 'Container') -> bytes:
-        pass
-
 
 class _TableLike(Container[_CT], Mapping[str, Any]):
-
-    @property
-    @abstractmethod
-    def dtype(
-            self: '_TableLike',
-    ) -> DType:
-        pass
 
     @abstractmethod
     def evolve(
@@ -124,7 +108,15 @@ class _NumpyCompatible(ABC):
 
 
 class Table(_TableLike['Table']):
-    pass
+
+    @property
+    @abstractmethod
+    def file_identifier(self: 'Container') -> str:
+        pass
+
+    @abstractmethod
+    def packb(self: 'Container') -> bytes:
+        pass
 
 
 class Struct(
@@ -194,24 +186,26 @@ class Serializer(ABC):
     def new(
             self: 'Serializer',
             type_name: str,
-            mutation: Optional[Mapping[str, Any]] = None,
+            mutation: Any = None,
             *,
             namespace: Optional[str] = None
-    ) -> Table:
+    ) -> Union[Table, Struct]:
         pass
 
+    @abstractmethod
     def unpackb(
             self: 'Serializer',
             type_name: Optional[str],
             buffer: bytes,
             *,
             namespace: Optional[str] = None
-    ) -> Container:
+    ) -> Table:
         """
         If type_name is None, then type will be detected by file_identifier
         in message itself.
         """
 
+    @abstractmethod
     def packb(
             self: 'Serializer',
             type_name: str,
@@ -220,6 +214,3 @@ class Serializer(ABC):
             namespace: Optional[str] = None
     ) -> bytes:
         pass
-
-    loads = unpackb
-    dumps = packb

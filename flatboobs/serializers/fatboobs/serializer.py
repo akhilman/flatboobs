@@ -1,6 +1,6 @@
 # pylint: disable=missing-docstring
 
-from typing import Any, Dict, Mapping, Optional, TypeVar
+from typing import Any, Dict, Mapping, Optional, TypeVar, Union
 
 import attr
 
@@ -10,13 +10,16 @@ from flatboobs.constants import (
     STRING_TO_SCALAR_TYPE_MAP,
     BaseType
 )
+from flatboobs.typing import UOffset
 
 from . import reader
-from .abc import Serializer, Template
+from .abc import Container, Serializer, Template
+from .struct import Struct
 from .table import Table
 from .template import (
     EnumTemplate,
     ScalarTemplate,
+    StructTemplate,
     TableTemplate,
     UnionTemplate
 )
@@ -50,8 +53,9 @@ class FatBoobs(Serializer):
             )
 
         pytype = type_decl.asenum()
+        bit_flags = type_decl.metadata_map.get('bit_flags', False)
 
-        template = EnumTemplate(type_decl, value_type, pytype)
+        template = EnumTemplate(type_decl, value_type, bit_flags, pytype)
         self.templates[type_decl] = template
 
         template.finish()
@@ -101,9 +105,39 @@ class FatBoobs(Serializer):
     def _add_struct_template(
             self: 'FatBoobs',
             type_decl: schema.Struct,
-    ) -> TableTemplate:
+    ) -> StructTemplate:
 
-        raise NotImplementedError
+        value_template: Template
+        template = StructTemplate(type_decl)
+        self.templates[type_decl] = template
+
+        for field in type_decl.fields:
+
+            assert not field.is_vector
+
+            value_type = \
+                STRING_TO_SCALAR_TYPE_MAP.get(field.type, BaseType.NULL)
+            if value_type != BaseType.NULL:
+                value_template = ScalarTemplate(value_type)
+            else:
+                value_type_decl = self.registry.type_by_name(
+                    field.type, type_decl.namespace)
+                if not isinstance(value_type_decl, schema.Enum):
+                    raise TypeError(
+                        f'Struct "{type_decl.name}" field "{field.name}" type '
+                        f'could not be {field.type}, '
+                        'only floats, integers, bools and enums are allowed'
+                    )
+                some_value_template = self._get_add_template(value_type_decl)
+                assert isinstance(some_value_template,
+                                  (ScalarTemplate, EnumTemplate))
+                value_template = some_value_template
+
+            template.add_field(field, value_template)
+
+        template.finish()
+
+        return template
 
     def _add_union_template(
             self: 'FatBoobs',
@@ -112,7 +146,7 @@ class FatBoobs(Serializer):
 
         pytype = type_decl.asenum()
 
-        enum_template = EnumTemplate(type_decl, BaseType.UBYTE, pytype)
+        enum_template = EnumTemplate(type_decl, BaseType.UBYTE, False, pytype)
         enum_template.finish()
 
         union_template = UnionTemplate(type_decl, enum_template)
@@ -149,28 +183,56 @@ class FatBoobs(Serializer):
             template = self._add_union_template(type_decl)
         elif isinstance(type_decl, schema.Enum):
             template = self._add_enum_template(type_decl)
+        else:
+            raise NotImplementedError('Unsupported type')
+
+        assert template
+
+        self.templates[type_decl] = template
 
         return template
+
+    def _new_container(
+            self: 'FatBoobs',
+            template: Template,
+            buffer: Optional[bytes],
+            offset: UOffset,
+            mutation: Any
+    ) -> Union[Table, Struct]:
+        """
+        Internal routine, Use FatBoobs.new().
+        """
+        if isinstance(template, TableTemplate):
+            return Table.new(self, template, buffer, offset, mutation)
+        if isinstance(template, StructTemplate):
+            return Struct.new(self, template, buffer, offset, mutation)
+        raise NotImplementedError(
+            'Unsupported template type {template.__class__.__name__}')
+
+    def _new_vector_container(
+            self: 'FatBoobs',
+            template: Template,
+            buffer: Optional[bytes],
+            offset: UOffset,
+            mutation: Any
+    ) -> Container:
+        """
+        Internal routine, Use FatBoobs.new().
+        """
+        raise NotImplementedError
 
     def new(
             self: 'FatBoobs',
             type_name: str,
-            mutation: Optional[Mapping[str, Any]] = None,
+            mutation: Any = None,
             *,
             namespace: Optional[str] = None
-    ) -> Table:
+    ) -> Union[Table, Struct]:
 
         type_decl = self.registry.type_by_name(type_name, namespace)
-        assert isinstance(type_decl, schema.Table)
         template = self._get_add_template(type_decl)
-        assert isinstance(template, TableTemplate)
 
-        mutation = mutation or dict()
-        if not isinstance(mutation, dict):
-            raise TypeError(f"Mutation should be dict, {mutation} is given")
-        return Table.new(
-            self, template, None, 0, mutation
-        )
+        return self._new_container(template, None, 0, mutation)
 
     def unpackb(
             self: 'FatBoobs',
@@ -178,7 +240,7 @@ class FatBoobs(Serializer):
             buffer: bytes,
             *,
             namespace: Optional[str] = None
-    ) -> abc.Container:
+    ) -> Table:
 
         header = reader.read_header(buffer)
 
@@ -194,9 +256,11 @@ class FatBoobs(Serializer):
         template = self._get_add_template(type_decl)
         assert isinstance(template, TableTemplate)
 
-        return Table.new(
-            self, template, buffer, header.root_offset, dict()
+        table = self._new_container(
+            template, buffer, header.root_offset, dict()
         )
+        assert isinstance(table, Table)
+        return table
 
     def packb(
             self: 'FatBoobs',
@@ -211,4 +275,5 @@ class FatBoobs(Serializer):
             mutation=mutation,
             namespace=namespace,
         )
+        assert isinstance(table, Table)
         return table.packb()

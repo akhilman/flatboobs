@@ -38,15 +38,17 @@ from flatboobs.constants import (
     VSIZE_FMT,
     VSIZE_SIZE
 )
-from flatboobs.typing import DType, Scalar, UOffset, USize
+from flatboobs.typing import Scalar, UOffset, USize
 
 from . import builder, reader
 from .abc import Container, Serializer
 from .enum import any_to_enum
+from .struct import Struct
 from .template import (
     EnumTemplate,
     ScalarFieldTemplate,
     ScalarTemplate,
+    StructTemplate,
     TableTemplate,
     UnionTemplate
 )
@@ -68,32 +70,19 @@ class Table(Container[TableTemplate], abc.Table):
     _cached_items: Dict[str, Any] = attr.ib(factory=dict, init=False)
     _hash: int = 0
 
-    def __attrs_post_init__(self):
-
-        if self.buffer:
-            self.vtable = reader.read_vtable(self.buffer, self.offset)
-
-        self._hash = hash((
-            id(self.template),
-            id(self.buffer),
-            self.offset,
-            tuple(self.mutation.items())
-        ))
-
     @staticmethod
     def new(
             serializer: Serializer,
             template: TableTemplate,
             buffer: Optional[bytes],
             offset: UOffset,
-            mutation: Dict[str, Any]
+            mutation: Optional[Dict[str, Any]]
     ) -> 'Table':
-        # TODO Replace this by @mutation.converter when
-        # converter decorator will be implemented
-        # https://github.com/python-attrs/attrs/issues/240
 
-        if not isinstance(mutation, collections.abc.Mapping):
-            raise TypeError('Mutation should be mapping type, '
+        if mutation is None:
+            mutation = {}
+        elif not isinstance(mutation, collections.abc.Mapping):
+            raise TypeError('Mutation should be mapping type or None, '
                             f'{type(mutation)} is given')
 
         bad_keys = set(mutation) - set(template.field_map)
@@ -125,26 +114,33 @@ class Table(Container[TableTemplate], abc.Table):
             ))
         )(mutation.items())
 
-        mutation = dt.merge(non_unions, unions)
+        mutation = cast(Dict[str, Any], dt.merge(non_unions, unions))
 
         return Table(serializer, template, buffer, offset, mutation)
 
-    @property
-    def dtype(
-            self: 'Table'
-    ) -> DType:
-        raise NotImplementedError
+    def __attrs_post_init__(self):
 
-    def __eq__(self, other):
-        return hash(self) == hash(other)
+        if self.buffer:
+            self.vtable = reader.read_vtable(self.buffer, self.offset)
 
     def __hash__(self):
+        if not self._hash:
+            self._hash = hash((
+                id(self.template),
+                id(self.buffer),
+                self.offset,
+                tuple(self.mutation.items())
+            ))
         return self._hash
 
     def __getitem__(
             self: 'Table',
             key: str
     ) -> Any:
+
+        # pylint: disable=unsupported-membership-test
+        # pylint: disable=unsubscriptable-object
+        # pylint: disable=unsupported-assignment-operation
 
         if key in self._cached_items:
             return self._cached_items[key]
@@ -179,16 +175,12 @@ class Table(Container[TableTemplate], abc.Table):
             self: 'Table',
             **kwargs: Mapping[str, Any]
     ) -> 'Table':
-        mutation = dt.merge(
-            self.mutation or {},
-            kwargs
-        )
-        return self.new(
+        return Table.new(
             self.serializer,
             self.template,
             self.buffer,
             self.offset,
-            mutation
+            kwargs
         )
 
     def packb(self: 'Table') -> bytes:
@@ -202,6 +194,17 @@ class Table(Container[TableTemplate], abc.Table):
 # Callable[[Serializer, ScalarFieldTemplate, Template, value], Any]
 convert_field_value = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.convert_field_value")
+
+@convert_field_value.register(
+    Serializer, ScalarFieldTemplate, EnumTemplate, object)
+def convert_enum_field_value(
+        serializer: Serializer,
+        field_template: ScalarFieldTemplate,
+        value_template: EnumTemplate,
+        value: Any
+) -> enum.IntEnum:
+    # pylint: disable=unused-argument
+    return any_to_enum(value_template.value_factory, value)
 
 
 @convert_field_value.register(
@@ -231,16 +234,21 @@ def convert_scalar_field_value(
 
 
 @convert_field_value.register(
-    Serializer, ScalarFieldTemplate, EnumTemplate, object)
-def convert_enum_field_value(
+    Serializer, ScalarFieldTemplate, StructTemplate, object)
+def convert_struct_field_value(
         serializer: Serializer,
         field_template: ScalarFieldTemplate,
-        value_template: EnumTemplate,
+        value_template: StructTemplate,
         value: Any
-) -> enum.IntEnum:
+) -> Struct:
     # pylint: disable=unused-argument
-    return any_to_enum(value_template.value_pytype, value)
-
+    return Struct.new(
+        serializer,
+        value_template,
+        None,
+        0,
+        value
+    )
 
 @convert_field_value.register(
     Serializer, ScalarFieldTemplate, TableTemplate, type(None))
@@ -299,7 +307,7 @@ def convert_union_fields(
         value: Any
 ) -> Tuple[Tuple[str, enum.IntEnum], Tuple[str, Optional[Table]]]:
 
-    enum_class = union_template.enum_template.value_pytype
+    enum_class = union_template.enum_template.value_factory
     assert issubclass(enum_class, enum.IntEnum)  # type: ignore
     key = field_template.name
     enum_key = f'{key}_type'
@@ -349,6 +357,22 @@ read_field = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.read_field")
 
 
+@read_field.register(Table, ScalarFieldTemplate, EnumTemplate)
+def read_enum_field(
+        table: Table,
+        field_template: ScalarFieldTemplate,
+        value_template: EnumTemplate
+) -> Scalar:
+
+    enum_class = value_template.value_factory
+    assert issubclass(enum_class, (enum.IntEnum, enum.IntFlag))  # type: ignore
+
+    value = read_scalar_field(table, field_template, value_template)
+    assert isinstance(value, int)
+
+    return enum_class(value)  # type: ignore
+
+
 @read_field.register(Table, ScalarFieldTemplate, ScalarTemplate)
 def read_scalar_field(
         table: Table,
@@ -375,20 +399,32 @@ def read_scalar_field(
     )
 
 
-@read_field.register(Table, ScalarFieldTemplate, EnumTemplate)
-def read_enum_field(
+@read_field.register(Table, ScalarFieldTemplate, StructTemplate)
+def read_struct_field(
         table: Table,
         field_template: ScalarFieldTemplate,
-        value_template: EnumTemplate
-) -> Scalar:
+        value_template: StructTemplate
+) -> Optional[Struct]:
 
-    enum_class = value_template.value_pytype
-    assert issubclass(enum_class, (enum.IntEnum, enum.IntFlag))  # type: ignore
+    if not table.buffer or not table.offset:
+        return None
 
-    value = read_scalar_field(table, field_template, value_template)
-    assert isinstance(value, int)
+    assert isinstance(table.vtable, tuple)
+    idx = field_template.index
+    if idx >= len(table.vtable):
+        return field_template.default
 
-    return enum_class(value)  # type: ignore
+    foffset = table.vtable[idx]
+    if not foffset:
+        return None
+
+    return Struct.new(
+        table.serializer,
+        value_template,
+        table.buffer,
+        table.offset + foffset,
+        None,
+    )
 
 
 @read_field.register(Table, ScalarFieldTemplate, TableTemplate)
@@ -396,7 +432,7 @@ def read_table_field(
         table: Table,
         field_template: ScalarFieldTemplate,
         value_template: TableTemplate
-) -> Optional[Container]:
+) -> Optional[Table]:
 
     if not table.buffer or not table.offset:
         return None
@@ -457,7 +493,7 @@ def flatten_table(
     if recursion_limit < 1:
         raise RecursionError('Maximum recursion limit reached')
     for value in table.values():
-        if isinstance(value, Container):
+        if isinstance(value, Table):
             yield from builder.flatten(recursion_limit - 1, value)
 
     yield table
@@ -497,6 +533,12 @@ def inline_scalar_value(offset, offset_map, value):
     yield value
 
 
+@inline_value.register(int, dict, Struct)
+def inline_struct_value(offset, offset_map, value):
+    # pylint: disable=unused-argument
+    yield value.asbytes()
+
+
 @inline_value.register(int, dict, Table)
 def inline_table_value(offset, offset_map, table):
     yield offset - offset_map[hash(table)]
@@ -509,7 +551,6 @@ class InlineBlock:
     align: USize = 0
     format: str = ''
     value: Any = None
-    pinned: bool = False
 
 
 def align_blocks(
@@ -517,13 +558,13 @@ def align_blocks(
         blocks: Iterable[InlineBlock]
 ) -> Sequence[InlineBlock]:
     packed: Deque[InlineBlock] = collections.deque()
-    pending = sorted(blocks, key=op.attrgetter('size'), reverse=True)
+    pending = sorted(blocks, key=lambda x: (-x.size, -x.index))
 
     if not pending:
         return packed
 
     while pending:
-        gap = -cursor % pending[0].align if cursor else 0
+        gap = -(cursor + pending[0].size) % pending[0].align
         if gap:
             for block in pending:
                 if block.align <= gap:
@@ -566,6 +607,9 @@ def write_table(
         ft.curry(filter)(lambda x: table[x]
                          != table.template.field_map[x].default)
     )(table.keys())
+
+    from pprint import pprint
+    pprint(inline_blocks)
 
     if inline_blocks:
         vtable = [0] * (max(map(op.attrgetter('index'), inline_blocks)) + 1)

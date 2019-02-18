@@ -24,7 +24,7 @@ class EnumMember(typing.NamedTuple):
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class DeclarationWithMetadata:
     metadata: typing.Sequence[MetadataMember] = tuple()
-    metadata_map: typing.Mapping[str, MetadataMember] = attr.ib(
+    metadata_map: typing.Mapping[str, typing.Any] = attr.ib(
         attr.Factory(
             lambda self: MappingProxyType(dict(self.metadata)),
             takes_self=True

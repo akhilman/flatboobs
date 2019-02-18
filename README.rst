@@ -6,8 +6,9 @@ TODO
    - [X] Table with scalar values.
    - [X] Enum.
    - [X] Union.
-   - [ ] Struct.
+   - [X] Struct.
    - [ ] Vector of scalars.
+   - [ ] Strings.
    - [ ] Vector of tables.
    - [ ] Vector of structs.
 - [ ] gRPC.

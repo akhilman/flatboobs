@@ -1,0 +1,18 @@
+namespace fbtest.schema;
+
+enum TestStructEnum:byte { Foo, Bar }
+
+struct TestStructStruct {
+    a:uint8 = 10;
+    b:float = 11;
+    e:TestStructEnum = Bar;
+}
+
+table TestStruct {
+    foo:uint32;
+    value:TestStructStruct;
+    bar:uint32;
+}
+
+root_type TestStruct;
+file_identifier "TSTT";
