@@ -65,7 +65,7 @@ def test_unpack(serializer, data):
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = serializer.unpackb(buffer, root_type='TestTable')
+    table = serializer.unpackb('TestTable', buffer)
 
     result = asnative(table)
 
@@ -119,7 +119,7 @@ def test_empty(serializer):
     assert res.InnerACopy() is None
     assert res.InnerB() is None
 
-    table = serializer.unpackb(buffer, root_type='TestTable')
+    table = serializer.unpackb('TestTable', buffer)
 
     assert table['inner_a'] is None
     assert table['inner_b'] is None
@@ -129,7 +129,7 @@ def test_mutation(serializer, data):
 
     buffer = flatbuffers_pack(data)
 
-    table = serializer.unpackb(buffer, root_type='TestTable')
+    table = serializer.unpackb('TestTable', buffer)
 
     table = table.evolve(
         inner_a=table['inner_a'].evolve(
@@ -159,7 +159,7 @@ def test_mutation_erase(serializer, data):
 
     buffer = flatbuffers_pack(data)
 
-    table = serializer.unpackb(buffer, root_type='TestTable')
+    table = serializer.unpackb('TestTable', buffer)
 
     table = table.evolve(inner_a=None, inner_b=None)
 

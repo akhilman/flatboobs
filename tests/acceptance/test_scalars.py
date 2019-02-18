@@ -61,7 +61,7 @@ def test_unpack(serializer, data):
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = serializer.unpackb(buffer, root_type='TestScalars')
+    table = serializer.unpackb('TestScalars', buffer)
 
     assert len(table) == len(data)
     assert frozenset(table) == frozenset(data)

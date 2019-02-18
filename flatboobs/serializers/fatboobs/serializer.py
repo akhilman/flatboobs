@@ -157,7 +157,7 @@ class FatBoobs(Serializer):
             type_name: str,
             mutation: Optional[Mapping[str, Any]] = None,
             *,
-            namespace: str = ''
+            namespace: Optional[str] = None
     ) -> Table:
 
         type_decl = self.registry.type_by_name(type_name, namespace)
@@ -174,22 +174,22 @@ class FatBoobs(Serializer):
 
     def unpackb(
             self: 'FatBoobs',
+            type_name: Optional[str],
             buffer: bytes,
             *,
-            namespace: Optional[str] = None,
-            root_type: Optional[str] = None,
+            namespace: Optional[str] = None
     ) -> abc.Container:
 
         header = reader.read_header(buffer)
 
-        if root_type:
-            type_decl = self.registry.type_by_name(root_type, namespace)
+        if type_name:
+            type_decl = self.registry.type_by_name(type_name, namespace)
         elif header.file_identifier:
             type_decl = self.registry.type_by_identifier(
                 header.file_identifier, namespace)
         else:
             raise TypeError(
-                'Missing required root_type argument or file idenitifer.')
+                'Nor file idenitifer nor type_name is defined.')
 
         template = self._get_add_template(type_decl)
         assert isinstance(template, TableTemplate)
@@ -203,7 +203,7 @@ class FatBoobs(Serializer):
             type_name: str,
             mutation: Optional[Mapping[str, Any]] = None,
             *,
-            namespace: str = ''
+            namespace: Optional[str] = None
     ) -> bytes:
 
         table = self.new(
@@ -212,6 +212,3 @@ class FatBoobs(Serializer):
             namespace=namespace,
         )
         return table.packb()
-
-    loads = unpackb
-    dumps = packb

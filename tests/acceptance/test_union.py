@@ -76,7 +76,7 @@ def test_unpack(serializer, data):
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = serializer.unpackb(buffer, root_type='TestUnion')
+    table = serializer.unpackb('TestUnion', buffer)
 
     from pprint import pprint
     pprint(table)

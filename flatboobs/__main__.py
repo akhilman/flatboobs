@@ -66,7 +66,7 @@ def unpack(
         input_file: IO,
 ):
     # pylint: disable=too-many-locals
-    registry = Registry()
+    registry = Registry(namespace)
     serializer = FlatBuffers(registry)
     if schema_file:
         sch = flatboobs.parser.load_from_file(schema_file)
@@ -77,8 +77,7 @@ def unpack(
         raise NotImplementedError  # TODO implement loading schema from module
 
     message = input_file.read()
-    container = serializer.unpackb(
-        message, namespace=namespace, root_type=root_type)
+    container = serializer.unpackb(root_type, message)
 
     dct = asnative(container)
 

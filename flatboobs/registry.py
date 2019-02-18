@@ -20,6 +20,8 @@ logger = logging.getLogger('flatboobs')
 @attr.s(auto_attribs=True)
 class Registry(abc.Registry):
 
+    default_namespace: Optional[str] = None
+
     types: Set[schema.TypeDeclaration] = attr.ib(factory=set)
 
     _cached_type_maps: \
@@ -77,8 +79,8 @@ class Registry(abc.Registry):
             namespace: Optional[str],
     ) -> Dict[str, schema.TypeDeclaration]:
 
-        cache_key = namespace or ''
-        type_map = self._cached_type_maps.get(cache_key, None)
+        namespace = namespace or self.default_namespace or ''
+        type_map = self._cached_type_maps.get(namespace, None)
         if type_map:
             return type_map
 
@@ -89,7 +91,7 @@ class Registry(abc.Registry):
 
         # pylint: disable=unsupported-assignment-operation  # attr.ib
         type_map = {x.name: x for x in types}
-        self._cached_type_maps[cache_key] = type_map
+        self._cached_type_maps[namespace] = type_map
 
         return type_map
 
@@ -107,7 +109,7 @@ class Registry(abc.Registry):
             namespace: Optional[str] = None
     ) -> schema.TypeDeclaration:
 
-        namespace = namespace or ''
+        namespace = namespace or self.default_namespace or ''
         ident_map = self._cached_types_by_identifier.get(namespace, None)
         if ident_map:
             type_decl = ident_map.get(file_identifier, None)

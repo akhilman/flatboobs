@@ -10,16 +10,13 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Tuple,
     TypeVar,
     Union
 )
 
-from flatboobs.typing import (
-    DType,
-    NDArray,
-    Number,
-)
 from flatboobs.schema import TypeDeclaration
+from flatboobs.typing import DType, NDArray, Number, Scalar
 
 # pylint: disable=abstract-method
 # pylint: disable=too-few-public-methods
@@ -104,12 +101,42 @@ class _TableLike(Container[_CT], Mapping[str, Any]):
         pass
 
 
+class _NumpyCompatible(ABC):
+
+    @property
+    @abstractmethod
+    def dtype(
+            self: '_NumpyCompatible',
+    ) -> DType:
+        pass
+
+    @abstractmethod
+    def asarray(
+            self: '_NumpyCompatible',
+    ) -> NDArray:
+        pass
+
+    @abstractmethod
+    def asbytes(
+            self: '_NumpyCompatible',
+    ) -> bytes:
+        pass
+
+
 class Table(_TableLike['Table']):
     pass
 
 
-class Struct(_TableLike['Struct']):
-    pass
+class Struct(
+        _NumpyCompatible,
+        _TableLike['Struct']
+):
+
+    @abstractmethod
+    def astuple(
+            self: 'Struct',
+    ) -> Tuple[Scalar, ...]:
+        pass
 
 
 _IT = TypeVar(
@@ -124,13 +151,6 @@ _IT = TypeVar(
 
 class _Vector(Container[_CT], Sequence[_IT]):
 
-    @property
-    @abstractmethod
-    def dtype(
-            self: '_Vector',
-    ) -> DType:
-        pass
-
     @abstractmethod
     def evolve(
             self: '_Vector',
@@ -139,7 +159,10 @@ class _Vector(Container[_CT], Sequence[_IT]):
         pass
 
 
-class VectorOfNumbers(_Vector['VectorOfNumbers', Number]):
+class VectorOfNumbers(
+        _NumpyCompatible,
+        _Vector['VectorOfNumbers', Number]
+):
     pass
 
 
@@ -148,7 +171,9 @@ class VectorOfStrings(_Vector['VectorOfStrings', str]):
 
 
 class VectorOfStructs(
+        _NumpyCompatible,
         _Vector['VectorOfStructs', Struct]):
+
     pass
 
 
@@ -171,6 +196,31 @@ class Serializer(ABC):
             type_name: str,
             mutation: Optional[Mapping[str, Any]] = None,
             *,
-            namespace: str = ''
+            namespace: Optional[str] = None
     ) -> Table:
         pass
+
+    def unpackb(
+            self: 'Serializer',
+            type_name: Optional[str],
+            buffer: bytes,
+            *,
+            namespace: Optional[str] = None
+    ) -> Container:
+        """
+        If type_name is None, then type will be detected by file_identifier
+        in message itself.
+        """
+        pass
+
+    def packb(
+            self: 'Serializer',
+            type_name: str,
+            mutation: Optional[Mapping[str, Any]] = None,
+            *,
+            namespace: Optional[str] = None
+    ) -> bytes:
+        pass
+
+    loads = unpackb
+    dumps = packb
