@@ -10,14 +10,16 @@ TODO
    - [ ] Vector of scalars.
    - [ ] Vector of tables.
    - [ ] Vector of structs.
+- [ ] gRPC.
+- [ ] Implement FlatBuffers unpack/pack with C++.
 - [ ] Examples.
 - [ ] Documentation.
 - [ ] Schema validation.
 - [ ] 100% test coverage.
 - [ ] Benchmarks against Goolge's FlatBuffers implementation.
-- [ ] gRPC or own WebSocket based RPC.
-- [ ] C++ backend.
-- [ ] JSON schema (not decided).
+- [ ] ZMQ RPC
+- [ ] Unpack/pack to JSON.
+- [ ] Unpack/pack to MessagePack.
 
 
 Template for defining Python modules
