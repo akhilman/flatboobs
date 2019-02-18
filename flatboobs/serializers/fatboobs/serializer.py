@@ -70,7 +70,7 @@ class FatBoobs(Serializer):
 
         for field in type_decl.fields:
 
-            if 'deprecated' in field.metadata_map:
+            if field.metadata_map.get('deprecated', False):
                 template.add_depreacated_field()
                 continue
 
