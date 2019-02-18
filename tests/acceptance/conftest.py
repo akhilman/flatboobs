@@ -3,15 +3,16 @@ import pytest
 import flatboobs
 
 
-@pytest.fixture(params=['fatboobs'])
-def serializer(request):
-    return request.param
-
-
 @pytest.fixture
-def registry(serializer):
+def registry():
 
-    reg = flatboobs.Registry(serializer=serializer)
+    reg = flatboobs.Registry()
     reg.load_schema_from_package('fbtest.schema')
 
     return reg
+
+
+@pytest.fixture
+def serializer(registry):
+    from flatboobs.serializers.fatboobs import FatBoobs
+    return FatBoobs(registry)

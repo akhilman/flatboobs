@@ -1,130 +1,217 @@
 # pylint: disable=missing-docstring
 
-import itertools
-from typing import Any, Dict, Iterator, Mapping, Optional, Type, TypeVar
+from typing import Any, Dict, Mapping, Optional, TypeVar
 
-from flatboobs import abc
-from flatboobs.constants import BaseType
-from flatboobs.typing import TemplateId, UOffset
+import attr
+
+from flatboobs import abc, schema
+from flatboobs.constants import (
+    INTEGER_TYPES,
+    STRING_TO_SCALAR_TYPE_MAP,
+    BaseType
+)
 
 from . import reader
 from .abc import Serializer, Template
 from .table import Table
-from .template import EnumTemplate, TableTemplate, UnionTemplate
+from .template import (
+    EnumTemplate,
+    ScalarTemplate,
+    TableTemplate,
+    UnionTemplate
+)
 
 _TT = TypeVar('_TT')  # Template type
 
 
 class FatBoobs(Serializer):
 
-    def __init__(self):
+    def __init__(self, registry: abc.Registry):
 
-        self.template_ids: Dict[str, TemplateId] = dict()
-        self.templates: Dict[TemplateId, Template] = dict()
-        self._template_count: Iterator[TemplateId] = itertools.count(1)
+        self.registry = registry
+        self.templates: Dict[schema.TypeDeclaration, Template] = dict()
 
     @staticmethod
     def _template_key(namespace: str, type_name: str) -> str:
         return f'{namespace}.{type_name}'
 
-    def _new_template(
+    def _add_enum_template(
             self: 'FatBoobs',
-            factory: Type[_TT],
-            namespace: str,
-            type_name: str,
-            file_identifier: str,
-            *args,
-            **kwargs
-    ) -> _TT:
-        template_id = next(self._template_count)
-        template = factory(  # type: ignore
-            self, template_id, namespace, type_name, file_identifier,
-            *args, **kwargs
-        )
-        key = self._template_key(namespace, type_name)
-        self.template_ids[key] = template_id
-        self.templates[template_id] = template  # type: ignore
+            type_decl: schema.Enum
+    ) -> EnumTemplate:
+
+        value_type = STRING_TO_SCALAR_TYPE_MAP.get(
+            type_decl.type, BaseType.NULL)
+
+        if value_type not in INTEGER_TYPES:
+            raise TypeError(
+                'Enum value type should be one of '
+                f'{INTEGER_TYPES}, but {value_type or type_decl.type} is given'
+            )
+
+        pytype = type_decl.asenum()
+
+        template = EnumTemplate(type_decl, value_type, pytype)
+        self.templates[type_decl] = template
+
+        template.finish()
+
         return template
 
-    @staticmethod
-    def read_header(
-            buffer: bytes
-    ) -> abc.FileHeader:
-        return reader.read_header(buffer)
-
-    def get_template_id(
+    def _add_table_template(
             self: 'FatBoobs',
-            namespace: str,
-            type_name: str,
-    ) -> TemplateId:
-        key = self._template_key(namespace, type_name)
-        template_id = self.template_ids.get(key, TemplateId(0))
-        return template_id
+            type_decl: schema.Table,
+    ) -> TableTemplate:
 
-    def new_enum_template(
-            # pylint: disable=too-many-arguments
-            self: 'FatBoobs',
-            namespace: str,
-            type_name: str,
-            file_identifier: str,
-            value_type: BaseType,
-            bit_flags: bool
-    ) -> abc.EnumTemplate:
-        return self._new_template(
-            EnumTemplate,
-            namespace,
-            type_name,
-            file_identifier,
-            value_type,
-            bit_flags
-        )
+        value_template: Template
 
-    def new_struct_template(
+        template = TableTemplate(type_decl)
+        self.templates[type_decl] = template
+
+        for field in type_decl.fields:
+
+            if 'deprecated' in field.metadata_map:
+                template.add_depreacated_field()
+                continue
+
+            value_type = \
+                STRING_TO_SCALAR_TYPE_MAP.get(field.type, BaseType.NULL)
+            if value_type != BaseType.NULL:
+                value_template = ScalarTemplate(value_type)
+            else:
+                value_type_decl = self.registry.type_by_name(
+                    field.type, type_decl.namespace)
+                value_template = self._get_add_template(value_type_decl)
+
+            if isinstance(value_template, UnionTemplate):
+                enum_field = attr.evolve(
+                    field,
+                    name=f'{field.name}_type',
+                    type=value_template.enum_template.type_name,
+                    default=0
+                )
+                template.add_field(enum_field, value_template.enum_template)
+
+            template.add_field(field, value_template)
+
+        template.finish()
+
+        return template
+
+    def _add_struct_template(
             self: 'FatBoobs',
-            namespace: str,
-            type_name: str,
-            file_identifier: str
-    ) -> abc.StructTemplate:
+            type_decl: schema.Struct,
+    ) -> TableTemplate:
+
         raise NotImplementedError
 
-    def new_table_template(
+    def _add_union_template(
             self: 'FatBoobs',
-            namespace: str,
-            type_name: str,
-            file_identifier: str
-    ) -> TableTemplate:
-        return self._new_template(
-            TableTemplate,
-            namespace,
-            type_name,
-            file_identifier
-        )
+            type_decl: schema.Union,
+    ) -> UnionTemplate:
 
-    def new_union_template(
-            self: 'FatBoobs',
-            namespace: str,
-            type_name: str,
-            file_identifier: str
-    ) -> abc.UnionTemplate:
-        return self._new_template(
-            UnionTemplate,
-            namespace,
-            type_name,
-            file_identifier,
-        )
+        pytype = type_decl.asenum()
 
-    def new_table(
+        enum_template = EnumTemplate(type_decl, BaseType.UBYTE, pytype)
+        enum_template.finish()
+
+        union_template = UnionTemplate(type_decl, enum_template)
+        self.templates[type_decl] = union_template
+
+        for member in type_decl.members:
+
+            value_type_decl = self.registry.type_by_name(
+                member.name, type_decl.namespace)
+            value_template = self._get_add_template(value_type_decl)
+            assert isinstance(value_template, TableTemplate)
+
+            enum_value = int(pytype.__members__[member.name])
+            union_template.add_member(enum_value, value_template)
+
+        union_template.finish()
+
+        return union_template
+
+    def _get_add_template(
             self: 'FatBoobs',
-            template_id: TemplateId,
-            buffer: Optional[bytes] = None,
-            offset: UOffset = 0,
-            mutation: Optional[Mapping[str, Any]] = None
+            type_decl: schema.TypeDeclaration
+    ) -> Template:
+
+        if type_decl in self.templates:
+            return self.templates[type_decl]
+
+        template: Template
+        if isinstance(type_decl, schema.Struct):
+            template = self._add_struct_template(type_decl)
+        elif isinstance(type_decl, schema.Table):
+            template = self._add_table_template(type_decl)
+        elif isinstance(type_decl, schema.Union):
+            template = self._add_union_template(type_decl)
+        elif isinstance(type_decl, schema.Enum):
+            template = self._add_enum_template(type_decl)
+
+        return template
+
+    def new(
+            self: 'FatBoobs',
+            type_name: str,
+            mutation: Optional[Mapping[str, Any]] = None,
+            *,
+            namespace: str = ''
     ) -> Table:
-        template = self.templates[template_id]
+
+        type_decl = self.registry.type_by_name(type_name, namespace)
+        assert isinstance(type_decl, schema.Table)
+        template = self._get_add_template(type_decl)
         assert isinstance(template, TableTemplate)
+
         mutation = mutation or dict()
         if not isinstance(mutation, dict):
             raise TypeError(f"Mutation should be dict, {mutation} is given")
         return Table.new(
-            self, template, buffer, offset, mutation
+            self, template, None, 0, mutation
         )
+
+    def unpackb(
+            self: 'FatBoobs',
+            buffer: bytes,
+            *,
+            namespace: Optional[str] = None,
+            root_type: Optional[str] = None,
+    ) -> abc.Container:
+
+        header = reader.read_header(buffer)
+
+        if root_type:
+            type_decl = self.registry.type_by_name(root_type, namespace)
+        elif header.file_identifier:
+            type_decl = self.registry.type_by_identifier(
+                header.file_identifier, namespace)
+        else:
+            raise TypeError(
+                'Missing required root_type argument or file idenitifer.')
+
+        template = self._get_add_template(type_decl)
+        assert isinstance(template, TableTemplate)
+
+        return Table.new(
+            self, template, buffer, header.root_offset, dict()
+        )
+
+    def packb(
+            self: 'FatBoobs',
+            type_name: str,
+            mutation: Optional[Mapping[str, Any]] = None,
+            *,
+            namespace: str = ''
+    ) -> bytes:
+
+        table = self.new(
+            type_name,
+            mutation=mutation,
+            namespace=namespace,
+        )
+        return table.packb()
+
+    loads = unpackb
+    dumps = packb

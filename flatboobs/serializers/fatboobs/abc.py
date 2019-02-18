@@ -1,25 +1,26 @@
 # pylint: disable=missing-docstring
+# pylint: disable=abstract-method
+# pylint: disable=too-few-public-methods
 
 from abc import abstractmethod
-from typing import Any, Dict, Generic, Mapping, Optional, TypeVar
 
-from flatboobs import abc
-from flatboobs.typing import TemplateId, UOffset, USize
+from typing import Dict, Generic, Optional, TypeVar
+
+from flatboobs import abc, schema
+from flatboobs.typing import UOffset, USize
 from flatboobs.constants import BaseType
 
 
-class Template(
-        abc.Template,
-):
+class Template:
     # pylint: disable=too-few-public-methods
     # pylint: disable=abstract-method
 
-    serializer: 'Serializer'
-    id: TemplateId
+    type_decl: Optional[schema.TypeDeclaration]
     namespace: str
     type_name: str
     file_identifier: str
     value_type: BaseType
+    value_pytype: Optional[type]
     inline_format: str
     inline_size: USize
     inline_align: USize
@@ -47,21 +48,11 @@ class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
     def file_identifier(self: 'Container') -> str:
         return self.template.file_identifier
 
+    @abstractmethod
     def __hash__(self):
-        return id(self)
+        raise NotImplementedError
 
 
 class Serializer(abc.Serializer):
-    template_ids: Dict[str, TemplateId]
-    templates: Dict[TemplateId, Template]
 
-    # TODO rename to new_table()
-    @abstractmethod
-    def new_table(
-            self: 'Serializer',
-            template_id: TemplateId,
-            buffer: Optional[bytes] = None,
-            offset: UOffset = 0,
-            mutation: Optional[Mapping[str, Any]] = None
-    ) -> abc.Table:
-        pass
+    templates: Dict[schema.TypeDeclaration, Template]

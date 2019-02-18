@@ -9,7 +9,7 @@ import click
 
 import flatboobs.parser
 import flatboobs.schema
-from flatboobs import Registry, asnative, logging
+from flatboobs import FlatBuffers, Registry, asnative, logging
 
 
 @click.command(help="Unpack FlatBuffers message.")
@@ -65,17 +65,19 @@ def unpack(
         output_file: IO,
         input_file: IO,
 ):
+    # pylint: disable=too-many-locals
     registry = Registry()
+    serializer = FlatBuffers(registry)
     if schema_file:
         sch = flatboobs.parser.load_from_file(schema_file)
-        registry.add_types(sch)
+        registry.add_types(sch)  # TODO replace with add_schema()
         namespace = sch.namespace
         root_type = root_type or sch.root_type
     if schema_package:
-        raise NotImplementedError
+        raise NotImplementedError  # TODO implement loading schema from module
 
     message = input_file.read()
-    container = registry.unpackb(
+    container = serializer.unpackb(
         message, namespace=namespace, root_type=root_type)
 
     dct = asnative(container)

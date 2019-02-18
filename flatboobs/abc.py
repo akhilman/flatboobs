@@ -14,19 +14,39 @@ from typing import (
     Union
 )
 
-from flatboobs.constants import BaseType
 from flatboobs.typing import (
     DType,
     NDArray,
     Number,
-    Scalar,
-    TemplateId,
-    UOffset
 )
+from flatboobs.schema import TypeDeclaration
 
 # pylint: disable=abstract-method
 # pylint: disable=too-few-public-methods
 # pylint: disable=missing-docstring
+
+
+####
+# Registry
+##
+
+class Registry(ABC):
+
+    @abstractmethod
+    def type_by_name(
+            self: 'Registry',
+            type_name: str,
+            namespace: Optional[str] = None
+    ) -> TypeDeclaration:
+        pass
+
+    @abstractmethod
+    def type_by_identifier(
+            self: 'Registry',
+            file_identifier: str,
+            namespace: Optional[str] = None
+    ) -> TypeDeclaration:
+        pass
 
 
 ####
@@ -141,186 +161,16 @@ class VectorOfTables(_Vector['VectorOfTables', Table]):
 ##
 
 
-class FileHeader(ABC):
-    root_offset: UOffset
-    file_identifier: str
-
-
-class Template(ABC):
-
-    id: TemplateId
-    namespace: str
-    type_name: str
-    file_identifier: str  # empty string if no file identifier
-
-    @abstractmethod
-    def finish(self: 'Template') -> TemplateId:
-        pass
-
-
-class EnumTemplate(Template):
-
-    @abstractmethod
-    def add_member(
-            self: 'EnumTemplate',
-            name: str,
-            value: int
-    ) -> None:
-        pass
-
-
-class StructTemplate(Template):
-
-    @abstractmethod
-    def add_scalar_field(
-            self: 'StructTemplate',
-            name: str,
-            is_vector: bool,
-            value_type: BaseType,
-            default: Scalar,
-    ) -> None:
-        pass
-
-
-class TableTemplate(Template):
-
-    @abstractmethod
-    def add_depreacated_field(
-            self: 'TableTemplate',
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_scalar_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_type: BaseType,
-            default: Scalar,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_string_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_struct_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template_id: TemplateId,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_table_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template_id: TemplateId,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_enum_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template_id: TemplateId,
-            default: int,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def add_union_field(
-            self: 'TableTemplate',
-            name: str,
-            value_template_id: TemplateId,
-    ) -> None:
-        pass
-
-
-class UnionTemplate(Template):
-
-    @abstractmethod
-    def add_member(
-            self: 'UnionTemplate',
-            name: str,
-            variant_id: int,
-            value_template_id: TemplateId,
-    ) -> None:
-        pass
-
-
 class Serializer(ABC):
 
-    @abstractmethod
-    def read_header(
-            self: 'Serializer',
-            buffer: bytes
-    ) -> FileHeader:
-        pass
+    registry: Registry
 
     @abstractmethod
-    def new_enum_template(
-            # pylint: disable=too-many-arguments
+    def new(
             self: 'Serializer',
-            namespace: str,
             type_name: str,
-            file_identifier: str,
-            value_type: BaseType,
-            bit_flags: bool,
-    ) -> EnumTemplate:
-        pass
-
-    @abstractmethod
-    def new_struct_template(
-            self: 'Serializer',
-            namespace: str,
-            type_name: str,
-            file_identifier: str
-    ) -> StructTemplate:
-        pass
-
-    @abstractmethod
-    def new_table_template(
-            self: 'Serializer',
-            namespace: str,
-            type_name: str,
-            file_identifier: str
-    ) -> TableTemplate:
-        pass
-
-    @abstractmethod
-    def new_union_template(
-            self: 'Serializer',
-            namespace: str,
-            type_name: str,
-            file_identifier: str
-    ) -> UnionTemplate:
-        pass
-
-    @abstractmethod
-    def get_template_id(
-            self: 'Serializer',
-            namespace: str,
-            type_name: str,
-    ) -> TemplateId:
-        """
-        0 if template not exist
-        """
-
-    @abstractmethod
-    def new_table(
-            self: 'Serializer',
-            template_id: TemplateId,
-            buffer: Optional[bytes] = None,
-            offset: UOffset = UOffset(0),
-            mutation: Optional[Mapping[str, Any]] = None
+            mutation: Optional[Mapping[str, Any]] = None,
+            *,
+            namespace: str = ''
     ) -> Table:
         pass

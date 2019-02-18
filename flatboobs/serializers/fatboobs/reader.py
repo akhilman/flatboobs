@@ -5,20 +5,19 @@ from typing import Sequence
 
 import attr
 
-from flatboobs import abc
 from flatboobs.constants import (
     FILE_IDENTIFIER_LENGTH,
     SOFFSET_FMT,
     UOFFSET_FMT,
     VOFFSET_FMT
 )
-from flatboobs.typing import UOffset
+from flatboobs.typing import UOffset, Scalar
 
 FILE_HEADER_FMT = UOFFSET_FMT + f"{FILE_IDENTIFIER_LENGTH}s"
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
-class FileHeader(abc.FileHeader):
+class FileHeader:
     # pylint: disable=too-few-public-methods
     root_offset: UOffset
     file_identifier: str
@@ -46,6 +45,6 @@ def read_scalar(
         format_: str,
         buffer: bytes,
         offset: UOffset
-) -> abc.Scalar:
+) -> Scalar:
 
     return unpack_from(format_, buffer, offset)[0]

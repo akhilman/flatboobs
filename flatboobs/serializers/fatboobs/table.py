@@ -5,7 +5,6 @@ import collections
 import enum
 import operator as op
 import struct
-from functools import reduce
 from typing import (
     Any,
     Deque,
@@ -40,10 +39,10 @@ from flatboobs.constants import (
     VSIZE_SIZE
 )
 from flatboobs.typing import DType, Scalar, UOffset, USize
-from flatboobs.utils import remove_prefix
 
 from . import builder, reader
-from .abc import Serializer, Container
+from .abc import Container, Serializer
+from .enum import any_to_enum
 from .template import (
     EnumTemplate,
     ScalarFieldTemplate,
@@ -103,6 +102,7 @@ class Table(Container[TableTemplate], abc.Table):
 
         non_unions = {
             k: convert_field_value(
+                serializer,
                 template.field_map[k],
                 template.field_map[k].value_template,
                 v
@@ -199,13 +199,15 @@ class Table(Container[TableTemplate], abc.Table):
 # Field value converter
 ##
 
-# Callable[[ScalarFieldTemplate, Template, value], Any]
+# Callable[[Serializer, ScalarFieldTemplate, Template, value], Any]
 convert_field_value = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.convert_field_value")
 
 
-@convert_field_value.register(ScalarFieldTemplate, ScalarTemplate, object)
+@convert_field_value.register(
+    Serializer, ScalarFieldTemplate, ScalarTemplate, object)
 def convert_scalar_field_value(
+        serializer: Serializer,
         field_template: ScalarFieldTemplate,
         value_template: ScalarTemplate,
         value: Any
@@ -228,55 +230,22 @@ def convert_scalar_field_value(
     return value
 
 
-@convert_field_value.register(ScalarFieldTemplate, EnumTemplate, object)
+@convert_field_value.register(
+    Serializer, ScalarFieldTemplate, EnumTemplate, object)
 def convert_enum_field_value(
+        serializer: Serializer,
         field_template: ScalarFieldTemplate,
         value_template: EnumTemplate,
         value: Any
 ) -> enum.IntEnum:
-    assert isinstance(value_template, (EnumTemplate, UnionTemplate))
-    enum_class = value_template.enum_class
-    assert enum_class
-    try:
-        value = enum_class(value)
-    except ValueError as exc:
-        raise ValueError(
-            f"Bad value for {field_template.name}: "
-            + ' '.join(exc.args)
-        )
-
-    return value
+    # pylint: disable=unused-argument
+    return any_to_enum(value_template.value_pytype, value)
 
 
-@convert_field_value.register(ScalarFieldTemplate, EnumTemplate, str)
-def convert_enum_field_value_from_string(
-        field_template: ScalarFieldTemplate,
-        value_template: EnumTemplate,
-        value: str
-) -> enum.IntEnum:
-    enum_class = value_template.enum_class
-    assert enum_class
-    value = remove_prefix(f'{enum_class.__name__}.', value)
-    if value_template.bit_flags:
-        values = set(value.split('|'))
-    else:
-        values = {value}
-    try:
-        ret = reduce(
-            op.or_,
-            map(lambda x: enum_class.__members__[x], values)  # type: ignore
-        )
-    except KeyError as exc:
-        raise ValueError(
-            f"Bad value for {field_template.name}: "
-            + ' '.join(exc.args)
-        )
-
-    return ret
-
-
-@convert_field_value.register(ScalarFieldTemplate, TableTemplate, type(None))
+@convert_field_value.register(
+    Serializer, ScalarFieldTemplate, TableTemplate, type(None))
 def convert_table_field_value_from_none(
+        serializer: Serializer,
         field_template: ScalarFieldTemplate,
         value_template: TableTemplate,
         value: None
@@ -285,12 +254,15 @@ def convert_table_field_value_from_none(
     return None
 
 
-@convert_field_value.register(ScalarFieldTemplate, TableTemplate, Container)
+@convert_field_value.register(
+    Serializer, ScalarFieldTemplate, TableTemplate, Container)
 def convert_table_field_value_from_container(
+        serializer: Serializer,
         field_template: ScalarFieldTemplate,
         value_template: TableTemplate,
         value: Container
 ) -> Optional[Container]:
+    # pylint: disable=unused-argument
 
     if (not isinstance(value, Table)
             or value.template != value_template):
@@ -301,15 +273,17 @@ def convert_table_field_value_from_container(
     return value
 
 
-@convert_field_value.register(ScalarFieldTemplate, TableTemplate, object)
+@convert_field_value.register(
+    Serializer, ScalarFieldTemplate, TableTemplate, object)
 def convert_table_field_value(
+        serializer: Serializer,
         field_template: ScalarFieldTemplate,
         value_template: TableTemplate,
         value: Any
 ) -> Optional[Container]:
     # pylint: disable=unused-argument
     return Table.new(
-        value_template.serializer,
+        serializer,
         value_template,
         None,
         0,
@@ -325,7 +299,7 @@ def convert_union_fields(
         value: Any
 ) -> Tuple[Tuple[str, enum.IntEnum], Tuple[str, Optional[Table]]]:
 
-    enum_class = union_template.enum_template.enum_class
+    enum_class = union_template.enum_template.value_pytype
     assert issubclass(enum_class, enum.IntEnum)  # type: ignore
     key = field_template.name
     enum_key = f'{key}_type'
@@ -340,10 +314,10 @@ def convert_union_fields(
                 f'instance value of {enum_key} should be 0 (NONE)'
             )
         union_type_map = {
-            v.id: k for k, v in union_template.value_templates.items()
+            v: k for k, v in union_template.value_templates.items()
         }
         try:
-            union_type = union_type_map[value.template.id]
+            union_type = union_type_map[value.template]
         except KeyError:
             raise ValueError(f'{value.template.type_name} is bad type '
                              f'for union field "{key}".')
@@ -408,7 +382,7 @@ def read_enum_field(
         value_template: EnumTemplate
 ) -> Scalar:
 
-    enum_class = value_template.enum_class
+    enum_class = value_template.value_pytype
     assert issubclass(enum_class, (enum.IntEnum, enum.IntFlag))  # type: ignore
 
     value = read_scalar_field(table, field_template, value_template)

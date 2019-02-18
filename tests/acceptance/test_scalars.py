@@ -54,14 +54,14 @@ def flatbuffers_unpack(buffer):
     return TestScalars.TestScalars.GetRootAsTestScalars(buffer, 0)
 
 
-def test_unpack(registry, data):
+def test_unpack(serializer, data):
 
     buffer = flatbuffers_pack(data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = registry.unpackb(buffer, root_type='TestScalars')
+    table = serializer.unpackb(buffer, root_type='TestScalars')
 
     assert len(table) == len(data)
     assert frozenset(table) == frozenset(data)
@@ -79,12 +79,9 @@ def test_unpack(registry, data):
 
 
 # @pytest.mark.skip(reason="TODO")
-def test_pack(registry, data):
+def test_pack(serializer, data):
 
-    table = registry.new('TestScalars')
-    table = table.evolve(**data)
-
-    buffer = table.packb()
+    buffer = serializer.packb('TestScalars', data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
@@ -108,9 +105,9 @@ def test_pack(registry, data):
     assert res.BoolFalse() == data['bool_false']
 
 
-def test_bad_values(registry):
+def test_bad_values(serializer):
 
-    table = registry.new('TestScalars')
+    table = serializer.new('TestScalars')
 
     with pytest.raises(ValueError):
         table.evolve(float_32='hi there')

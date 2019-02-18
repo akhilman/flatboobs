@@ -59,13 +59,16 @@ class Enum(_BaseEnum):
 
     default: typing.Optional[int] = None
 
-    def asenum(self: 'Enum') -> typing.Union[enum.IntEnum, enum.IntFlag]:
+    def asenum(
+            self: 'Enum'
+    ) -> typing.Type[typing.Union[enum.IntEnum, enum.IntFlag]]:
 
         # pylint: disable=invalid-name
         EnumMeta: typing.Union[typing.Type[enum.IntEnum],
                                typing.Type[enum.IntFlag]]
 
         # pylint: disable=unsupported-membership-test
+        # pylint: disable=no-value-for-parameter
         if self.metadata_map.get('bit_flags', False):
             EnumMeta = enum.IntFlag
             members = ft.compose(
@@ -85,8 +88,11 @@ class Enum(_BaseEnum):
 @attr.s(auto_attribs=True, frozen=True, slots=True)
 class Union(_BaseEnum):
 
-    def asenum(self: 'Union') -> enum.IntEnum:
+    def asenum(
+            self: 'Union'
+    ) -> typing.Type[typing.Union[enum.IntEnum, enum.IntFlag]]:
 
+        # pylint: disable=no-value-for-parameter
         members = ft.compose(
             ft.partial(sorted, key=op.itemgetter(0)),
             ft.partial(ft.flip(it.concatv), [('NONE', 0)]),

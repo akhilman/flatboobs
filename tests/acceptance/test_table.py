@@ -58,14 +58,14 @@ def flatbuffers_unpack(buffer):
     return TestTable.TestTable.GetRootAsTestTable(buffer, 0)
 
 
-def test_unpack(registry, data):
+def test_unpack(serializer, data):
 
     buffer = flatbuffers_pack(data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = registry.unpackb(buffer, root_type='TestTable')
+    table = serializer.unpackb(buffer, root_type='TestTable')
 
     result = asnative(table)
 
@@ -81,11 +81,9 @@ def test_unpack(registry, data):
 
 
 # @pytest.mark.skip(reason="TODO")
-def test_pack(registry, data):
+def test_pack(serializer, data):
 
-    table = registry.new('TestTable', data)
-
-    buffer = table.packb()
+    buffer = serializer.packb('TestTable', data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
@@ -103,9 +101,9 @@ def test_pack(registry, data):
     assert res.InnerB().ValueC() == data['inner_b']['value_c']
 
 
-def test_empty(registry):
+def test_empty(serializer):
 
-    table = registry.new('TestTable')
+    table = serializer.new('TestTable')
 
     assert table['inner_a'] is None
     assert table['inner_b'] is None
@@ -121,17 +119,17 @@ def test_empty(registry):
     assert res.InnerACopy() is None
     assert res.InnerB() is None
 
-    table = registry.unpackb(buffer, root_type='TestTable')
+    table = serializer.unpackb(buffer, root_type='TestTable')
 
     assert table['inner_a'] is None
     assert table['inner_b'] is None
 
 
-def test_mutation(registry, data):
+def test_mutation(serializer, data):
 
     buffer = flatbuffers_pack(data)
 
-    table = registry.unpackb(buffer, root_type='TestTable')
+    table = serializer.unpackb(buffer, root_type='TestTable')
 
     table = table.evolve(
         inner_a=table['inner_a'].evolve(
@@ -157,11 +155,11 @@ def test_mutation(registry, data):
     assert res.InnerACopy().ValueA() == data['inner_a']['value_a']
 
 
-def test_mutation_erase(registry, data):
+def test_mutation_erase(serializer, data):
 
     buffer = flatbuffers_pack(data)
 
-    table = registry.unpackb(buffer, root_type='TestTable')
+    table = serializer.unpackb(buffer, root_type='TestTable')
 
     table = table.evolve(inner_a=None, inner_b=None)
 
@@ -181,12 +179,12 @@ def test_mutation_erase(registry, data):
     assert res.InnerACopy().ValueA() == data['inner_a']['value_a']
 
 
-def test_bad_mutation(registry):
+def test_bad_mutation(serializer):
 
-    table = registry.new('TestTable')
+    table = serializer.new('TestTable')
 
     with pytest.raises(TypeError):
         table.evolve(inner_a="hello")
 
     with pytest.raises(ValueError):
-        table.evolve(inner_a=registry.new('TestTableInnerB'))
+        table.evolve(inner_a=serializer.new('TestTableInnerB'))

@@ -41,6 +41,7 @@ class BaseType(enum.IntEnum):
     FLOAT32 = enum.auto()
     FLOAT64 = enum.auto()
 
+    ENUM = enum.auto()
     STRING = enum.auto()
     STRUCT = enum.auto()
     TABLE = enum.auto()

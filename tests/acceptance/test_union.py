@@ -69,14 +69,14 @@ def flatbuffers_unpack(buffer):
 
 
 @pytest.mark.parametrize("data", data_variants)
-def test_unpack(registry, data):
+def test_unpack(serializer, data):
 
     buffer = flatbuffers_pack(data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = registry.unpackb(buffer, root_type='TestUnion')
+    table = serializer.unpackb(buffer, root_type='TestUnion')
 
     from pprint import pprint
     pprint(table)
@@ -91,11 +91,9 @@ def test_unpack(registry, data):
 
 
 @pytest.mark.parametrize("data", data_variants)
-def test_pack(registry, data):
+def test_pack(serializer, data):
 
-    table = registry.new('TestUnion', data)
-
-    buffer = table.packb()
+    buffer = serializer.packb('TestUnion', data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
@@ -121,10 +119,10 @@ def test_pack(registry, data):
         assert res.Foobar() is None
 
 
-def test_evolve_with_table(registry):
+def test_evolve_with_table(serializer):
 
-    table = registry.new('TestUnion')
-    bar = registry.new('TestUnionBar')
+    table = serializer.new('TestUnion')
+    bar = serializer.new('TestUnionBar')
 
     assert table['foobar_type'] == 0
     assert table['foobar_type'].name == 'NONE'
@@ -135,11 +133,11 @@ def test_evolve_with_table(registry):
     assert table['foobar_type'].name == 'TestUnionBar'
 
 
-def test_evolve_with_dict(registry):
+def test_evolve_with_dict(serializer):
 
-    enum_class = registry.type_by_name('TestUnionFooBar').asenum()
+    enum_class = serializer.registry.type_by_name('TestUnionFooBar').asenum()
 
-    table = registry.new('TestUnion')
+    table = serializer.new('TestUnion')
     table = table.evolve(
         foobar_type='TestUnionFoo',
         foobar={'foo_value': 2}
@@ -150,13 +148,13 @@ def test_evolve_with_dict(registry):
     assert table['foobar']['foo_value'] == 2
 
 
-def test_bad_evolution(registry):
+def test_bad_evolution(serializer):
 
-    table = registry.new('TestUnion')
-    foo = registry.new('TestUnionFoo')
+    table = serializer.new('TestUnion')
+    foo = serializer.new('TestUnionFoo')
 
     with pytest.raises(ValueError):
-        registry.new('TestUnion', {'foobar': table})
+        serializer.new('TestUnion', {'foobar': table})
 
     with pytest.raises(ValueError):
         table.evolve(

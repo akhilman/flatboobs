@@ -3,33 +3,28 @@
 
 import enum
 import itertools
-import operator as op
 import struct
-from functools import reduce
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Type, cast
 
 import attr
 
-from flatboobs import abc
-from flatboobs.constants import FORMAT_MAP, UOFFSET_FMT, BaseType
-from flatboobs.typing import Scalar, TemplateId, USize
+from flatboobs import schema
+from flatboobs.constants import FORMAT_MAP, PYTYPE_MAP, UOFFSET_FMT, BaseType
+from flatboobs.typing import USize
 
-from .abc import Serializer, Template
+from .abc import Template
+from .enum import any_to_enum
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class BaseTemplate(
-        Template,
-):
+class BaseTemplate(Template):
     # pylint: disable=too-few-public-methods
+    # pylint: disable=too-many-instance-attributes
 
-    serializer: Serializer
-    id: TemplateId
-    namespace: str
-    type_name: str
-    file_identifier: str
+    type_decl: Optional[schema.TypeDeclaration]
 
     value_type: BaseType = attr.ib(BaseType.NULL, init=False)
+    value_pytype: Optional[type] = attr.ib(None, init=False)
     inline_format: str = attr.ib('', init=False)
     inline_size: USize = attr.ib(0, init=False)
     inline_align: USize = attr.ib(0, init=False)
@@ -37,14 +32,21 @@ class BaseTemplate(
     finished: bool = attr.ib(False, init=False)
 
     def __attrs_post_init__(self: 'BaseTemplate') -> None:
+        if not self.value_pytype:
+            self.value_pytype = PYTYPE_MAP.get(self.value_type, None)
         if not self.inline_format:
             self.inline_format = FORMAT_MAP[self.value_type]
         self.inline_size = struct.calcsize(self.inline_format)
         self.inline_align = max(map(struct.calcsize, self.inline_format))
 
-    def finish(self: 'BaseTemplate') -> TemplateId:
+        if self.type_decl:
+            self.namespace = self.type_decl.namespace or ''
+            self.type_name = self.type_decl.name or ''
+            self.file_identifier = self.type_decl.file_identifier or ''
+
+    def finish(self: 'BaseTemplate') -> None:
+        assert not self.finished
         self.finished = True
-        return self.id
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
@@ -67,97 +69,24 @@ class VectorFieldTemplate(FieldTemplate):
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class EnumTemplate(BaseTemplate, abc.EnumTemplate):
+class EnumTemplate(BaseTemplate):
 
     value_type: BaseType
-    bit_flags: bool
-
-    enum_class: Optional[Type[enum.IntEnum]] = attr.ib(None, init=False)
-    _members: Dict[str, int] = attr.ib(factory=dict, init=False, repr=False)
-
-    def add_member(
-            self: 'EnumTemplate',
-            name: str,
-            value: int
-    ) -> None:
-        # pylint: disable=unsupported-assignment-operation
-        self._members[name] = value
-
-    def finish(self: 'EnumTemplate') -> TemplateId:
-
-        if self.bit_flags:
-            # pylint: disable=unsupported-assignment-operation
-            # pylint: disable=unsupported-membership-test
-            if 'NONE' not in self._members:
-                self._members['NONE'] = 0
-            if 'ALL' not in self._members:
-                self._members['ALL'] = reduce(op.or_, self._members.values())
-
-        cls = enum.IntFlag if self.bit_flags else enum.IntEnum
-        self.enum_class = cls(self.type_name, self._members)
-
-        return super().finish()
-
-
-@attr.s(auto_attribs=True, slots=True, cmp=False)
-class UnionTemplate(BaseTemplate, abc.UnionTemplate):
-
-    value_type: BaseType = attr.ib(BaseType.UNION, init=False)
-    value_templates: Dict[int, Template] = attr.ib(factory=dict, init=False)
-    enum_template: EnumTemplate = attr.ib(attr.Factory(
-        lambda self: self.serializer.new_enum_template(
-            self.namespace,
-            f'_{self.type_name}Type',
-            '',
-            BaseType.UBYTE,
-            False
-        ), takes_self=True
-    ), init=False)
-    inline_format: str = attr.ib(UOFFSET_FMT, init=False)
-
-    def add_member(
-            self: 'UnionTemplate',
-            name: str,
-            variant_id: int,
-            value_template_id: TemplateId
-    ) -> None:
-        # pylint: disable=unsupported-assignment-operation
-        self.enum_template.add_member(name, variant_id)
-        value_template = self.serializer.templates[value_template_id]
-        self.value_templates[variant_id] = value_template
-
-    def finish(self: 'UnionTemplate') -> TemplateId:
-
-        # pylint: disable=unsupported-assignment-operation
-        # pylint: disable=unsupported-membership-test
-
-        self.enum_template.add_member('NONE', 0)
-        self.enum_template.finish()
-
-        return super().finish()
+    value_pytype: type
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class ScalarTemplate(BaseTemplate):
 
     value_type: BaseType
-
-    id: TemplateId = attr.ib(cast(TemplateId, 0), init=False)
-    namespace: str = attr.ib('', init=False)
-    type_name: str = attr.ib('', init=False)
-    file_identifier: str = attr.ib('', init=False)
-    finished: bool = attr.ib(True, init=False)
+    type_decl: Optional[schema.TypeDeclaration] = attr.ib(None, init=False)
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class StringTemplate(BaseTemplate):
 
+    type_decl: Optional[schema.TypeDeclaration] = attr.ib(None, init=False)
     value_type: BaseType = attr.ib(BaseType.STRING, init=False)
-    id: TemplateId = attr.ib(cast(TemplateId, 0), init=False)
-    namespace: str = attr.ib('', init=False)
-    type_name: str = attr.ib('', init=False)
-    file_identifier: str = attr.ib('', init=False)
-    finished: bool = attr.ib(True, init=False)
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
@@ -165,9 +94,27 @@ class StructTemplate:
 
     value_type: BaseType = attr.ib(BaseType.STRUCT, init=False)
 
+    # if field.is_vector:
+    #     raise TypeError(
+    #         f'Struct "{type_decl.name}" field "{field.name}" '
+    #         'could not be vector.'
+    #     )
+
+    # if (field.type not in STRING_TO_SCALAR_TYPE_MAP
+    #         and not isinstance(
+    #             type_map.get(field.type, None),
+    #             schema.Enum
+    #         )):
+    #     raise TypeError(
+    #         f'Struct "{type_decl.name}" field "{field.name}" type '
+    #         f'could not be {field.type}'
+    #     )
+
+    # self._add_template_field(type_map, template, field)
+
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class TableTemplate(BaseTemplate, abc.TableTemplate):
+class TableTemplate(BaseTemplate):
 
     value_type: BaseType = attr.ib(BaseType.TABLE, init=False)
     fields: List[FieldTemplate] = attr.ib(factory=list, init=False)
@@ -186,76 +133,70 @@ class TableTemplate(BaseTemplate, abc.TableTemplate):
     )
 
     def add_depreacated_field(self: 'TableTemplate') -> None:
+        assert not self.finished
         next(self._field_counter)
 
-    def add_scalar_field(
+    def add_field(
             self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_type: BaseType,
-            default: Scalar,
+            field: schema.Field,
+            value_template: Template
     ) -> None:
+
+        assert not self.finished
+
+        field_factory: Type[FieldTemplate]
+        field_template: FieldTemplate
+
         index = next(self._field_counter)
-        value_template = ScalarTemplate(self.serializer, value_type)
-        field = (VectorFieldTemplate if is_vector else ScalarFieldTemplate)(
-            index, name, value_template, default)
-        self.fields.append(field)
+        if field.is_vector:
+            field_factory = VectorFieldTemplate
+        else:
+            field_factory = ScalarFieldTemplate
 
-    def add_string_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-    ) -> None:
-        raise NotImplementedError
+        default = field.default
+        if isinstance(value_template, ScalarTemplate):
+            assert value_template.value_pytype
+            if default is None:
+                default = value_template.value_pytype()
+            else:
+                default = value_template.value_pytype(default)
+        elif isinstance(value_template, EnumTemplate):
+            assert issubclass(value_template.value_pytype,
+                              (enum.IntEnum, enum.IntFlag))
+            if default is None:
+                default = value_template.value_pytype(
+                    min(value_template.value_pytype)  # type: ignore
+                )
+            else:
+                default = any_to_enum(value_template.value_pytype, default)
 
-    def add_struct_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template_id: TemplateId
-    ) -> None:
-        raise NotImplementedError
+        field_template = field_factory(
+            index, field.name, value_template, default)
+        self.fields.append(field_template)
 
-    def add_table_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template_id: TemplateId
-    ) -> None:
-        index = next(self._field_counter)
-        value_template = self.serializer.templates[value_template_id]
-        field = (VectorFieldTemplate if is_vector else ScalarFieldTemplate)(
-            index, name, value_template)
-        self.fields.append(field)
-
-    def add_enum_field(
-            self: 'TableTemplate',
-            name: str,
-            is_vector: bool,
-            value_template_id: TemplateId,
-            default: int,
-    ) -> None:
-        index = next(self._field_counter)
-        value_template = self.serializer.templates[value_template_id]
-        field = (VectorFieldTemplate if is_vector else ScalarFieldTemplate)(
-            index, name, value_template, default)
-        self.fields.append(field)
-
-    def add_union_field(
-            self: 'TableTemplate',
-            name: str,
-            value_template_id: TemplateId
-    ) -> None:
-        value_template = self.serializer.templates[value_template_id]
-        assert isinstance(value_template, UnionTemplate)
-        self.add_enum_field(
-            f'{name}_type', False, value_template.enum_template.id, 0)
-        index = next(self._field_counter)
-        field = ScalarFieldTemplate(
-            index, name, value_template)
-        self.fields.append(field)
-
-    def finish(self: 'TableTemplate') -> TemplateId:
-        self.field_map = {f.name: f for f in self.fields}
+    def finish(self: 'TableTemplate') -> None:
+        assert not self.finished
+        self.field_map = {
+            f.name: f for f in self.fields  # pylint: disable=not-an-iterable
+        }
         self.field_count = next(self._field_counter)
-        return super().finish()
+        super().finish()
+
+
+@attr.s(auto_attribs=True, slots=True, cmp=False)
+class UnionTemplate(BaseTemplate):
+
+    enum_template: EnumTemplate
+    value_type: BaseType = attr.ib(BaseType.UNION, init=False)
+    value_templates: Dict[int, TableTemplate] = \
+        attr.ib(factory=dict, init=False)
+    inline_format: str = attr.ib(UOFFSET_FMT, init=False)
+
+    def add_member(
+            self: 'UnionTemplate',
+            enum_value: int,
+            value_template: TableTemplate
+    ) -> None:
+        # pylint: disable=unsupported-assignment-operation
+        assert not self.finished
+        self.value_templates[enum_value] = value_template

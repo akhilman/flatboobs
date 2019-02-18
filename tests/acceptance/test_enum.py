@@ -34,14 +34,14 @@ def flatbuffers_unpack(buffer):
     return TestEnum.TestEnum.GetRootAsTestEnum(buffer, 0)
 
 
-def test_unpack(registry, data):
+def test_unpack(serializer, data):
 
     buffer = flatbuffers_pack(data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
 
-    table = registry.unpackb(buffer, root_type='TestEnum')
+    table = serializer.unpackb(buffer, root_type='TestEnum')
 
     from pprint import pprint
     pprint(table)
@@ -54,12 +54,9 @@ def test_unpack(registry, data):
         assert table[key] == data[key]
 
 
-def test_pack(registry, data):
+def test_pack(serializer, data):
 
-    table = registry.new('TestEnum')
-    table = table.evolve(**data)
-
-    buffer = table.packb()
+    buffer = serializer.packb('TestEnum', data)
 
     print('size', len(buffer))
     print(hexdump(buffer))
@@ -74,9 +71,9 @@ def test_pack(registry, data):
     ('test_enum', enum.IntEnum, TestEnumEnum.TestEnumEnum),
     ('test_flag', enum.IntFlag, TestEnumFlag.TestEnumFlag)
 ])
-def test_enum(registry, key, enum_class, flatbuffers_enum):
+def test_enum(serializer, key, enum_class, flatbuffers_enum):
 
-    table = registry.new('TestEnum')
+    table = serializer.new('TestEnum')
     enum_class = type(table[key])
 
     assert isinstance(table[key], enum_class)
@@ -85,9 +82,9 @@ def test_enum(registry, key, enum_class, flatbuffers_enum):
         assert getattr(enum_class, name) == getattr(flatbuffers_enum, name)
 
 
-def test_convert(registry):
+def test_convert(serializer):
 
-    table = registry.new('TestEnum')
+    table = serializer.new('TestEnum')
     enum_class = type(table['test_enum'])
     flag_class = type(table['test_flag'])
 
