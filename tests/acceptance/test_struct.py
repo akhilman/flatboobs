@@ -47,7 +47,6 @@ def test_unpack(serializer, data):
     print(hexdump(buffer))
 
     struct = serializer.unpackb('TestStruct', buffer)
-    print('offset', struct.offset, 'foramt', struct.template.inline_format)
 
     result = asnative(struct)
 

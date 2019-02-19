@@ -10,7 +10,7 @@ from flatboobs.constants import BaseType
 from flatboobs.typing import UOffset, USize
 
 
-class Template:
+class Skeleton:
     # pylint: disable=too-few-public-methods
     # pylint: disable=abstract-method
 
@@ -25,27 +25,27 @@ class Template:
     inline_align: USize
 
 
-_TT = TypeVar('_TT', bound=Template)
+_ST = TypeVar('_ST', bound=Skeleton)
 
 
-class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
+class Container(Generic[_ST]):  # pylint: disable=unsubscriptable-object
     # pylint: disable=too-few-public-methods
     serializer: 'Serializer'
-    template: _TT
+    skeleton: _ST
     buffer: Optional[bytes] = None
     offset: UOffset = 0
 
     @property
     def namespace(self: 'Container') -> str:
-        return self.template.namespace
+        return self.skeleton.namespace
 
     @property
     def type_name(self: 'Container') -> str:
-        return self.template.type_name
+        return self.skeleton.type_name
 
     @property
     def file_identifier(self: 'Container') -> str:
-        return self.template.file_identifier
+        return self.skeleton.file_identifier
 
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -57,4 +57,4 @@ class Container(Generic[_TT]):  # pylint: disable=unsubscriptable-object
 
 class Serializer(abc.Serializer):
 
-    templates: Dict[schema.TypeDeclaration, Template]
+    skeletons: Dict[schema.TypeDeclaration, Skeleton]

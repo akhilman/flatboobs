@@ -106,7 +106,7 @@ def build(content: Container) -> bytes:
 
     # print('cursor:', cursor)
 
-    file_identifier = content.template.file_identifier
+    file_identifier = content.skeleton.file_identifier
     cursor = write_header(
         buffer, offset_map[hash(content)], file_identifier, cursor)
 

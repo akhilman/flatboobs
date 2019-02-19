@@ -13,18 +13,18 @@ from flatboobs.constants import (
 from flatboobs.typing import UOffset
 
 from . import reader
-from .abc import Container, Serializer, Template
+from .abc import Container, Serializer, Skeleton
 from .struct import Struct
 from .table import Table
-from .template import (
-    EnumTemplate,
-    ScalarTemplate,
-    StructTemplate,
-    TableTemplate,
-    UnionTemplate
+from .skeleton import (
+    EnumSkeleton,
+    ScalarSkeleton,
+    StructSkeleton,
+    TableSkeleton,
+    UnionSkeleton
 )
 
-_TT = TypeVar('_TT')  # Template type
+_TT = TypeVar('_TT')  # Skeleton type
 
 
 class FatBoobs(Serializer):
@@ -32,16 +32,16 @@ class FatBoobs(Serializer):
     def __init__(self, registry: abc.Registry):
 
         self.registry = registry
-        self.templates: Dict[schema.TypeDeclaration, Template] = dict()
+        self.skeletons: Dict[schema.TypeDeclaration, Skeleton] = dict()
 
     @staticmethod
-    def _template_key(namespace: str, type_name: str) -> str:
+    def _skeleton_key(namespace: str, type_name: str) -> str:
         return f'{namespace}.{type_name}'
 
-    def _add_enum_template(
+    def _add_enum_skeleton(
             self: 'FatBoobs',
             type_decl: schema.Enum
-    ) -> EnumTemplate:
+    ) -> EnumSkeleton:
 
         value_type = STRING_TO_SCALAR_TYPE_MAP.get(
             type_decl.type, BaseType.NULL)
@@ -55,61 +55,61 @@ class FatBoobs(Serializer):
         pytype = type_decl.asenum()
         bit_flags = type_decl.metadata_map.get('bit_flags', False)
 
-        template = EnumTemplate(type_decl, value_type, bit_flags, pytype)
-        self.templates[type_decl] = template
+        skeleton = EnumSkeleton(type_decl, value_type, bit_flags, pytype)
+        self.skeletons[type_decl] = skeleton
 
-        template.finish()
+        skeleton.finish()
 
-        return template
+        return skeleton
 
-    def _add_table_template(
+    def _add_table_skeleton(
             self: 'FatBoobs',
             type_decl: schema.Table,
-    ) -> TableTemplate:
+    ) -> TableSkeleton:
 
-        value_template: Template
+        value_skeleton: Skeleton
 
-        template = TableTemplate(type_decl)
-        self.templates[type_decl] = template
+        skeleton = TableSkeleton(type_decl)
+        self.skeletons[type_decl] = skeleton
 
         for field in type_decl.fields:
 
             if field.metadata_map.get('deprecated', False):
-                template.add_depreacated_field()
+                skeleton.add_depreacated_field()
                 continue
 
             value_type = \
                 STRING_TO_SCALAR_TYPE_MAP.get(field.type, BaseType.NULL)
             if value_type != BaseType.NULL:
-                value_template = ScalarTemplate(value_type)
+                value_skeleton = ScalarSkeleton(value_type)
             else:
                 value_type_decl = self.registry.type_by_name(
                     field.type, type_decl.namespace)
-                value_template = self._get_add_template(value_type_decl)
+                value_skeleton = self._get_add_skeleton(value_type_decl)
 
-            if isinstance(value_template, UnionTemplate):
+            if isinstance(value_skeleton, UnionSkeleton):
                 enum_field = attr.evolve(
                     field,
                     name=f'{field.name}_type',
-                    type=value_template.enum_template.type_name,
+                    type=value_skeleton.enum_skeleton.type_name,
                     default=0
                 )
-                template.add_field(enum_field, value_template.enum_template)
+                skeleton.add_field(enum_field, value_skeleton.enum_skeleton)
 
-            template.add_field(field, value_template)
+            skeleton.add_field(field, value_skeleton)
 
-        template.finish()
+        skeleton.finish()
 
-        return template
+        return skeleton
 
-    def _add_struct_template(
+    def _add_struct_skeleton(
             self: 'FatBoobs',
             type_decl: schema.Struct,
-    ) -> StructTemplate:
+    ) -> StructSkeleton:
 
-        value_template: Template
-        template = StructTemplate(type_decl)
-        self.templates[type_decl] = template
+        value_skeleton: Skeleton
+        skeleton = StructSkeleton(type_decl)
+        self.skeletons[type_decl] = skeleton
 
         for field in type_decl.fields:
 
@@ -118,7 +118,7 @@ class FatBoobs(Serializer):
             value_type = \
                 STRING_TO_SCALAR_TYPE_MAP.get(field.type, BaseType.NULL)
             if value_type != BaseType.NULL:
-                value_template = ScalarTemplate(value_type)
+                value_skeleton = ScalarSkeleton(value_type)
             else:
                 value_type_decl = self.registry.type_by_name(
                     field.type, type_decl.namespace)
@@ -128,73 +128,73 @@ class FatBoobs(Serializer):
                         f'could not be {field.type}, '
                         'only floats, integers, bools and enums are allowed'
                     )
-                some_value_template = self._get_add_template(value_type_decl)
-                assert isinstance(some_value_template,
-                                  (ScalarTemplate, EnumTemplate))
-                value_template = some_value_template
+                some_value_skeleton = self._get_add_skeleton(value_type_decl)
+                assert isinstance(some_value_skeleton,
+                                  (ScalarSkeleton, EnumSkeleton))
+                value_skeleton = some_value_skeleton
 
-            template.add_field(field, value_template)
+            skeleton.add_field(field, value_skeleton)
 
-        template.finish()
+        skeleton.finish()
 
-        return template
+        return skeleton
 
-    def _add_union_template(
+    def _add_union_skeleton(
             self: 'FatBoobs',
             type_decl: schema.Union,
-    ) -> UnionTemplate:
+    ) -> UnionSkeleton:
 
         pytype = type_decl.asenum()
 
-        enum_template = EnumTemplate(type_decl, BaseType.UBYTE, False, pytype)
-        enum_template.finish()
+        enum_skeleton = EnumSkeleton(type_decl, BaseType.UBYTE, False, pytype)
+        enum_skeleton.finish()
 
-        union_template = UnionTemplate(type_decl, enum_template)
-        self.templates[type_decl] = union_template
+        union_skeleton = UnionSkeleton(type_decl, enum_skeleton)
+        self.skeletons[type_decl] = union_skeleton
 
         for member in type_decl.members:
 
             value_type_decl = self.registry.type_by_name(
                 member.name, type_decl.namespace)
-            value_template = self._get_add_template(value_type_decl)
-            assert isinstance(value_template, TableTemplate)
+            value_skeleton = self._get_add_skeleton(value_type_decl)
+            assert isinstance(value_skeleton, TableSkeleton)
 
             enum_value = int(pytype.__members__[member.name])
-            union_template.add_member(enum_value, value_template)
+            union_skeleton.add_member(enum_value, value_skeleton)
 
-        union_template.finish()
+        union_skeleton.finish()
 
-        return union_template
+        return union_skeleton
 
-    def _get_add_template(
+    def _get_add_skeleton(
             self: 'FatBoobs',
             type_decl: schema.TypeDeclaration
-    ) -> Template:
+    ) -> Skeleton:
 
-        if type_decl in self.templates:
-            return self.templates[type_decl]
+        if type_decl in self.skeletons:
+            return self.skeletons[type_decl]
 
-        template: Template
+        skeleton: Skeleton
         if isinstance(type_decl, schema.Struct):
-            template = self._add_struct_template(type_decl)
+            skeleton = self._add_struct_skeleton(type_decl)
         elif isinstance(type_decl, schema.Table):
-            template = self._add_table_template(type_decl)
+            skeleton = self._add_table_skeleton(type_decl)
         elif isinstance(type_decl, schema.Union):
-            template = self._add_union_template(type_decl)
+            skeleton = self._add_union_skeleton(type_decl)
         elif isinstance(type_decl, schema.Enum):
-            template = self._add_enum_template(type_decl)
+            skeleton = self._add_enum_skeleton(type_decl)
         else:
             raise NotImplementedError('Unsupported type')
 
-        assert template
+        assert skeleton
 
-        self.templates[type_decl] = template
+        self.skeletons[type_decl] = skeleton
 
-        return template
+        return skeleton
 
     def _new_container(
             self: 'FatBoobs',
-            template: Template,
+            skeleton: Skeleton,
             buffer: Optional[bytes],
             offset: UOffset,
             mutation: Any
@@ -202,16 +202,16 @@ class FatBoobs(Serializer):
         """
         Internal routine, Use FatBoobs.new().
         """
-        if isinstance(template, TableTemplate):
-            return Table.new(self, template, buffer, offset, mutation)
-        if isinstance(template, StructTemplate):
-            return Struct.new(self, template, buffer, offset, mutation)
+        if isinstance(skeleton, TableSkeleton):
+            return Table.new(self, skeleton, buffer, offset, mutation)
+        if isinstance(skeleton, StructSkeleton):
+            return Struct.new(self, skeleton, buffer, offset, mutation)
         raise NotImplementedError(
-            'Unsupported template type {template.__class__.__name__}')
+            'Unsupported skeleton type {skeleton.__class__.__name__}')
 
     def _new_vector_container(
             self: 'FatBoobs',
-            template: Template,
+            skeleton: Skeleton,
             buffer: Optional[bytes],
             offset: UOffset,
             mutation: Any
@@ -230,9 +230,9 @@ class FatBoobs(Serializer):
     ) -> Union[Table, Struct]:
 
         type_decl = self.registry.type_by_name(type_name, namespace)
-        template = self._get_add_template(type_decl)
+        skeleton = self._get_add_skeleton(type_decl)
 
-        return self._new_container(template, None, 0, mutation)
+        return self._new_container(skeleton, None, 0, mutation)
 
     def unpackb(
             self: 'FatBoobs',
@@ -253,11 +253,11 @@ class FatBoobs(Serializer):
             raise TypeError(
                 'Nor file idenitifer nor type_name is defined.')
 
-        template = self._get_add_template(type_decl)
-        assert isinstance(template, TableTemplate)
+        skeleton = self._get_add_skeleton(type_decl)
+        assert isinstance(skeleton, TableSkeleton)
 
         table = self._new_container(
-            template, buffer, header.root_offset, dict()
+            skeleton, buffer, header.root_offset, dict()
         )
         assert isinstance(table, Table)
         return table

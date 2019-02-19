@@ -24,7 +24,7 @@ from flatboobs.compat import numpy as np
 from flatboobs.constants import FORMAT_MAP, PYTYPE_MAP, UOFFSET_FMT, BaseType
 from flatboobs.typing import DType, UOffset, USize
 
-from .abc import Template
+from .abc import Skeleton
 from .enum import any_to_enum
 
 
@@ -33,7 +33,7 @@ def _default_value_factory(value=None) -> Callable[..., Any]:
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class BaseTemplate(Template):
+class BaseSkeleton(Skeleton):
     # pylint: disable=too-few-public-methods
     # pylint: disable=too-many-instance-attributes
 
@@ -48,7 +48,7 @@ class BaseTemplate(Template):
 
     finished: bool = attr.ib(False, init=False)
 
-    def __attrs_post_init__(self: 'BaseTemplate') -> None:
+    def __attrs_post_init__(self: 'BaseSkeleton') -> None:
         if self.value_factory is _default_value_factory:
             self.value_factory = PYTYPE_MAP.get(
                 self.value_type, _default_value_factory)
@@ -62,32 +62,32 @@ class BaseTemplate(Template):
             self.type_name = self.type_decl.name or ''
             self.file_identifier = self.type_decl.file_identifier or ''
 
-    def finish(self: 'BaseTemplate') -> None:
+    def finish(self: 'BaseSkeleton') -> None:
         assert not self.finished
         self.finished = True
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class FieldTemplate:
+class FieldSkeleton:
     index: int
     name: str
-    value_template: Template
+    value_skeleton: Skeleton
     is_vector: bool
     default: Any = None
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class ScalarFieldTemplate(FieldTemplate):
+class ScalarFieldSkeleton(FieldSkeleton):
     is_vector: bool = attr.ib(False, init=False)
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class VectorFieldTemplate(FieldTemplate):
+class VectorFieldSkeleton(FieldSkeleton):
     is_vector: bool = attr.ib(False, init=True)
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class EnumTemplate(BaseTemplate):
+class EnumSkeleton(BaseSkeleton):
 
     value_type: BaseType
     bit_flags: bool
@@ -95,31 +95,31 @@ class EnumTemplate(BaseTemplate):
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class ScalarTemplate(BaseTemplate):
+class ScalarSkeleton(BaseSkeleton):
 
     value_type: BaseType
     type_decl: Optional[schema.TypeDeclaration] = attr.ib(None, init=False)
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class StringTemplate(BaseTemplate):
+class StringSkeleton(BaseSkeleton):
 
     type_decl: Optional[schema.TypeDeclaration] = attr.ib(None, init=False)
     value_type: BaseType = attr.ib(BaseType.STRING, init=False)
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class _TableLikeTemplate(BaseTemplate):
+class _TableLikeSkeleton(BaseSkeleton):
 
-    fields: List[FieldTemplate] = attr.ib(factory=list, init=False)
+    fields: List[FieldSkeleton] = attr.ib(factory=list, init=False)
     field_count: int = attr.ib(0, init=False)
     _field_counter: Iterator[int] = attr.ib(  # type: ignore
         factory=itertools.count,
         hash=False, init=False, repr=False
     )
 
-    field_map: Mapping[str, FieldTemplate] = cast(
-        Mapping[str, FieldTemplate],
+    field_map: Mapping[str, FieldSkeleton] = cast(
+        Mapping[str, FieldSkeleton],
         attr.ib(
             factory=dict,
             hash=False, init=False, repr=False
@@ -129,32 +129,32 @@ class _TableLikeTemplate(BaseTemplate):
     @staticmethod
     def _find_default_value(
             field: schema.Field,
-            value_template: Template,
+            value_skeleton: Skeleton,
     ) -> Any:
         default = field.default
-        if isinstance(value_template, ScalarTemplate):
-            assert value_template.value_factory
+        if isinstance(value_skeleton, ScalarSkeleton):
+            assert value_skeleton.value_factory
             if default is None:
-                default = value_template.value_factory()
+                default = value_skeleton.value_factory()
             else:
-                default = value_template.value_factory(default)
-        elif isinstance(value_template, EnumTemplate):
+                default = value_skeleton.value_factory(default)
+        elif isinstance(value_skeleton, EnumSkeleton):
             if default is None:
-                default = value_template.value_factory(
-                    min(value_template.value_factory)  # type: ignore
+                default = value_skeleton.value_factory(
+                    min(value_skeleton.value_factory)  # type: ignore
                 )
             else:
-                default = any_to_enum(value_template.value_factory, default)
+                default = any_to_enum(value_skeleton.value_factory, default)
         return default
 
     def add_field(
-            self: '_TableLikeTemplate',
+            self: '_TableLikeSkeleton',
             field: schema.Field,
-            value_template: Template
+            value_skeleton: Skeleton
     ) -> None:
         raise NotImplementedError
 
-    def finish(self: '_TableLikeTemplate') -> None:
+    def finish(self: '_TableLikeSkeleton') -> None:
         assert not self.finished
         self.field_map = {
             f.name: f for f in self.fields  # pylint: disable=not-an-iterable
@@ -164,7 +164,7 @@ class _TableLikeTemplate(BaseTemplate):
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class StructTemplate(_TableLikeTemplate):
+class StructSkeleton(_TableLikeSkeleton):
 
     value_type: BaseType = attr.ib(BaseType.STRUCT, init=False)
     field_offsets: List[UOffset] = attr.ib(tuple(), init=False)
@@ -173,21 +173,21 @@ class StructTemplate(_TableLikeTemplate):
     dtype: Optional[DType] = attr.ib(None, init=False)
 
     def add_field(
-            self: 'StructTemplate',
+            self: 'StructSkeleton',
             field: schema.Field,
-            value_template: Template
+            value_skeleton: Skeleton
     ) -> None:
 
         assert not self.finished
 
         index = next(self._field_counter)
-        default = self._find_default_value(field, value_template)
+        default = self._find_default_value(field, value_skeleton)
 
-        field_template = ScalarFieldTemplate(
-            index, field.name, value_template, default)
-        self.fields.append(field_template)
+        field_skeleton = ScalarFieldSkeleton(
+            index, field.name, value_skeleton, default)
+        self.fields.append(field_skeleton)
 
-    def finish(self: 'StructTemplate') -> None:
+    def finish(self: 'StructSkeleton') -> None:
         super().finish()
 
         field_offsets = []
@@ -195,9 +195,9 @@ class StructTemplate(_TableLikeTemplate):
         struct_size = 0
 
         for field in self.fields:  # pylint: disable=not-an-iterable
-            field_format = field.value_template.inline_format
-            field_size = field.value_template.inline_size
-            field_align = field.value_template.inline_align
+            field_format = field.value_skeleton.inline_format
+            field_size = field.value_skeleton.inline_size
+            field_align = field.value_skeleton.inline_align
             pad = -struct_size % field_align if struct_size else 0
             if pad:
                 struct_format += f'{pad}x'
@@ -209,7 +209,7 @@ class StructTemplate(_TableLikeTemplate):
         struct_align = ft.compose(
             max,
             ft.curry(map)(op.attrgetter('inline_align')),
-            ft.curry(map)(op.attrgetter('value_template')),
+            ft.curry(map)(op.attrgetter('value_skeleton')),
         )(self.fields)
         pad = -struct_size % struct_align if struct_size else 0
         if pad:
@@ -226,7 +226,7 @@ class StructTemplate(_TableLikeTemplate):
             self.dtype = np.dtype(
                 {
                     field.name: (
-                        f'<{field.value_template.inline_format}',
+                        f'<{field.value_skeleton.inline_format}',
                         offset
                     )
                     for field, offset
@@ -241,52 +241,52 @@ class StructTemplate(_TableLikeTemplate):
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class TableTemplate(_TableLikeTemplate):
+class TableSkeleton(_TableLikeSkeleton):
 
     value_type: BaseType = attr.ib(BaseType.TABLE, init=False)
 
-    def add_depreacated_field(self: 'TableTemplate') -> None:
+    def add_depreacated_field(self: 'TableSkeleton') -> None:
         assert not self.finished
         next(self._field_counter)
 
     def add_field(
-            self: 'TableTemplate',
+            self: 'TableSkeleton',
             field: schema.Field,
-            value_template: Template
+            value_skeleton: Skeleton
     ) -> None:
 
         assert not self.finished
 
-        field_factory: Type[FieldTemplate]
-        field_template: FieldTemplate
+        field_factory: Type[FieldSkeleton]
+        field_skeleton: FieldSkeleton
 
         index = next(self._field_counter)
-        default = self._find_default_value(field, value_template)
+        default = self._find_default_value(field, value_skeleton)
 
         if field.is_vector:
-            field_factory = VectorFieldTemplate
+            field_factory = VectorFieldSkeleton
         else:
-            field_factory = ScalarFieldTemplate
+            field_factory = ScalarFieldSkeleton
 
-        field_template = field_factory(
-            index, field.name, value_template, default)
-        self.fields.append(field_template)
+        field_skeleton = field_factory(
+            index, field.name, value_skeleton, default)
+        self.fields.append(field_skeleton)
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
-class UnionTemplate(BaseTemplate):
+class UnionSkeleton(BaseSkeleton):
 
-    enum_template: EnumTemplate
+    enum_skeleton: EnumSkeleton
     value_type: BaseType = attr.ib(BaseType.UNION, init=False)
-    value_templates: Dict[int, TableTemplate] = \
+    value_skeletons: Dict[int, TableSkeleton] = \
         attr.ib(factory=dict, init=False)
     inline_format: str = attr.ib(UOFFSET_FMT, init=False)
 
     def add_member(
-            self: 'UnionTemplate',
+            self: 'UnionSkeleton',
             enum_value: int,
-            value_template: TableTemplate
+            value_skeleton: TableSkeleton
     ) -> None:
         # pylint: disable=unsupported-assignment-operation
         assert not self.finished
-        self.value_templates[enum_value] = value_template
+        self.value_skeletons[enum_value] = value_skeleton

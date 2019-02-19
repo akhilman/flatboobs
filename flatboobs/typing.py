@@ -9,7 +9,7 @@ Float = SupportsFloat
 Integer = SupportsInt
 Number = Union[Float, Integer]
 
-TemplateId = NewType('TemplateId', int)
+SkeletonId = NewType('SkeletonId', int)
 UOffset = int
 SOffset = int
 VOffset = int

@@ -44,13 +44,13 @@ from . import builder, reader
 from .abc import Container, Serializer
 from .enum import any_to_enum
 from .struct import Struct
-from .template import (
-    EnumTemplate,
-    ScalarFieldTemplate,
-    ScalarTemplate,
-    StructTemplate,
-    TableTemplate,
-    UnionTemplate
+from .skeleton import (
+    EnumSkeleton,
+    ScalarFieldSkeleton,
+    ScalarSkeleton,
+    StructSkeleton,
+    TableSkeleton,
+    UnionSkeleton
 )
 
 ###
@@ -59,10 +59,10 @@ from .template import (
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False, repr=False)
-class Table(Container[TableTemplate], abc.Table):
+class Table(Container[TableSkeleton], abc.Table):
     # pylint: disable=too-many-ancestors
     serializer: Serializer
-    template: TableTemplate
+    skeleton: TableSkeleton
     buffer: Optional[bytes] = None
     offset: UOffset = 0
     mutation: Mapping[str, Any] = attr.ib(factory=dict)
@@ -73,7 +73,7 @@ class Table(Container[TableTemplate], abc.Table):
     @staticmethod
     def new(
             serializer: Serializer,
-            template: TableTemplate,
+            skeleton: TableSkeleton,
             buffer: Optional[bytes],
             offset: UOffset,
             mutation: Optional[Dict[str, Any]]
@@ -85,30 +85,30 @@ class Table(Container[TableTemplate], abc.Table):
             raise TypeError('Mutation should be mapping type or None, '
                             f'{type(mutation)} is given')
 
-        bad_keys = set(mutation) - set(template.field_map)
+        bad_keys = set(mutation) - set(skeleton.field_map)
         if bad_keys:
             raise KeyError(', '.join(bad_keys))
 
         non_unions = {
             k: convert_field_value(
                 serializer,
-                template.field_map[k],
-                template.field_map[k].value_template,
+                skeleton.field_map[k],
+                skeleton.field_map[k].value_skeleton,
                 v
             )
             for k, v in mutation.items()
             if not isinstance(
-                template.field_map[k].value_template, UnionTemplate)
+                skeleton.field_map[k].value_skeleton, UnionSkeleton)
         }
 
         unions = ft.compose(
             dict,
             it.concat,
             ft.curry(map)(lambda x: convert_union_fields(serializer, *x)),
-            ft.curry(filter)(lambda x: isinstance(x[1], UnionTemplate)),
+            ft.curry(filter)(lambda x: isinstance(x[1], UnionSkeleton)),
             ft.curry(map)(lambda x: (
-                template.field_map[x[0]],
-                template.field_map[x[0]].value_template,
+                skeleton.field_map[x[0]],
+                skeleton.field_map[x[0]].value_skeleton,
                 non_unions.get(f'{x[0]}_type', 0),
                 x[1]
             ))
@@ -116,7 +116,7 @@ class Table(Container[TableTemplate], abc.Table):
 
         mutation = cast(Dict[str, Any], dt.merge(non_unions, unions))
 
-        return Table(serializer, template, buffer, offset, mutation)
+        return Table(serializer, skeleton, buffer, offset, mutation)
 
     def __attrs_post_init__(self):
 
@@ -126,7 +126,7 @@ class Table(Container[TableTemplate], abc.Table):
     def __hash__(self):
         if not self._hash:
             self._hash = hash((
-                id(self.template),
+                id(self.skeleton),
                 id(self.buffer),
                 self.offset,
                 tuple(self.mutation.items())
@@ -147,10 +147,10 @@ class Table(Container[TableTemplate], abc.Table):
 
         if self.mutation and key in self.mutation:
             value = self.mutation[key]
-        elif key in self.template.field_map:
-            field_template = self.template.field_map[key]
-            value_template = field_template.value_template
-            value = read_field(self, field_template, value_template)
+        elif key in self.skeleton.field_map:
+            field_skeleton = self.skeleton.field_map[key]
+            value_skeleton = field_skeleton.value_skeleton
+            value = read_field(self, field_skeleton, value_skeleton)
         else:
             raise KeyError(key)
 
@@ -161,12 +161,12 @@ class Table(Container[TableTemplate], abc.Table):
     def __iter__(
             self: 'Table'
     ) -> Iterator[str]:
-        return map(op.attrgetter('name'), self.template.fields)
+        return map(op.attrgetter('name'), self.skeleton.fields)
 
     def __len__(
             self: 'Table'
     ) -> int:
-        return len(self.template.fields)
+        return len(self.skeleton.fields)
 
     def __repr__(self: 'Table') -> str:
         return f"{self.type_name}({dict(self)})"
@@ -177,7 +177,7 @@ class Table(Container[TableTemplate], abc.Table):
     ) -> 'Table':
         return Table.new(
             self.serializer,
-            self.template,
+            self.skeleton,
             self.buffer,
             self.offset,
             kwargs
@@ -191,34 +191,34 @@ class Table(Container[TableTemplate], abc.Table):
 # Field value converter
 ##
 
-# Callable[[Serializer, ScalarFieldTemplate, Template, value], Any]
+# Callable[[Serializer, ScalarFieldSkeleton, Skeleton, value], Any]
 convert_field_value = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.convert_field_value")
 
 @convert_field_value.register(
-    Serializer, ScalarFieldTemplate, EnumTemplate, object)
+    Serializer, ScalarFieldSkeleton, EnumSkeleton, object)
 def convert_enum_field_value(
         serializer: Serializer,
-        field_template: ScalarFieldTemplate,
-        value_template: EnumTemplate,
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: EnumSkeleton,
         value: Any
 ) -> enum.IntEnum:
     # pylint: disable=unused-argument
-    return any_to_enum(value_template.value_factory, value)
+    return any_to_enum(value_skeleton.value_factory, value)
 
 
 @convert_field_value.register(
-    Serializer, ScalarFieldTemplate, ScalarTemplate, object)
+    Serializer, ScalarFieldSkeleton, ScalarSkeleton, object)
 def convert_scalar_field_value(
         serializer: Serializer,
-        field_template: ScalarFieldTemplate,
-        value_template: ScalarTemplate,
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: ScalarSkeleton,
         value: Any
 ) -> Scalar:
     # pylint: disable=unused-argument
 
-    pytype = PYTYPE_MAP[value_template.value_type]
-    format_ = FORMAT_MAP[value_template.value_type]
+    pytype = PYTYPE_MAP[value_skeleton.value_type]
+    format_ = FORMAT_MAP[value_skeleton.value_type]
 
     value = pytype(value)
 
@@ -226,7 +226,7 @@ def convert_scalar_field_value(
         struct.pack(format_, value)
     except struct.error as exc:
         raise ValueError(
-            f"Bad value for {field_template.name}: "
+            f"Bad value for {field_skeleton.name}: "
             + ' '.join(exc.args)
         )
 
@@ -234,28 +234,28 @@ def convert_scalar_field_value(
 
 
 @convert_field_value.register(
-    Serializer, ScalarFieldTemplate, StructTemplate, object)
+    Serializer, ScalarFieldSkeleton, StructSkeleton, object)
 def convert_struct_field_value(
         serializer: Serializer,
-        field_template: ScalarFieldTemplate,
-        value_template: StructTemplate,
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: StructSkeleton,
         value: Any
 ) -> Struct:
     # pylint: disable=unused-argument
     return Struct.new(
         serializer,
-        value_template,
+        value_skeleton,
         None,
         0,
         value
     )
 
 @convert_field_value.register(
-    Serializer, ScalarFieldTemplate, TableTemplate, type(None))
+    Serializer, ScalarFieldSkeleton, TableSkeleton, type(None))
 def convert_table_field_value_from_none(
         serializer: Serializer,
-        field_template: ScalarFieldTemplate,
-        value_template: TableTemplate,
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: TableSkeleton,
         value: None
 ) -> Optional[Container]:
     # pylint: disable=unused-argument
@@ -263,36 +263,36 @@ def convert_table_field_value_from_none(
 
 
 @convert_field_value.register(
-    Serializer, ScalarFieldTemplate, TableTemplate, Container)
+    Serializer, ScalarFieldSkeleton, TableSkeleton, Container)
 def convert_table_field_value_from_container(
         serializer: Serializer,
-        field_template: ScalarFieldTemplate,
-        value_template: TableTemplate,
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: TableSkeleton,
         value: Container
 ) -> Optional[Container]:
     # pylint: disable=unused-argument
 
     if (not isinstance(value, Table)
-            or value.template != value_template):
+            or value.skeleton != value_skeleton):
         raise ValueError(
-            f"Bad value for {field_template.name}: {value}"
+            f"Bad value for {field_skeleton.name}: {value}"
         )
 
     return value
 
 
 @convert_field_value.register(
-    Serializer, ScalarFieldTemplate, TableTemplate, object)
+    Serializer, ScalarFieldSkeleton, TableSkeleton, object)
 def convert_table_field_value(
         serializer: Serializer,
-        field_template: ScalarFieldTemplate,
-        value_template: TableTemplate,
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: TableSkeleton,
         value: Any
 ) -> Optional[Container]:
     # pylint: disable=unused-argument
     return Table.new(
         serializer,
-        value_template,
+        value_skeleton,
         None,
         0,
         value
@@ -301,15 +301,15 @@ def convert_table_field_value(
 
 def convert_union_fields(
         serializer: Serializer,
-        field_template: ScalarFieldTemplate,
-        union_template: UnionTemplate,
+        field_skeleton: ScalarFieldSkeleton,
+        union_skeleton: UnionSkeleton,
         union_type: int,
         value: Any
 ) -> Tuple[Tuple[str, enum.IntEnum], Tuple[str, Optional[Table]]]:
 
-    enum_class = union_template.enum_template.value_factory
+    enum_class = union_skeleton.enum_skeleton.value_factory
     assert issubclass(enum_class, enum.IntEnum)  # type: ignore
-    key = field_template.name
+    key = field_skeleton.name
     enum_key = f'{key}_type'
 
     if value is None:
@@ -322,23 +322,23 @@ def convert_union_fields(
                 f'instance value of {enum_key} should be 0 (NONE)'
             )
         union_type_map = {
-            v: k for k, v in union_template.value_templates.items()
+            v: k for k, v in union_skeleton.value_skeletons.items()
         }
         try:
-            union_type = union_type_map[value.template]
+            union_type = union_type_map[value.skeleton]
         except KeyError:
-            raise ValueError(f'{value.template.type_name} is bad type '
+            raise ValueError(f'{value.skeleton.type_name} is bad type '
                              f'for union field "{key}".')
         container = value
     else:
         if union_type == 0:
             raise ValueError(f'Union type "{enum_key}" is not provided.')
 
-        value_template = union_template.value_templates[union_type]
-        assert isinstance(value_template, TableTemplate)
+        value_skeleton = union_skeleton.value_skeletons[union_type]
+        assert isinstance(value_skeleton, TableSkeleton)
         container = Table.new(
             serializer,
-            value_template,
+            value_skeleton,
             None,
             0,
             value
@@ -352,67 +352,67 @@ def convert_union_fields(
 ###
 # Read
 ##
-# Callable[[Table, ScalarFieldTemplate, Template], Any]
+# Callable[[Table, ScalarFieldSkeleton, Skeleton], Any]
 read_field = Dispatcher(  # pylint: disable=invalid-name
     f"{__name__}.read_field")
 
 
-@read_field.register(Table, ScalarFieldTemplate, EnumTemplate)
+@read_field.register(Table, ScalarFieldSkeleton, EnumSkeleton)
 def read_enum_field(
         table: Table,
-        field_template: ScalarFieldTemplate,
-        value_template: EnumTemplate
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: EnumSkeleton
 ) -> Scalar:
 
-    enum_class = value_template.value_factory
+    enum_class = value_skeleton.value_factory
     assert issubclass(enum_class, (enum.IntEnum, enum.IntFlag))  # type: ignore
 
-    value = read_scalar_field(table, field_template, value_template)
+    value = read_scalar_field(table, field_skeleton, value_skeleton)
     assert isinstance(value, int)
 
     return enum_class(value)  # type: ignore
 
 
-@read_field.register(Table, ScalarFieldTemplate, ScalarTemplate)
+@read_field.register(Table, ScalarFieldSkeleton, ScalarSkeleton)
 def read_scalar_field(
         table: Table,
-        field_template: ScalarFieldTemplate,
-        value_template: Union[ScalarTemplate, EnumTemplate]
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: Union[ScalarSkeleton, EnumSkeleton]
 ) -> Scalar:
 
     if not table.buffer or not table.offset:
-        return field_template.default
+        return field_skeleton.default
 
     assert isinstance(table.vtable, tuple)
-    idx = field_template.index
+    idx = field_skeleton.index
     if idx >= len(table.vtable):
-        return field_template.default
+        return field_skeleton.default
 
     foffset = table.vtable[idx]
     if not foffset:
-        return field_template.default
+        return field_skeleton.default
 
     return reader.read_scalar(
-        FORMAT_MAP[value_template.value_type],
+        FORMAT_MAP[value_skeleton.value_type],
         table.buffer,
         table.offset + foffset
     )
 
 
-@read_field.register(Table, ScalarFieldTemplate, StructTemplate)
+@read_field.register(Table, ScalarFieldSkeleton, StructSkeleton)
 def read_struct_field(
         table: Table,
-        field_template: ScalarFieldTemplate,
-        value_template: StructTemplate
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: StructSkeleton
 ) -> Optional[Struct]:
 
     if not table.buffer or not table.offset:
         return None
 
     assert isinstance(table.vtable, tuple)
-    idx = field_template.index
+    idx = field_skeleton.index
     if idx >= len(table.vtable):
-        return field_template.default
+        return field_skeleton.default
 
     foffset = table.vtable[idx]
     if not foffset:
@@ -420,25 +420,25 @@ def read_struct_field(
 
     return Struct.new(
         table.serializer,
-        value_template,
+        value_skeleton,
         table.buffer,
         table.offset + foffset,
         None,
     )
 
 
-@read_field.register(Table, ScalarFieldTemplate, TableTemplate)
+@read_field.register(Table, ScalarFieldSkeleton, TableSkeleton)
 def read_table_field(
         table: Table,
-        field_template: ScalarFieldTemplate,
-        value_template: TableTemplate
+        field_skeleton: ScalarFieldSkeleton,
+        value_skeleton: TableSkeleton
 ) -> Optional[Table]:
 
     if not table.buffer or not table.offset:
         return None
 
     assert isinstance(table.vtable, tuple)
-    idx = field_template.index
+    idx = field_skeleton.index
     if idx >= len(table.vtable):
         return None
 
@@ -457,27 +457,27 @@ def read_table_field(
 
     return Table.new(
         table.serializer,
-        value_template,
+        value_skeleton,
         table.buffer,
         offset,
         dict()
     )
 
 
-@read_field.register(Table, ScalarFieldTemplate, UnionTemplate)
+@read_field.register(Table, ScalarFieldSkeleton, UnionSkeleton)
 def read_union_field(
         table: Table,
-        field_template: ScalarFieldTemplate,
-        union_template: UnionTemplate
+        field_skeleton: ScalarFieldSkeleton,
+        union_skeleton: UnionSkeleton
 ) -> Optional[Container]:
 
-    union_type = table[f'{field_template.name}_type']
+    union_type = table[f'{field_skeleton.name}_type']
     if union_type == 0:
         return None
 
-    value_template = union_template.value_templates[union_type]
+    value_skeleton = union_skeleton.value_skeletons[union_type]
 
-    return read_table_field(table, field_template, value_template)
+    return read_table_field(table, field_skeleton, value_skeleton)
 
 
 ###
@@ -506,13 +506,13 @@ def calc_table_size(
 ) -> USize:
     field_count = 0
     for key, value in table.items():
-        field_template = table.template.field_map[key]
-        if value == field_template.default:
+        field_skeleton = table.skeleton.field_map[key]
+        if value == field_skeleton.default:
             continue
-        value_template = field_template.value_template
-        size += value_template.inline_size
-        size += -size % value_template.inline_align
-        field_count = max(field_count, field_template.index + 1)
+        value_skeleton = field_skeleton.value_skeleton
+        size += value_skeleton.inline_size
+        size += -size % value_skeleton.inline_align
+        field_count = max(field_count, field_skeleton.index + 1)
 
     size += UOFFSET_SIZE
     size += -size % UOFFSET_SIZE
@@ -598,14 +598,14 @@ def write_table(
     inline_blocks = ft.compose(
         ft.curry(align_blocks)(cursor),
         ft.curry(map)(lambda x: InlineBlock(
-            table.template.field_map[x].index,
-            table.template.field_map[x].value_template.inline_size,
-            table.template.field_map[x].value_template.inline_align,
-            table.template.field_map[x].value_template.inline_format,
+            table.skeleton.field_map[x].index,
+            table.skeleton.field_map[x].value_skeleton.inline_size,
+            table.skeleton.field_map[x].value_skeleton.inline_align,
+            table.skeleton.field_map[x].value_skeleton.inline_format,
             table[x],
         )),
         ft.curry(filter)(lambda x: table[x]
-                         != table.template.field_map[x].default)
+                         != table.skeleton.field_map[x].default)
     )(table.keys())
 
     from pprint import pprint
