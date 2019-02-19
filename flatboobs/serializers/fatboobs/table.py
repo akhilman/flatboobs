@@ -505,16 +505,10 @@ def calc_table_size(
         size: UOffset,
         table: Table
 ) -> USize:
-    field_count = 0
-    for key, value in table.items():
-        field_skeleton = table.skeleton.field_map[key]
-        if value == field_skeleton.default:
-            continue
-        value_skeleton = field_skeleton.value_skeleton
-        size += value_skeleton.inline_size
-        size += -size % value_skeleton.inline_align
-        field_count = max(field_count, field_skeleton.index + 1)
-
+    fields = [f for f in table.skeleton.fields if table[f.name] != f.default]
+    field_count = max(f.index for f in fields) + 1 if fields else 0
+    size += -size % 8
+    size += sum(f.value_skeleton.inline_size for f in fields)
     size += UOFFSET_SIZE
     size += -size % UOFFSET_SIZE
     size += field_count * VOFFSET_SIZE + 2 * VSIZE_SIZE
@@ -559,29 +553,38 @@ def align_blocks(
         blocks: Iterable[InlineBlock]
 ) -> Sequence[InlineBlock]:
     packed: Deque[InlineBlock] = collections.deque()
-    pending = sorted(blocks, key=lambda x: (-x.size, -x.index))
+    pending = sorted(blocks, key=lambda x: (-x.size, x.index))
 
     if not pending:
         return packed
 
+    old_cursor = cursor
+
+    cursor += sum(map(op.attrgetter('size'), pending))
+    cursor += -cursor % UOFFSET_SIZE
+    print('+cursor', cursor, UOFFSET_SIZE, cursor % UOFFSET_SIZE)
     while pending:
-        gap = -(cursor + pending[0].size) % pending[0].align
-        if gap:
+        shift = cursor % pending[0].align
+        print('+shift', shift, cursor, cursor % pending[0].align,
+              pending[0])
+        if shift:
             for block in pending:
-                if block.align <= gap:
+                if block.align <= shift:
                     pending.remove(block)
                     break
             else:
-                block = InlineBlock(size=gap, format='x'*gap)
+                block = InlineBlock(size=shift, format='x'*shift)
         else:
             block = pending.pop(0)
-        packed.appendleft(block)
-        cursor += block.size
+        packed.append(block)
+        cursor -= block.size
 
-    gap = -cursor % UOFFSET_SIZE
+    gap = cursor % UOFFSET_SIZE
     if gap:
         block = InlineBlock(size=gap, format='x'*gap)
-        packed.appendleft(block)
+        packed.append(block)
+
+    assert cursor >= old_cursor
 
     return packed
 

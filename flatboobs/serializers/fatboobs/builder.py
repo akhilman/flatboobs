@@ -89,10 +89,10 @@ def build(content: Container) -> bytes:
     )(content)
 
     size: USize = reduce(calc_size, blocks, 0)
-    # print('calc size:', size)
+    print('calc size:', size)
+    size += -size % 8
     size += FILE_IDENTIFIER_LENGTH
     size += UOFFSET_SIZE
-    size += -size % 8
 
     buffer = bytearray(size)
     offset_map: Dict[int, UOffset] = {}
@@ -103,7 +103,7 @@ def build(content: Container) -> bytes:
             buffer, cursor, offset_map, block)
         offset_map[hash(block)] = offset
 
-    # print('cursor:', cursor)
+    print('cursor:', cursor)
 
     file_identifier = content.skeleton.file_identifier
     cursor = write_header(
