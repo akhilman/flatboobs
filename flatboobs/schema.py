@@ -42,6 +42,16 @@ class TypeDeclaration(DeclarationWithMetadata):
 
 
 @attr.s(auto_attribs=True, frozen=True, slots=True)
+class Scalar(TypeDeclaration):
+    pass
+
+
+@attr.s(auto_attribs=True, frozen=True, slots=True)
+class String(TypeDeclaration):
+    name: str = 'string'
+
+
+@attr.s(auto_attribs=True, frozen=True, slots=True)
 class _BaseEnum(TypeDeclaration):
     type: str = 'byte'
     members: typing.Sequence[EnumMember] = tuple()

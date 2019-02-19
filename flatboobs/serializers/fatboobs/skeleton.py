@@ -37,9 +37,9 @@ class BaseSkeleton(Skeleton):
     # pylint: disable=too-few-public-methods
     # pylint: disable=too-many-instance-attributes
 
-    type_decl: Optional[schema.TypeDeclaration]
+    type_decl: schema.TypeDeclaration
+    value_type: BaseType
 
-    value_type: BaseType = attr.ib(BaseType.NULL, init=False)
     value_factory: Callable[..., Any] = attr.ib(
         _default_value_factory, init=False)
     inline_format: str = attr.ib('', init=False)
@@ -97,14 +97,12 @@ class EnumSkeleton(BaseSkeleton):
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class ScalarSkeleton(BaseSkeleton):
 
-    value_type: BaseType
-    type_decl: Optional[schema.TypeDeclaration] = attr.ib(None, init=False)
+    pass
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False)
 class StringSkeleton(BaseSkeleton):
 
-    type_decl: Optional[schema.TypeDeclaration] = attr.ib(None, init=False)
     value_type: BaseType = attr.ib(BaseType.STRING, init=False)
 
 

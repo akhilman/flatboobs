@@ -14,15 +14,16 @@ from flatboobs.typing import UOffset
 
 from . import reader
 from .abc import Container, Serializer, Skeleton
-from .struct import Struct
-from .table import Table
 from .skeleton import (
     EnumSkeleton,
     ScalarSkeleton,
+    StringSkeleton,
     StructSkeleton,
     TableSkeleton,
     UnionSkeleton
 )
+from .struct import Struct
+from .table import Table
 
 _TT = TypeVar('_TT')  # Skeleton type
 
@@ -62,6 +63,23 @@ class FatBoobs(Serializer):
 
         return skeleton
 
+    def _add_scalar_skeleton(
+            self: 'FatBoobs',
+            type_decl: schema.Scalar,
+    ) -> ScalarSkeleton:
+        type_ = STRING_TO_SCALAR_TYPE_MAP[type_decl.name]
+        skeleton = ScalarSkeleton(type_decl, type_)
+        self.skeletons[type_decl] = skeleton
+        return skeleton
+
+    def _add_string_skeleton(
+            self: 'FatBoobs',
+            type_decl: schema.String,
+    ) -> StringSkeleton:
+        skeleton = StringSkeleton(type_decl)
+        self.skeletons[type_decl] = skeleton
+        return skeleton
+
     def _add_table_skeleton(
             self: 'FatBoobs',
             type_decl: schema.Table,
@@ -78,14 +96,9 @@ class FatBoobs(Serializer):
                 skeleton.add_depreacated_field()
                 continue
 
-            value_type = \
-                STRING_TO_SCALAR_TYPE_MAP.get(field.type, BaseType.NULL)
-            if value_type != BaseType.NULL:
-                value_skeleton = ScalarSkeleton(value_type)
-            else:
-                value_type_decl = self.registry.type_by_name(
-                    field.type, type_decl.namespace)
-                value_skeleton = self._get_add_skeleton(value_type_decl)
+            value_type_decl = self.registry.type_by_name(
+                field.type, type_decl.namespace)
+            value_skeleton = self._get_add_skeleton(value_type_decl)
 
             if isinstance(value_skeleton, UnionSkeleton):
                 enum_field = attr.evolve(
@@ -115,23 +128,18 @@ class FatBoobs(Serializer):
 
             assert not field.is_vector
 
-            value_type = \
-                STRING_TO_SCALAR_TYPE_MAP.get(field.type, BaseType.NULL)
-            if value_type != BaseType.NULL:
-                value_skeleton = ScalarSkeleton(value_type)
-            else:
-                value_type_decl = self.registry.type_by_name(
-                    field.type, type_decl.namespace)
-                if not isinstance(value_type_decl, schema.Enum):
-                    raise TypeError(
-                        f'Struct "{type_decl.name}" field "{field.name}" type '
-                        f'could not be {field.type}, '
-                        'only floats, integers, bools and enums are allowed'
-                    )
-                some_value_skeleton = self._get_add_skeleton(value_type_decl)
-                assert isinstance(some_value_skeleton,
-                                  (ScalarSkeleton, EnumSkeleton))
-                value_skeleton = some_value_skeleton
+            value_type_decl = self.registry.type_by_name(
+                field.type, type_decl.namespace)
+            if not isinstance(value_type_decl, (schema.Scalar, schema.Enum)):
+                raise TypeError(
+                    f'Struct "{type_decl.name}" field "{field.name}" type '
+                    f'could not be {field.type}, '
+                    'only floats, integers, bools and enums are allowed'
+                )
+            some_value_skeleton = self._get_add_skeleton(value_type_decl)
+            assert isinstance(some_value_skeleton,
+                              (ScalarSkeleton, EnumSkeleton))
+            value_skeleton = some_value_skeleton
 
             skeleton.add_field(field, value_skeleton)
 
@@ -175,7 +183,11 @@ class FatBoobs(Serializer):
             return self.skeletons[type_decl]
 
         skeleton: Skeleton
-        if isinstance(type_decl, schema.Struct):
+        if isinstance(type_decl, schema.Scalar):
+            skeleton = self._add_scalar_skeleton(type_decl)
+        elif isinstance(type_decl, schema.String):
+            skeleton = self._add_string_skeleton(type_decl)
+        elif isinstance(type_decl, schema.Struct):
             skeleton = self._add_struct_skeleton(type_decl)
         elif isinstance(type_decl, schema.Table):
             skeleton = self._add_table_skeleton(type_decl)

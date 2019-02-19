@@ -11,6 +11,7 @@ import toolz.functoolz as ft
 
 import flatboobs.abc as abc
 from flatboobs import logging, parser, schema
+from flatboobs.constants import BASE_TYPE_ALIASES, BASE_TYPES
 
 # pylint: disable=missing-docstring  # TODO write docstrings
 
@@ -100,7 +101,14 @@ class Registry(abc.Registry):
             type_name: str,
             namespace: Optional[str] = None
     ) -> schema.TypeDeclaration:
-        type_decl = self._type_map(namespace)[type_name]
+        type_decl: schema.TypeDeclaration
+        if type_name == 'string':
+            type_decl = schema.String()
+        elif type_name in BASE_TYPES | set(BASE_TYPE_ALIASES):
+            type_ = BASE_TYPE_ALIASES.get(type_name, type_name)
+            type_decl = schema.Scalar(name=type_)
+        else:
+            type_decl = self._type_map(namespace)[type_name]
         return type_decl
 
     def type_by_identifier(
