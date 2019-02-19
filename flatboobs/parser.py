@@ -13,6 +13,7 @@ from toolz import itertoolz as it
 
 import flatboobs.schema as s
 from flatboobs import logging
+from flatboobs.constants import FILE_IDENTIFIER_LENGTH
 from flatboobs.utils import applykw
 
 WHITESPACE = regex(r'\s*')
@@ -338,6 +339,12 @@ def parse(source: str, schema_file: Optional[str] = None) -> s.Schema:
     file_identifier = get_last_decl(declarations, 'file_identifier', None)
     file_extension = get_last_decl(declarations, 'file_extension', 'bin')
     root_type = get_last_decl(declarations, 'root_type', None)
+
+    # check file_identifier
+    # TODO move to schema validator
+    if file_identifier and len(file_identifier) != FILE_IDENTIFIER_LENGTH:
+        raise ValueError('File identifier must be '
+                         f'{FILE_IDENTIFIER_LENGTH} characters long.')
 
     # attributes
     attributes = ft.compose(

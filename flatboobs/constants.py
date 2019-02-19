@@ -35,3 +35,5 @@ BASE_TYPE_ALIASES: Dict[str, str] = {
     'float': 'float32',
     'double': 'float64',
 }
+
+FILE_IDENTIFIER_LENGTH = 4

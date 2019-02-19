@@ -8,13 +8,10 @@ import toolz.functoolz as ft
 import toolz.itertoolz as it
 from multipledispatch import Dispatcher
 
+from flatboobs.constants import FILE_IDENTIFIER_LENGTH
+
 from .abc import Container
-from .constants import (
-    FILE_IDENTIFIER_LENGTH,
-    UOFFSET_FMT,
-    UOFFSET_SIZE,
-    USIZE_SIZE
-)
+from .constants import UOFFSET_FMT, UOFFSET_SIZE, USIZE_SIZE
 from .typing import UOffset, USize
 
 # Callable[[int, Container], Generator[Container, None, None]]

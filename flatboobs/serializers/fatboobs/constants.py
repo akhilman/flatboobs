@@ -7,7 +7,6 @@ from typing import Dict, FrozenSet
 from .typing import SOffset, UOffset, USize, VOffset, VSize
 
 
-FILE_IDENTIFIER_LENGTH = USize(4)
 UOFFSET_FMT = 'I'
 SOFFSET_FMT = 'i'
 VOFFSET_FMT = 'H'
