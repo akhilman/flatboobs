@@ -8,15 +8,7 @@ Bool = bool
 Float = SupportsFloat
 Integer = SupportsInt
 Number = Union[Float, Integer]
-
-SkeletonId = NewType('SkeletonId', int)
-UOffset = int
-SOffset = int
-VOffset = int
-USize = int
-VSize = int
-
-Scalar = Union[Bool, Number, UOffset, SOffset, VOffset, USize, VSize]
+Scalar = Union[Bool, Number]
 
 if np:
     DType = np.dtype

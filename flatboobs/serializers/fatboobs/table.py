@@ -27,7 +27,11 @@ import toolz.itertoolz as it
 from multipledispatch import Dispatcher
 
 from flatboobs import abc
-from flatboobs.constants import (
+from flatboobs.typing import Scalar
+
+from . import builder, reader
+from .abc import Container, Serializer
+from .constants import (
     FORMAT_MAP,
     PYTYPE_MAP,
     SOFFSET_FMT,
@@ -38,12 +42,7 @@ from flatboobs.constants import (
     VSIZE_FMT,
     VSIZE_SIZE
 )
-from flatboobs.typing import Scalar, UOffset, USize
-
-from . import builder, reader
-from .abc import Container, Serializer
 from .enum import any_to_enum
-from .struct import Struct
 from .skeleton import (
     EnumSkeleton,
     ScalarFieldSkeleton,
@@ -52,6 +51,8 @@ from .skeleton import (
     TableSkeleton,
     UnionSkeleton
 )
+from .struct import Struct
+from .typing import UOffset, USize
 
 ###
 # Container

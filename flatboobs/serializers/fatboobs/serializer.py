@@ -5,15 +5,10 @@ from typing import Any, Dict, Mapping, Optional, TypeVar, Union
 import attr
 
 from flatboobs import abc, schema
-from flatboobs.constants import (
-    INTEGER_TYPES,
-    STRING_TO_SCALAR_TYPE_MAP,
-    BaseType
-)
-from flatboobs.typing import UOffset
 
 from . import reader
 from .abc import Container, Serializer, Skeleton
+from .constants import INTEGER_TYPES, STRING_TO_SCALAR_TYPE_MAP, BaseType
 from .skeleton import (
     EnumSkeleton,
     ScalarSkeleton,
@@ -24,6 +19,7 @@ from .skeleton import (
 )
 from .struct import Struct
 from .table import Table
+from .typing import UOffset
 
 _TT = TypeVar('_TT')  # Skeleton type
 

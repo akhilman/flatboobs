@@ -21,11 +21,12 @@ import toolz.functoolz as ft
 
 from flatboobs import schema
 from flatboobs.compat import numpy as np
-from flatboobs.constants import FORMAT_MAP, PYTYPE_MAP, UOFFSET_FMT, BaseType
-from flatboobs.typing import DType, UOffset, USize
+from flatboobs.typing import DType
 
 from .abc import Skeleton
+from .constants import FORMAT_MAP, PYTYPE_MAP, UOFFSET_FMT, BaseType
 from .enum import any_to_enum
+from .typing import UOffset, USize
 
 
 def _default_value_factory(value=None) -> Callable[..., Any]:
@@ -53,7 +54,7 @@ class BaseSkeleton(Skeleton):
             self.value_factory = PYTYPE_MAP.get(
                 self.value_type, _default_value_factory)
         if not self.inline_format:
-            self.inline_format = FORMAT_MAP[self.value_type]
+            self.inline_format = FORMAT_MAP.get(self.value_type, UOFFSET_FMT)
         self.inline_size = struct.calcsize(self.inline_format)
         self.inline_align = max(map(struct.calcsize, self.inline_format))
 

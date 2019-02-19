@@ -5,13 +5,15 @@ from typing import Sequence, Tuple, cast
 
 import attr
 
-from flatboobs.constants import (
+from flatboobs.typing import Scalar
+
+from .constants import (
     FILE_IDENTIFIER_LENGTH,
     SOFFSET_FMT,
     UOFFSET_FMT,
     VOFFSET_FMT
 )
-from flatboobs.typing import Scalar, UOffset
+from .typing import UOffset
 
 FILE_HEADER_FMT = UOFFSET_FMT + f"{FILE_IDENTIFIER_LENGTH}s"
 

@@ -6,15 +6,16 @@ import struct
 from typing import Any, Iterator, Mapping, Optional, Sequence, Tuple, Union
 
 import attr
-
 import toolz.dicttoolz as dt
+
 from flatboobs import abc
 from flatboobs.compat import numpy as np
-from flatboobs.typing import DType, NDArray, Scalar, UOffset
+from flatboobs.typing import DType, NDArray, Scalar
 
 from . import reader
 from .abc import Container, Serializer
 from .skeleton import StructSkeleton
+from .typing import UOffset
 
 
 @attr.s(auto_attribs=True, slots=True, cmp=False, repr=False)

@@ -6,8 +6,9 @@ from abc import abstractmethod
 from typing import Any, Callable, Dict, Generic, Optional, TypeVar
 
 from flatboobs import abc, schema
-from flatboobs.constants import BaseType
-from flatboobs.typing import UOffset, USize
+
+from .constants import BaseType
+from .typing import UOffset, USize
 
 
 class Skeleton:
