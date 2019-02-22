@@ -1,0 +1,27 @@
+{% set class_name = enum_def.name|escape_cpp_keyword %}
+
+enum class {{ class_name }} : {{
+  enum_def.underlying_type|to_cpp_type(no_enum=True) }} {
+{% for value in enum_def.values %}
+  {{ value.name|escape_cpp_keyword }} = {{ value.value }},
+{% endfor %}
+{% if "bit_flags" in enum_def.attributes %}
+  NONE = 0,
+  ANY = ( {{ enum_def.values|map("attr", "value")|unique|join("|") }} )
+{% else %}
+  MIN = {{ enum_def.values|map("attr", "value")|min }},
+  MAX = {{ enum_def.values|map("attr", "value")|max }}
+{% endif %}
+};
+{% if "bit_flags" in enum_def.attributes %}
+FLATBUFFERS_DEFINE_BITMASK_OPERATORS({{ class_name }}, {{
+    enum_def.underlying_type|to_cpp_type(no_enum=True) }})
+{% endif %}
+
+std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

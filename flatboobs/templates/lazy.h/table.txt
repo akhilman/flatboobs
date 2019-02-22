@@ -1,0 +1,190 @@
+{% set class_name = table_def.name|escape_cpp_keyword %}
+{% set fields = table_def.fields|rejectattr("attributes.deprecated")|list %}
+{% set extra_keywords = [
+  "is_dirty", "build", "pack", "unpack", "content_id", "verify",
+  "fully_qualified_name", "file_identifier", "default_values", "keys",
+  "message_", "flatbuf_", "is_dirty_", "dirty_values_",
+  ] %}
+
+struct {{ class_name }}T {
+  {% for field in fields %}
+    {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}_;
+  {% endfor %}
+
+  {{ class_name }}T(
+    {% for field in fields %}
+      {% if field.value.type.definition is instance_of("EnumDef") %}
+        {% set default_value = field.value.constant
+            |to_cpp_enum(field.value.type.definition) %}
+      {% elif field.value.type.base_type.is_scalar() %}
+        {% set default_value = field.value.constant %}
+      {% else %}
+        {% set default_value = "nullptr" %}
+      {% endif %}
+      {{ field.value.type
+          |to_cpp_type(const=True) }} {# -#}
+        &_{{ field.name|escape_cpp_keyword }} = {{ default_value }}
+        {{- "," if not loop.last }}
+    {% endfor %}
+    ) :
+    {% for field_name in fields|map("attr", "name")
+          |map("escape_cpp_keyword") %}
+       {{ field_name }}_ {_{{ field_name }}} {{- "," if not loop.last }}
+    {% endfor %}
+    {} };
+
+
+class {{ class_name }}FBTable final : private flatbuffers::Table {
+public:
+  enum {
+  {% for field in fields %}
+    VT_{{ field.name|upper }} = {{ field.value.offset }},
+  {% endfor %}
+  };
+{% for field in fields %}
+{% if field.value.type.definition is instance_of("EnumDef") %}
+  {{ field.value.type|to_cpp_type }} {{
+        field.name|escape_cpp_keyword }}() const
+  { return static_cast<{{field.value.type|to_cpp_type}}>(GetField<{{
+      field.value.type|to_cpp_type(no_enum=True) }}>(VT_{{
+      field.name|upper }}, {{ field.value.constant }})); }
+{% elif field.value.type.base_type.is_scalar() %}
+  {{ field.value.type|to_cpp_type }} {{
+        field.name|escape_cpp_keyword }}() const
+  { return GetField<{{ field.value.type|to_cpp_type }}>(
+      VT_{{ field.name|upper }}, {{ field.value.constant }}); }
+{% else %}
+  // TODO {{ field.name }}
+{% endif %}
+{% endfor %}
+
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+    {% for field in fields %}
+    {% if field.value.type.base_type.is_scalar() %}
+      VerifyField<{{ field.value.type|to_cpp_type
+        }}>(verifier, VT_{{ field.name|upper }}) &&
+    {% else %}
+      // TODO {{ field.name }}
+    {% endif %}
+    {% endfor %}
+      verifier.EndTable();
+  }
+
+};
+
+
+class {{ class_name }} {
+public:
+  using flatbuf_type = {{ class_name }}FBTable;
+  using value_type = {{ class_name }}T;
+  using value_variant_type = std::variant<{{
+    fields|map("attr", "value")|map("attr", "type")
+      |map("to_cpp_type", const=True)
+      |unique|sort|join(", ")
+  }}>;
+
+
+  // Constructors
+  explicit {{ class_name }}(
+    std::shared_ptr<const flatboobs::IByteData> message,
+    const flatbuf_type *flatbuf
+    );
+  explicit {{ class_name }}(const {{ class_name }}T&);
+  explicit {{ class_name }}(
+    {% for field in fields %}
+      {% if field.value.type.definition is instance_of("EnumDef") %}
+        {% set default_value = field.value.constant
+            |to_cpp_enum(field.value.type.definition) %}
+      {% elif field.value.type.base_type.is_scalar() %}
+        {% set default_value = field.value.constant %}
+      {% else %}
+        {% set default_value = "nullptr" %}
+      {% endif %}
+      {{ field.value.type
+          |to_cpp_type(const=True) }} {# -#}
+        &_{{ field.name|escape_cpp_keyword }} = {{ default_value }}
+        {{- "," if not loop.last }}
+    {% endfor %}
+    );
+
+  // Operators
+  value_variant_type operator[](const std::string &key) const;
+  friend std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
+
+  // Metadata
+  static constexpr std::string_view fully_qualified_name() {
+    return "{{ table_def.fully_qualified_name }}";
+  };
+  static constexpr std::string_view file_identifier() {
+  {% if table_def == parser.root_table_def %}
+    return "{{ parser.file_identifier }}";
+  {% else %}
+    return "";
+  {% endif %}
+  };
+  static constexpr std::array<std::string_view, {{ fields|count }}> keys() {
+    return { {{ fields|map("attr", "name")
+                |escape_cpp_keyword|map("quote")|join(", ")}} };
+  };
+
+  // Getters
+{% for field in fields %}
+{% if field.value.type.base_type.is_scalar() %}
+  {{ field.value.type|to_cpp_type }} {{ field.name
+            |escape_cpp_keyword|escape_keyword(extra_keywords) }}() const;
+{% else %}
+  // TODO {{ field.name }}
+{% endif %}
+{% endfor %}
+
+  // Defaults
+  struct default_values {
+  {% for field in fields %}
+  {% if field.value.type.definition is instance_of("EnumDef") %}
+    static constexpr {{ field.value.type|to_cpp_type }}
+    {{field.name|escape_cpp_keyword }}() { return {{
+          field.value.constant|to_cpp_enum(field.value.type.definition) }}; };
+  {% elif field.value.type.base_type.is_scalar() %}
+    static constexpr {{ field.value.type|to_cpp_type }}
+    {{field.name|escape_cpp_keyword }}() { return {{ field.value.constant }}; };
+  {% elif field.value.type.base_type == BaseType.STRING %}
+    static constexpr std::string_view
+    {{field.name|escape_cpp_keyword }}() { return ""; };
+  {% else %}
+    static constexpr nullptr_t
+    {{field.name|escape_cpp_keyword }}() { return nullptr; };
+  {% endif %}
+  {% endfor %}
+  };
+
+  // Builder
+  const size_t content_id () const;
+  const bool is_dirty() const;
+  flatbuffers::Offset<flatbuf_type> build(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    std::map<size_t, flatbuffers::uoffset_t> &_offset_map) const;
+
+  // Verify
+  static bool verify(const std::string_view);
+  static bool verify(const flatboobs::IByteData&);
+
+  // Pack / Unpack
+  std::shared_ptr<flatboobs::BuiltByteData> pack() const;
+  static std::shared_ptr<const {{ class_name }}>
+  unpack(std::shared_ptr<const flatboobs::IByteData> _message);
+
+
+private:
+  std::shared_ptr<const flatboobs::IByteData> message_;
+  const flatbuf_type *flatbuf_;
+  const bool is_dirty_;
+  const value_type dirty_values_;
+
+};
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

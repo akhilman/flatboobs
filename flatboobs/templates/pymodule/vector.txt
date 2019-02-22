@@ -1,0 +1,22 @@
+{% set type_def = vector_type.definition %}
+{% set namespace_ = type_def.defined_namespace.components|join("::") %}
+{% set class_name = "PyVectorOf" + type_def.name|escape_cpp_keyword %}
+{% set element_class = "Py" + type_def.name|escape_cpp_keyword %}
+{% set vector_template = "PyContiguousVector"
+  if vector_type.element == BaseType.STRUCT and type_def.fixed
+  or vector_type.element.is_scalar()
+  else "PyVectorOfPointers" %}
+{% set vector_class = vector_template + "<" + element_class + ">" %}
+// {{ class_name }}
+namespace {{ namespace_ }} {
+void pydefine_Py{{ class_name }}(py::module &m) {
+  py::class_<{{ vector_class }}, std::shared_ptr<{{ vector_class -}}
+      >>(m, "{{ class_name }}")
+    .def(py::init<>())
+    ;
+}
+}
+
+{#
+// vim: syntax=cpp
+#}

@@ -1,0 +1,193 @@
+{% set class_name = table_def.name|escape_cpp_keyword %}
+{% set fields = table_def.fields|rejectattr("attributes.deprecated")|list %}
+{% set extra_keywords = [
+  "is_dirty", "build", "pack", "unpack", "content_id", "verify",
+  "fully_qualified_name", "file_identifier", "default_values", "keys",
+  "message_", "flatbuf_", "is_dirty_", "dirty_values_",
+  ] %}
+
+/* {{ class_name }} */
+
+// Constructors
+
+{{ class_name }}::{{ class_name }}(
+  std::shared_ptr<const flatboobs::IByteData> message,
+  const {{ class_name }}::flatbuf_type *flatbuf
+  ) : message_{}, flatbuf_{flatbuf}, is_dirty_{false}, dirty_values_{}
+  {}
+
+{{ class_name }}:: {{ class_name }}(const {{ class_name }}T &_values)
+  : message_{}, flatbuf_{}, is_dirty_{true}, dirty_values_{_values} {}
+
+{{ class_name }}::{{ class_name }}(
+  {% for field in fields %}
+    {{ field.value.type
+        |to_cpp_type(const=True) }} &_{{ field.name|escape_cpp_keyword }}
+      {{- "," if not loop.last }}
+  {% endfor %}
+  ) : message_{}, flatbuf_{}, is_dirty_{true}, dirty_values_{
+    {% for field_name in fields|map("attr", "name")
+          |map("escape_cpp_keyword") %}
+        _{{ field_name }} {{- "," if not loop.last }}
+    {% endfor %}
+   }
+  {}
+
+// Operators
+
+{{ class_name }}::value_variant_type
+    {{ class_name }}::operator[](const std::string &key) const
+{
+{% for field in fields %}
+  if (key == "{{ field.name }}")
+    return {{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}();
+{% endfor %}
+  throw flatboobs::key_error(key);
+}
+std::ostream& operator<< (std::ostream &stream, const {{ class_name }} &src)
+{
+  stream << "{{ class_name }}("
+  {% for field in fields %}
+      << "{{ field.name }}="
+  {% if field.value.type.base_type == BaseType.BOOL %}
+      << (src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+          ? "true" : "false")
+  {% elif field.value.type.definition is instance_of("EnumDef") %}
+      << {{ field.value.type|to_cpp_type }}_to_string(src.{{
+        field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+  {% elif field.value.type.base_type.is_scalar()
+        and field.value.type.base_type.is_one_byte() %}
+      << (int)src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+  {% elif field.value.type.base_type.is_scalar() %}
+      << src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+  {% elif field.value.type.base_type == BaseType.STRING %}
+    << '"' << src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}() << '"'
+  {% else %}
+    << (src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+          ? *(src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+          : "NULL")
+  {% endif %}
+  {% if not loop.last %}
+    << ", "
+  {% endif %}
+  {% endfor %}
+    << ")";
+  return stream;
+};
+
+// Getters
+
+{% for field in fields %}
+{{ field.value.type|to_cpp_type }} {{ class_name -}}
+    ::{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}() const
+{
+  if (is_dirty())
+    return dirty_values_.{{ field.name|escape_cpp_keyword }}_;
+{% if field.value.type.base_type.is_scalar() %}
+  return flatbuf_->{{ field.name|escape_cpp_keyword }}();
+{% else %}
+  return nullptr;  // TODO {{ field.name }}
+{% endif %}
+}
+
+{% endfor %}
+
+// Builder
+
+const size_t {{ class_name }}::content_id() const
+{
+  if (is_dirty())
+    return (size_t) this;
+  return (size_t) flatbuf_;
+}
+
+const bool {{ class_name }}::is_dirty() const
+{
+  return is_dirty_;
+}
+
+flatbuffers::Offset<{{ class_name }}::flatbuf_type> {{ class_name }}::build(
+    flatbuffers::FlatBufferBuilder & _fbb,
+    std::map<size_t, flatbuffers::uoffset_t> &_offset_map
+) const {
+
+  auto it = _offset_map.find(content_id());
+  if (it != _offset_map.end())
+    return flatbuffers::Offset<{{ class_name }}::flatbuf_type>{it->second};
+
+  flatbuffers::uoffset_t start;
+  start = _fbb.StartTable();
+{% for field in fields|sort(attribute="value.type.inline_size") %}
+{% if field.value.type.definition is instance_of("EnumDef") %}
+  _fbb.AddElement<{{ field.value.type|to_cpp_type(no_enum=True) }}>(
+    {{ class_name }}::flatbuf_type::VT_{{ field.name|upper }},
+    static_cast<{{ field.value.type|to_cpp_type(no_enum=True) }}>({{
+    field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()),
+    {{ field.value.constant }}
+    );
+{% elif field.value.type.base_type.is_scalar() %}
+  _fbb.AddElement<{{ field.value.type|to_cpp_type }}>(
+    {{ class_name }}::flatbuf_type::VT_{{ field.name|upper }},
+    {{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}(),
+    {{ field.value.constant }}
+    );
+{% else %}
+  // TODO {{ field }}
+{% endif %}
+{% endfor %}
+  flatbuffers::uoffset_t end = _fbb.EndTable(start);
+  _offset_map[content_id()] = end;
+  flatbuffers::Offset<{{ class_name }}::flatbuf_type> offset {end};
+  return offset;
+}
+
+
+// Verify
+bool {{ class_name }}::verify(const std::string_view _message) {
+  auto verifier = flatbuffers::Verifier(
+    reinterpret_cast<const uint8_t *>(_message.data()),
+    _message.size()
+    );
+  const char *ident = nullptr;
+  if (file_identifier().size())
+    ident = file_identifier().data();
+  return verifier.VerifyBuffer<{{ class_name }}::flatbuf_type>(ident);
+}
+
+bool {{ class_name }}::verify(const flatboobs::IByteData &_message) {
+  return verify(_message.str());
+}
+
+
+// Pack / Unpack
+
+std::shared_ptr<flatboobs::BuiltByteData> {{ class_name }}::pack() const {
+
+  const char *ident = nullptr;
+  std::map<size_t, flatbuffers::uoffset_t> offset_map {};
+  flatbuffers::Offset<{{ class_name }}::flatbuf_type> offset;
+  flatbuffers::FlatBufferBuilder fbb {1024};
+
+  offset = build(fbb, offset_map);
+  if (file_identifier().size())
+    ident = file_identifier().data();
+  fbb.Finish(offset, ident);
+
+  auto data = std::make_shared<flatboobs::BuiltByteData>();
+  data->steal_from_builder(std::move(fbb));
+  return data;
+}
+
+std::shared_ptr<const {{ class_name }}> {{ class_name }}::unpack(
+    std::shared_ptr<const flatboobs::IByteData> _message) {
+  if (!verify(*_message.get()))
+    throw flatboobs::unpack_error("Bad message");
+  auto root = flatbuffers::GetRoot<{{ class_name }}::flatbuf_type>(_message->data());
+  return std::make_shared<{{ class_name }}>(_message, root);
+}
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

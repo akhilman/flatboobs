@@ -1,0 +1,69 @@
+{% set class_name = enum_def.name|escape_cpp_keyword %}
+
+/* {{ class_name }} */
+{% if "bit_flags" in enum_def.attributes %}
+
+{{ class_name }} {{ class_name }}_from_string(const std::string &str) {
+  std::istringstream input_stream{str};
+  {{ class_name }} result { {{ class_name }}::NONE };
+  std::string value_str;
+  while (std::getline(input_stream, value_str, '|')) {
+    if (value_str == "ANY") {
+      result = {{ class_name }}::ANY;
+      break;
+    } else if (value_str == "NONE") {
+  {% for value in enum_def.values %}
+    } else if (value_str == "{{ value.name }}") {
+      result |= {{ class_name }}::{{ value.name|escape_cpp_keyword }};
+  {% endfor %}
+    } else {
+      throw flatboobs::key_error("Bad enum value: \"" + value_str + '"');
+    }
+  }
+  return result;
+}
+
+std::string {{ class_name }}_to_string(const {{ class_name }} &value) {
+  if (value == {{ class_name }}::NONE)
+    return "NONE";
+  std::string output {};
+{% for value in enum_def.values %}
+  if ((value & {{ class_name }}::{{ value.name|escape_cpp_keyword }}) == {{
+      class_name }}::{{ value.name|escape_cpp_keyword }})
+    output = output + (output.empty() ? "" : "|") + "{{ value.name }}";
+{% endfor %}
+  return output;
+}
+
+{% else %}
+
+{{ class_name }} {{ class_name }}_from_string(const std::string &str) {
+{% for value in enum_def.values %}
+  if (str == "{{ value.name }}")
+    return {{ class_name }}::{{ value.name|escape_cpp_keyword }};
+{% endfor %}
+  throw flatboobs::key_error("Bad enum value: \"" + str + '"');
+}
+
+std::string {{ class_name }}_to_string(const {{ class_name }} &value) {
+  switch(value) {
+{% for value in enum_def.values %}
+    case {{ class_name }}::{{ value.name|escape_cpp_keyword }} :
+      return "{{ value.name }}";
+{% endfor %}
+  }
+  throw flatboobs::key_error("Bad enum value: " + std::to_string((int)value));
+}
+
+{% endif %}
+
+std::ostream& operator<< (std::ostream &stream, const {{ class_name }} &value) {
+  stream << {{ class_name }}_to_string(value);
+  return stream;
+}
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

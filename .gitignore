@@ -12,3 +12,20 @@ build/
 
 # Ignore mypy cache
 .mypy_cache
+
+# CMake stuff
+CMakeCache.txt
+CMakeFiles
+compile_commands.json
+
+# Inplace installation
+flatboobs/*.a
+flatboobs/*.so
+flatboobs/cmake/
+flatboobs/include/
+
+# Ignore third_party
+third_party/
+
+# Ignore tmp
+tmp/

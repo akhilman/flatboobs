@@ -1,0 +1,19 @@
+{% set namespace_ = struct_def.defined_namespace.components|join("::") %}
+{% set class_name = struct_def.name|escape_cpp_keyword %}
+// {{ class_name }}
+namespace {{ namespace_ }} {
+void pydefine_Py{{ class_name }}(py::module &m) {
+  py::class_<Py{{ class_name }}, std::shared_ptr<Py{{ class_name -}}
+      >>(m, "{{ class_name }}")
+    .def(py::init<>())
+    {% for field in struct_def.fields %}
+    // .def_property_readonly("{{ field.name|escape_python_keyword }}",  {# -#}
+       &Py{{class_name}}::Fields::{{field.name|escape_cpp_keyword}})
+    {% endfor %}
+    ;
+}
+}
+
+{#
+// vim: syntax=cpp
+#}

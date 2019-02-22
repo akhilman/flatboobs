@@ -1,0 +1,20 @@
+namespace flatboobs.schema.test;
+
+table TestScalars {
+    hidden:bool (deprecated);
+    int_8:byte=-8;
+    int_16:short=-16;
+    int_32:int;
+    int_64:long;
+    uint_8:ubyte;
+    uint_16:ushort;
+    uint_32:uint;
+    uint_64:ulong;
+    float_32:float;
+    float_64:double;
+    bool_true:bool=true;
+    bool_false:bool;
+}
+
+root_type TestScalars;
+file_identifier "FBTS";
