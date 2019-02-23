@@ -248,7 +248,6 @@ PYBIND11_MODULE(idl, m) {
       .def_readonly("deprecated", &fb::FieldDef::deprecated)
       .def_readonly("required", &fb::FieldDef::required)
       .def_readonly("key", &fb::FieldDef::key)
-      .def_readonly("shared", &fb::FieldDef::shared)
       .def_readonly("native_inline", &fb::FieldDef::native_inline)
       .def_readonly("flexbuffer", &fb::FieldDef::flexbuffer)
       .def_readonly("nested_flatbuffer",
@@ -274,7 +273,7 @@ PYBIND11_MODULE(idl, m) {
 
     // EnumVal
     py::class_<fb::EnumVal>(m, "EnumVal")
-      .def(py::init<>())
+      .def(py::init<const fb::EnumVal>())
       .def("__repr__", [](const fb::EnumVal &self)
           { return "<EnumVal: \""+self.name+"\">" ;})
       .def_readonly("name", &fb::EnumVal::name)
@@ -290,8 +289,6 @@ PYBIND11_MODULE(idl, m) {
           { return "<EnumDef: \""+self.name+"\">" ;})
       .def_readonly("values", &fb::EnumDef::vals, RETPOL_REFINT)
       .def_readonly("is_union", &fb::EnumDef::is_union)
-      .def_readonly("uses_multiple_type_instances",
-          &fb::EnumDef::uses_multiple_type_instances)
       .def_readonly("underlying_type",
           &fb::EnumDef::underlying_type, RETPOL_REFINT)
       ;
