@@ -15,4 +15,13 @@
 
 include LICENSE
 
+include pytest.ini
+include mypy.ini
+include pylintrc
+include Makefile
+
+include CMakeLists.txt
+recursive-include src/*.h
+recursive-include src/*.cc
+recursive-include cmake/*.cmake
 
