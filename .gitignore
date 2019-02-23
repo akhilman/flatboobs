@@ -19,3 +19,6 @@ CMakeFiles
 
 # Binary modules
 flatboobs/*.so
+
+# Ignore third_party
+third_party
