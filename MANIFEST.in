@@ -21,7 +21,7 @@ include pylintrc
 include Makefile
 
 include CMakeLists.txt
-recursive-include src/*.h
-recursive-include src/*.cc
-recursive-include cmake/*.cmake
+recursive-include src *.h
+recursive-include src *.cc
+recursive-include cmake *.cmake
 
