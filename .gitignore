@@ -16,6 +16,7 @@ build/
 # CMake stuff
 CMakeCache.txt
 CMakeFiles
+compile_commands.json
 
 # Binary modules
 flatboobs/*.so
