@@ -1,3 +1,11 @@
 # pylint: disable=missing-docstring
 
-__version__ = '0.0.0'
+FLATBOOBS_VERSION_MAJOR = 0
+FLATBOOBS_VERSION_MINOR = 0
+FLATBOOBS_VERSION_FIX = 0
+
+__version__ = '.'.join(map(str, [
+    FLATBOOBS_VERSION_MAJOR,
+    FLATBOOBS_VERSION_MINOR,
+    FLATBOOBS_VERSION_FIX
+]))
