@@ -2,11 +2,15 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include <flatbuffers/hash.h>
 #include <flatbuffers/idl.h>
 #include <flatbuffers/util.h>
+// #include <flatbuffers/flatbuffers.h>  # used by dump/load bfbs
+// #include <flatbuffers/reflection.h>  # used by dump/load bfbs
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -23,6 +27,13 @@ namespace py = pybind11;
 #define RETPOL_COPY py::return_value_policy::copy
 
 
+fb::IDLOptions parser_options () {
+  auto options = fb::IDLOptions {};
+  options.lang = fb::IDLOptions::kCpp;
+  return options;
+}
+
+
 // TODO move to header
 class ParserError: public std::exception
 {
@@ -31,14 +42,24 @@ class ParserError: public std::exception
   public:
     ParserError(const std::string message_): message {message_} {};
     ParserError(const char * message_): message {message_} {};
-    virtual const char* what() const throw()
+    virtual const char* what() const throw ()
     {
       return message.c_str();
     }
 };
 
+// TODO move to header
+class NotImplementedError: public std::exception
+{
+  public:
+    virtual const char* what() const throw ()
+    {
+      return "Not implemented";
+    }
+};
 
-fb::Parser* parse_file (
+
+fb::Parser* parse_file(
     const std::string &source_filename,
     const std::vector<std::string> &include_paths,
     const bool hash_identifier = false
@@ -47,14 +68,12 @@ fb::Parser* parse_file (
   bool ok;
   std::stringstream message;
 
-  auto options = fb::IDLOptions {};
-  options.lang = fb::IDLOptions::kCpp;
-  fb::Parser *parser = new fb::Parser {options};
+  fb::Parser *parser = new fb::Parser {parser_options()};
 
   std::string source;
   ok = fb::LoadFile(source_filename.c_str(), true, &source);
   if (!ok) {
-  message << "No such file or directory: \"";
+  message << "No such file: \"";
   message << source_filename << "\"";
     throw ParserError {message.str()};
   }
@@ -64,16 +83,29 @@ fb::Parser* parse_file (
   for (auto include: include_paths) {
         c_include_paths.push_back(
             include.c_str());
-  };
+  }
   auto local_include_path = fb::StripFileName(source_filename);
   c_include_paths.push_back(local_include_path.c_str());
 
-  ok = parser->Parse(
-      source.c_str(),
-      const_cast<const char**>(c_include_paths.data()),
-      source_filename.c_str()
-      );
-  if (!ok) throw ParserError {parser->error_};
+  if (fb::GetExtension(source_filename) == reflection::SchemaExtension()) {
+    /*
+    ok = parser->Deserialize(
+        reinterpret_cast<const uint8_t *>(source.c_str()),
+        source.size()
+        );
+    if (!ok) throw ParserError {
+      "Unable to deserialize binary schema file " + source_filename };
+    */
+    throw NotImplementedError();
+  } else {
+    ok = parser->Parse(
+        source.c_str(),
+        const_cast<const char**>(c_include_paths.data()),
+        source_filename.c_str()
+        );
+    if (!ok) throw ParserError {parser->error_};
+  }
+
 
   if (hash_identifier
       && parser->file_identifier_.empty()
@@ -87,7 +119,7 @@ fb::Parser* parse_file (
   }
 
   return parser;
-};
+}
 
 std::string ascii_or_hex(std::string src) {
   std::stringstream ret;
@@ -105,6 +137,18 @@ std::string ascii_or_hex(std::string src) {
 }
 
 
+template <typename TT>
+static std::vector<std::string> get_sorted_keys(const TT &table) {
+  std::map<void*, std::string> keys {};
+  std::vector<std::string> sorted_keys {};
+  for (auto pair : table.dict)
+    keys[pair.second] = pair.first;
+  for (auto ptr : table.vec)
+    sorted_keys.push_back(keys[ptr]);
+  return sorted_keys;
+}
+
+
 template <typename IT>
 static void add_symbol_table(py::module &m, const std::string &name) {
 
@@ -114,16 +158,17 @@ static void add_symbol_table(py::module &m, const std::string &name) {
     .def(py::init<>())
       .def("__repr__", [name](const TT &self) {
           std::stringstream repr;
-          repr << "<" << name << "Table: {";
-          for (auto pair : self.dict) {
-            if (pair != *self.dict.begin()) repr << ", ";
-            repr << '"' << pair.first << '"'; };
-          repr << "}>";
+          repr << "<" << name << "Table: [";
+          auto keys = get_sorted_keys(self);
+          for (auto key : keys) {
+            if (key != *keys.begin()) repr << ", ";
+            repr << '"' << key << '"'; }
+          repr << "]>";
           return repr.str(); })
     .def("__getitem__", [](const TT &self, const size_t index) {
         if (index >= self.vec.size())
           throw py::index_error(
-              "index "+std::to_string(index)+" out of range");
+              "Index "+std::to_string(index)+" out of range");
         return self.vec[index]; }, RETPOL_REFINT)
     .def("__len__", [](const TT &self) { return self.vec.size(); })
     .def("__iter__", [](const TT &self) {
@@ -141,9 +186,7 @@ static void add_symbol_table(py::module &m, const std::string &name) {
           idx = std::distance(self.vec.begin(), itr);
         return idx;
         })
-    .def("keys", [](const TT &self) {
-        return py::make_key_iterator(self.dict.begin(), self.dict.end()); },
-        RETPOL_REFINT)
+    .def("keys", [](const TT &self) { return get_sorted_keys(self); })
     .def("lookup", [](const TT &self, const std::string &key) {
         IT *value = self.Lookup(key);
         if (value == NULL) {
@@ -151,7 +194,7 @@ static void add_symbol_table(py::module &m, const std::string &name) {
         }
         return value; }, RETPOL_REFINT)
     ;
-};
+}
 
 
 PYBIND11_MODULE(idl, m) {
@@ -185,7 +228,7 @@ PYBIND11_MODULE(idl, m) {
           repr << "<Namespace: [";
           for (auto part : self.components) {
             if (part != *self.components.begin()) repr << ", ";
-            repr << '"' << part << '"'; };
+            repr << '"' << part << '"'; }
           repr << "]>";
           return repr.str(); })
       .def("get_fully_qualified_name", &fb::Namespace::GetFullyQualifiedName,
@@ -220,15 +263,16 @@ PYBIND11_MODULE(idl, m) {
       .def_readonly("base_type", &fb::Type::base_type)
       .def_readonly("element", &fb::Type::element)
       .def_property_readonly("definition",
-          [](const fb::Type &self) -> py::object {
+          [](const fb::Type &self)
+          -> std::variant<py::none,fb::StructDef*,fb::EnumDef*>{
             fb::Type type = self;
             if (type.base_type == fb::BaseType::BASE_TYPE_VECTOR)
               type = self.VectorType();
             if (type.struct_def != NULL)
-              return py::cast(type.struct_def);
+              return type.struct_def;
             if (type.enum_def != NULL)
-              return py::cast(type.enum_def);
-            return py::none{};
+              return type.enum_def;
+            return py::none();
           }, RETPOL_REFINT)
       .def_property_readonly("inline_size", [](fb::Type &self)
           { return fb::InlineSize(self); })
@@ -273,7 +317,7 @@ PYBIND11_MODULE(idl, m) {
 
     // EnumVal
     py::class_<fb::EnumVal>(m, "EnumVal")
-      .def(py::init<const fb::EnumVal>())
+      .def(py::init<const std::string&, int64_t>())
       .def("__repr__", [](const fb::EnumVal &self)
           { return "<EnumVal: \""+self.name+"\">" ;})
       .def_readonly("name", &fb::EnumVal::name)
@@ -307,7 +351,7 @@ PYBIND11_MODULE(idl, m) {
     add_symbol_table<fb::ServiceDef>(m, "ServiceDef");
 
     // Parser
-    py::class_<fb::Parser>(m, "Parser")
+    py::class_<fb::Parser>(m, "Parser", py::buffer_protocol())
       .def(py::init<>())
       .def("__repr__", [](const fb::Parser &self)
           { return "<Parser: "+ascii_or_hex(self.file_identifier_)+">" ;})
@@ -337,6 +381,20 @@ PYBIND11_MODULE(idl, m) {
           &fb::Parser::current_namespace_, RETPOL_REFINT)
       .def_readonly("empty_namespace",
           &fb::Parser::empty_namespace_, RETPOL_REFINT)
+
+      /*
+      .def("dump_bfbs", [](fb::Parser &self) {
+          if (!self.builder_.GetSize()) {
+            self.Serialize();
+            self.file_extension_ = reflection::SchemaExtension();
+          }
+          auto data = reinterpret_cast<char *>(
+              self.builder_.GetBufferPointer());
+          size_t size = self.builder_.GetSize();
+          py::bytes bytes {data, size};
+          return bytes;
+          })
+      */
       ;
 
     // Functions
@@ -345,6 +403,22 @@ PYBIND11_MODULE(idl, m) {
         "include_paths"_a=py::list{},
         "hash_identifier"_a=true
         );
+    /*
+    m.def("load_bfbs", [](py::bytes &blob) {
+          auto c_blob = blob.cast<std::string>();
+          bool ok;
+          fb::Parser *parser = new fb::Parser {parser_options()};
+          ok = parser->Deserialize(
+            reinterpret_cast<const uint8_t *>(c_blob.c_str()),
+            c_blob.size()
+            );
+          if (!ok) throw ParserError {
+            "Unable to deserialize binary schema" };
+          return parser;
+          }, RETPOL_TAKEOWN
+        );
+    */
+
     m.def("is_scalar", [](fb::BaseType &val) { return fb::IsScalar(val); });
     m.def("is_integer", [](fb::BaseType &val) { return fb::IsInteger(val); });
     m.def("is_float", [](fb::BaseType &val) { return fb::IsFloat(val); });
