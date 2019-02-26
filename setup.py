@@ -1,10 +1,13 @@
+# pylint: disable=missing-docstring
+# pylint: disable=invalid-name
+
 import sys
-from codecs import open  # To use a consistent encoding
 from os import path
 
-from cmake_setuptools import CMakeBuildExt, CMakeExtension
 # Always prefer setuptools over distutils
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup  # type: ignore
+
+from cmakebuild import Build, BuildCmake
 
 here = path.abspath(path.dirname(__file__))
 install_requirements = [
@@ -37,7 +40,7 @@ extras_require = {
     'develop': develop_require,
     'numpy': 'numpy'
 }
-setup_requires = ['cmake_setuptools', 'pytest-runner']
+setup_requires = ['pytest-runner']
 dependency_links = [
     'git+https://github.com/numpy/numpy-stubs.git#egg=numpy-stub',
 ]
@@ -76,11 +79,10 @@ setup(name='flatboobs', version=__version__,
       ]),
       zip_safe=True,
       include_package_data=True,
-      ext_package='flatboobs',
-      ext_modules=[
-          CMakeExtension('idl'),
-      ],
-      cmdclass={'build_ext': CMakeBuildExt},
+      cmdclass={
+          'build': Build,
+          'build_cmake': BuildCmake,
+      },
       # This part is good for when the setup.py itself cannot proceed until dependencies
       # in ``setup_requires`` are met. If you also need some/all of the dependencies in
       # ``setup_requires`` to run your module, be sure to have them in the install_requirements to.
