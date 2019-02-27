@@ -14,108 +14,38 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "common.h"
+#include "exceptions.h"
+
 namespace flatboobs {
 
 using namespace pybind11::literals;
 namespace fb = flatbuffers;
 namespace py = pybind11;
 
-#define RETPOL_REFINT py::return_value_policy::reference_internal
-#define RETPOL_TAKEOWN py::return_value_policy::take_ownership
-#define RETPOL_COPY py::return_value_policy::copy
+/*
+ * BaseType
+ */
 
-fb::IDLOptions parser_options() {
-  auto options = fb::IDLOptions{};
-  options.lang = fb::IDLOptions::kCpp;
-  return options;
+static void pydefine_BaseType(py::module &m) {
+
+#define FLATBUFFERS_TD(ENUM, IDLTYPE, CTYPE, JTYPE, GTYPE, NTYPE, PTYPE,       \
+                       RTYPE)                                                  \
+  .value(#ENUM, fb::BaseType::BASE_TYPE_##ENUM)
+  py::enum_<fb::BaseType>(m, "BaseType") FLATBUFFERS_GEN_TYPES(FLATBUFFERS_TD)
+      .def("is_scalar", [](fb::BaseType &val) { return fb::IsScalar(val); })
+      .def("is_integer", [](fb::BaseType &val) { return fb::IsInteger(val); })
+      .def("is_float", [](fb::BaseType &val) { return fb::IsFloat(val); })
+      .def("is_long", [](fb::BaseType &val) { return fb::IsLong(val); })
+      .def("is_bool", [](fb::BaseType &val) { return fb::IsBool(val); })
+      .def("is_one_byte", [](fb::BaseType &val) { return fb::IsOneByte(val); })
+      .def("size", [](fb::BaseType &val) { return fb::SizeOf(val); });
+#undef FLATBUFFERS_TD
 }
 
-// TODO move to header
-class ParserError : public std::exception {
-  const std::string message;
-
-public:
-  ParserError(const std::string message_) : message{message_} {};
-  ParserError(const char *message_) : message{message_} {};
-  virtual const char *what() const throw() { return message.c_str(); }
-};
-
-// TODO move to header
-class NotImplementedError : public std::exception {
-public:
-  virtual const char *what() const throw() { return "Not implemented"; }
-};
-
-fb::Parser *parse_file(const std::string &source_filename,
-                       const std::vector<std::string> &include_paths,
-                       const bool hash_identifier = false) {
-  bool ok;
-  std::stringstream message;
-
-  fb::Parser *parser = new fb::Parser{parser_options()};
-
-  std::string source;
-  ok = fb::LoadFile(source_filename.c_str(), true, &source);
-  if (!ok) {
-    message << "No such file: \"";
-    message << source_filename << "\"";
-    throw ParserError{message.str()};
-  }
-
-  std::vector<const char *> c_include_paths;
-  c_include_paths.reserve(include_paths.size());
-  for (auto include : include_paths) {
-    c_include_paths.push_back(include.c_str());
-  }
-  auto local_include_path = fb::StripFileName(source_filename);
-  c_include_paths.push_back(local_include_path.c_str());
-
-  if (fb::GetExtension(source_filename) == reflection::SchemaExtension()) {
-    /*
-    ok = parser->Deserialize(
-        reinterpret_cast<const uint8_t *>(source.c_str()),
-        source.size()
-        );
-    if (!ok) throw ParserError {
-      "Unable to deserialize binary schema file " + source_filename };
-    */
-    throw NotImplementedError();
-  } else {
-    ok = parser->Parse(source.c_str(),
-                       const_cast<const char **>(c_include_paths.data()),
-                       source_filename.c_str());
-    if (!ok)
-      throw ParserError{parser->error_};
-  }
-
-  if (hash_identifier && parser->file_identifier_.empty() &&
-      parser->root_struct_def_) {
-    auto full_name =
-        parser->root_struct_def_->defined_namespace->GetFullyQualifiedName(
-            parser->root_struct_def_->name);
-    uint32_t hash = fb::HashFnv1a<uint32_t>(full_name.c_str());
-    char *const hash_p = reinterpret_cast<char *const>(&hash);
-    for (size_t i = sizeof(hash); i > 0; i--)
-      parser->file_identifier_.push_back(*(hash_p + i - 1));
-  }
-
-  return parser;
-}
-
-std::string ascii_or_hex(std::string src) {
-  std::stringstream ret;
-  if (src.find_first_not_of(
-          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_") ==
-      std::string::npos)
-    ret << '"' << src << '"';
-  else {
-    ret << "0x";
-    for (unsigned char c : src)
-      ret << std::hex << (int)c;
-  }
-
-  return ret.str();
-}
+/*
+ * SymbolTable
+ */
 
 template <typename TT>
 static std::vector<std::string> get_sorted_keys(const TT &table) {
@@ -129,7 +59,7 @@ static std::vector<std::string> get_sorted_keys(const TT &table) {
 }
 
 template <typename IT>
-static void add_symbol_table(py::module &m, const std::string &name) {
+static void pydefine_SymbolTable(py::module &m, const std::string &name) {
 
   using TT = fb::SymbolTable<IT>;
 
@@ -191,29 +121,23 @@ static void add_symbol_table(py::module &m, const std::string &name) {
            RETPOL_REFINT);
 }
 
-PYBIND11_MODULE(idl, m) {
-  m.doc() = "Flatbuffers idl parser.";
+/*
+ * Value
+ */
 
-  // Exceptions
-  py::register_exception<ParserError>(m, "ParserError");
-
-  // Enums
-  py::enum_<fb::BaseType>(m, "BaseType")
-#define FLATBUFFERS_TD(ENUM, IDLTYPE, CTYPE, JTYPE, GTYPE, NTYPE, PTYPE,       \
-                       RTYPE)                                                  \
-  .value(#ENUM, fb::BaseType::BASE_TYPE_##ENUM)
-      FLATBUFFERS_GEN_TYPES(FLATBUFFERS_TD);
-#undef FLATBUFFERS_TD
-
-  // Value
+static void pydefine_Value(py::module &m) {
   py::class_<fb::Value>(m, "Value")
       .def(py::init<>())
       .def_readonly("type", &fb::Value::type, RETPOL_REFINT)
-      .def_readonly("constant", &fb::Value::constant, RETPOL_REFINT)
-      .def_readonly("offset", &fb::Value::offset, RETPOL_REFINT);
-  add_symbol_table<fb::Value>(m, "Value");
+      .def_readonly("constant", &fb::Value::constant)
+      .def_readonly("offset", &fb::Value::offset);
+}
 
-  // Namespace
+/*
+ * Namespace
+ */
+
+static void pydefine_Namespace(py::module &m) {
   py::class_<fb::Namespace>(m, "Namespace")
       .def(py::init<>())
       .def("__repr__",
@@ -232,9 +156,13 @@ PYBIND11_MODULE(idl, m) {
            "name"_a, "max_components"_a = 1000)
       .def_readonly("components", &fb::Namespace::components, RETPOL_REFINT)
       .def_readonly("from_table", &fb::Namespace::from_table);
-  add_symbol_table<fb::Namespace>(m, "Namespace");
+}
 
-  // Definition
+/*
+ * Definition
+ */
+
+static void pydefine_Definition(py::module &m) {
   py::class_<fb::Definition>(m, "Definition")
       .def(py::init<>())
       .def("__repr__",
@@ -252,8 +180,13 @@ PYBIND11_MODULE(idl, m) {
           "fully_qualified_name", [](const fb::Definition &self) {
             return self.defined_namespace->GetFullyQualifiedName(self.name);
           });
+}
 
-  // Type
+/*
+ * Type
+ */
+
+static void pydefine_Type(py::module &m) {
   py::class_<fb::Type>(m, "Type")
       .def(py::init<>())
       .def("__eq__",
@@ -266,9 +199,9 @@ PYBIND11_MODULE(idl, m) {
           "definition",
           [](const fb::Type &self)
               -> std::variant<py::none, fb::StructDef *, fb::EnumDef *> {
-            fb::Type type = self;
+            auto type = self;
             if (type.base_type == fb::BaseType::BASE_TYPE_VECTOR)
-              type = self.VectorType();
+              type = type.VectorType();
             if (type.struct_def != NULL)
               return type.struct_def;
             if (type.enum_def != NULL)
@@ -283,9 +216,13 @@ PYBIND11_MODULE(idl, m) {
           [](fb::Type &self) { return fb::InlineAlignment(self); })
       .def_property_readonly("is_struct",
                              [](fb::Type &self) { return fb::IsStruct(self); });
-  add_symbol_table<fb::Type>(m, "Type");
+}
 
-  // FieldDef
+/*
+ * FieldDef
+ */
+
+static void pydefine_FieldDef(py::module &m) {
   py::class_<fb::FieldDef, fb::Definition>(m, "FieldDef")
       .def(py::init<>())
       .def("__repr__",
@@ -301,9 +238,13 @@ PYBIND11_MODULE(idl, m) {
       .def_readonly("nested_flatbuffer", &fb::FieldDef::nested_flatbuffer,
                     RETPOL_REFINT)
       .def_readonly("padding", &fb::FieldDef::padding);
-  add_symbol_table<fb::FieldDef>(m, "FieldDef");
+}
 
-  // StructDef
+/*
+ * StructDef
+ */
+
+static void pydefine_StructDef(py::module &m) {
   py::class_<fb::StructDef, fb::Definition>(m, "StructDef")
       .def(py::init<>())
       .def("__repr__",
@@ -317,9 +258,13 @@ PYBIND11_MODULE(idl, m) {
       .def_readonly("has_key", &fb::StructDef::has_key)
       .def_readonly("minalign", &fb::StructDef::minalign)
       .def_readonly("bytesize", &fb::StructDef::bytesize);
-  add_symbol_table<fb::StructDef>(m, "StructDef");
+}
 
-  // EnumVal
+/*
+ * EnumVal
+ */
+
+static void pydefine_EnumVal(py::module &m) {
   py::class_<fb::EnumVal>(m, "EnumVal")
       .def(py::init<const std::string &, int64_t>())
       .def("__repr__",
@@ -330,8 +275,13 @@ PYBIND11_MODULE(idl, m) {
       .def_readonly("doc_comment", &fb::EnumVal::doc_comment, RETPOL_REFINT)
       .def_readonly("value", &fb::EnumVal::value)
       .def_readonly("union_type", &fb::EnumVal::union_type);
+}
 
-  // EnumDef
+/*
+ * EnumDef
+ */
+
+static void pydefine_EnumDef(py::module &m) {
   py::class_<fb::EnumDef, fb::Definition>(m, "EnumDef")
       .def(py::init<>())
       .def("__repr__",
@@ -342,21 +292,43 @@ PYBIND11_MODULE(idl, m) {
       .def_readonly("is_union", &fb::EnumDef::is_union)
       .def_readonly("underlying_type", &fb::EnumDef::underlying_type,
                     RETPOL_REFINT);
-  add_symbol_table<fb::EnumDef>(m, "EnumDef");
+}
 
-  // RPCCall
-  // TODO
+/*
+ * ServiceDef
+ */
 
-  // ServiceDef
-  // TODO
+static void pydefine_ServiceDef(py::module &m) {
+
+  // TODO implement services
   py::class_<fb::ServiceDef, fb::Definition>(m, "ServiceDef")
       .def(py::init<>())
       .def("__repr__", [](const fb::ServiceDef &self) {
         return "<ServiceDef: \"" + self.name + "\">";
       });
-  add_symbol_table<fb::ServiceDef>(m, "ServiceDef");
+}
 
-  // Parser
+/*
+ * Parser
+ */
+
+std::string ascii_or_hex(std::string src) {
+  std::stringstream ret;
+  if (src.find_first_not_of(
+          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_") ==
+      std::string::npos)
+    ret << '"' << src << '"';
+  else {
+    ret << "0x";
+    for (unsigned char c : src)
+      ret << std::hex << (int)c;
+  }
+
+  return ret.str();
+}
+
+static void pydefine_Parser(py::module &m) {
+
   py::class_<fb::Parser>(m, "Parser", py::buffer_protocol())
       .def(py::init<>())
       .def("__repr__",
@@ -388,22 +360,136 @@ PYBIND11_MODULE(idl, m) {
       .def_readonly("current_namespace", &fb::Parser::current_namespace_,
                     RETPOL_REFINT)
       .def_readonly("empty_namespace", &fb::Parser::empty_namespace_,
-                    RETPOL_REFINT)
+                    RETPOL_REFINT);
 
-      /*
-      .def("dump_bfbs", [](fb::Parser &self) {
-          if (!self.builder_.GetSize()) {
-            self.Serialize();
-            self.file_extension_ = reflection::SchemaExtension();
-          }
-          auto data = reinterpret_cast<char *>(
-              self.builder_.GetBufferPointer());
-          size_t size = self.builder_.GetSize();
-          py::bytes bytes {data, size};
-          return bytes;
-          })
-      */
-      ;
+  /*
+  .def("dump_bfbs", [](fb::Parser &self) {
+      if (!self.builder_.GetSize()) {
+        self.Serialize();
+        self.file_extension_ = reflection::SchemaExtension();
+      }
+      auto data = reinterpret_cast<char *>(
+          self.builder_.GetBufferPointer());
+      size_t size = self.builder_.GetSize();
+      py::bytes bytes {data, size};
+      return bytes;
+      })
+  */
+}
+
+/*
+ * Functions
+ */
+
+fb::Parser *parse_file(const std::string &source_filename,
+                       const std::vector<std::string> &include_paths,
+                       const bool hash_identifier = false) {
+  bool ok;
+  std::stringstream message;
+
+  fb::Parser *parser = new fb::Parser{};
+
+  std::string source;
+  ok = fb::LoadFile(source_filename.c_str(), true, &source);
+  if (!ok) {
+    message << "No such file: \"";
+    message << source_filename << "\"";
+    throw ParserError{message.str()};
+  }
+
+  std::vector<const char *> c_include_paths;
+  c_include_paths.reserve(include_paths.size());
+  for (auto include : include_paths) {
+    c_include_paths.push_back(include.c_str());
+  }
+  auto local_include_path = fb::StripFileName(source_filename);
+  c_include_paths.push_back(local_include_path.c_str());
+
+  if (fb::GetExtension(source_filename) == reflection::SchemaExtension()) {
+    /*
+    ok = parser->Deserialize(
+        reinterpret_cast<const uint8_t *>(source.c_str()),
+        source.size()
+        );
+    if (!ok) throw ParserError {
+      "Unable to deserialize binary schema file " + source_filename };
+    */
+    throw NotImplementedError();
+  } else {
+    ok = parser->Parse(source.c_str(),
+                       const_cast<const char **>(c_include_paths.data()),
+                       source_filename.c_str());
+    if (!ok)
+      throw ParserError{parser->error_};
+  }
+
+  if (hash_identifier && parser->file_identifier_.empty() &&
+      parser->root_struct_def_) {
+    auto full_name =
+        parser->root_struct_def_->defined_namespace->GetFullyQualifiedName(
+            parser->root_struct_def_->name);
+    uint32_t hash = fb::HashFnv1a<uint32_t>(full_name.c_str());
+    char *const hash_p = reinterpret_cast<char *const>(&hash);
+    for (size_t i = sizeof(hash); i > 0; i--)
+      parser->file_identifier_.push_back(*(hash_p + i - 1));
+  }
+
+  return parser;
+}
+
+/*
+ * Module
+ */
+
+PYBIND11_MODULE(idl, m) {
+  m.doc() = "Flatbuffers idl parser.";
+
+  // Exceptions
+  // TODO separate module for exceptions
+  py::register_exception<ParserError>(m, "ParserError");
+
+  // Enums
+  pydefine_BaseType(m);
+
+  // Value
+  pydefine_Value(m);
+  pydefine_SymbolTable<fb::Value>(m, "Value");
+
+  // Namespace
+  pydefine_Namespace(m);
+  pydefine_SymbolTable<fb::Namespace>(m, "Namespace");
+
+  // Definition
+  pydefine_Definition(m);
+
+  // Type
+  pydefine_Type(m);
+  pydefine_SymbolTable<fb::Type>(m, "Type");
+
+  // FieldDef
+  pydefine_FieldDef(m);
+  pydefine_SymbolTable<fb::FieldDef>(m, "FieldDef");
+
+  // StructDef
+  pydefine_StructDef(m);
+  pydefine_SymbolTable<fb::StructDef>(m, "StructDef");
+
+  // EnumVal
+  pydefine_EnumVal(m);
+
+  // EnumDef
+  pydefine_EnumDef(m);
+  pydefine_SymbolTable<fb::EnumDef>(m, "EnumDef");
+
+  // RPCCall
+  // TODO
+
+  // ServiceDef
+  pydefine_ServiceDef(m);
+  pydefine_SymbolTable<fb::ServiceDef>(m, "ServiceDef");
+
+  // Parser
+  pydefine_Parser(m);
 
   // Functions
   m.def("parse_file", &parse_file, RETPOL_TAKEOWN, "source_filename"_a,
@@ -412,7 +498,7 @@ PYBIND11_MODULE(idl, m) {
   m.def("load_bfbs", [](py::bytes &blob) {
         auto c_blob = blob.cast<std::string>();
         bool ok;
-        fb::Parser *parser = new fb::Parser {parser_options()};
+        fb::Parser *parser = new fb::Parser {};
         ok = parser->Deserialize(
           reinterpret_cast<const uint8_t *>(c_blob.c_str()),
           c_blob.size()
@@ -423,13 +509,5 @@ PYBIND11_MODULE(idl, m) {
         }, RETPOL_TAKEOWN
       );
   */
-
-  m.def("is_scalar", [](fb::BaseType &val) { return fb::IsScalar(val); });
-  m.def("is_integer", [](fb::BaseType &val) { return fb::IsInteger(val); });
-  m.def("is_float", [](fb::BaseType &val) { return fb::IsFloat(val); });
-  m.def("is_long", [](fb::BaseType &val) { return fb::IsLong(val); });
-  m.def("is_bool", [](fb::BaseType &val) { return fb::IsBool(val); });
-  m.def("is_one_byte", [](fb::BaseType &val) { return fb::IsOneByte(val); });
-  m.def("size_of", [](fb::BaseType &val) { return fb::SizeOf(val); });
 }
 } // namespace flatboobs
