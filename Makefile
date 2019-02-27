@@ -33,7 +33,7 @@ clean:
 	rm -rv .eggs $(PACKAGE).egg-info || true
 	rm -rv .mypy_cache .pytest_cache .coverage || true
 	rm -v flatboobs/*.so || true
-	rm -rv flatboobs/includes || true
+	rm -rv flatboobs/include || true
 
 
 all: syntax test
