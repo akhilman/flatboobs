@@ -42,6 +42,8 @@ class BuildCmake(Command):
         ('inplace', 'i',
          "ignore build-lib and put compiled extensions into the source " +
          "directory alongside your pure Python modules"),
+        ('package', 'p',
+         "package where to install"),
         ('parallel=', 'j',
          "number of parallel build jobs"),
     ]
@@ -53,15 +55,23 @@ class BuildCmake(Command):
         self.build_temp = None
         self.debug = False
         self.inplace = False
+        self.package = None
         self.parallel = False
 
     def finalize_options(self):
+        # pylint: disable=attribute-defined-outside-init
 
         self.set_undefined_options('build',
                                    ('build_temp', 'build_temp'),
                                    ('debug', 'debug'),
                                    ('parallel', 'parallel'),
                                    )
+        if self.package:
+            pass
+        elif self.distribution.ext_package:
+            self.package = self.distribution.ext_package
+        else:
+            self.package = self.distribution.packages[0]
 
     def run(self):
 
@@ -81,6 +91,7 @@ class BuildCmake(Command):
         build_py = self.get_finalized_command('build_py')
         install_dir = os.path.abspath(src_dir if self.inplace
                                       else build_py.build_lib)
+        install_dir = os.path.join(install_dir, *self.package.split('.'))
 
         build_type = 'Debug' if self.debug else 'Release'
         cmake_args = []

@@ -48,10 +48,10 @@ pybind11_add_module(flatboobs src/flatboobs.cc)
 target_link_libraries(idl PRIVATE flatbuffers)
 
 # Install
-install(TARGETS idl LIBRARY DESTINATION flatboobs/)
-install(TARGETS flatboobs LIBRARY DESTINATION flatboobs/)
+install(TARGETS idl LIBRARY DESTINATION ./)
+install(TARGETS flatboobs LIBRARY DESTINATION ./)
 
-install(DIRECTORY include DESTINATION flatboobs)
+install(DIRECTORY include DESTINATION ./)
 
 # Put compile_commands.json to package directory
 install(
