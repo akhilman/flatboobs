@@ -11,12 +11,28 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(Flatbuffers REQUIRED)
 
-# add_subdirectory(third_party/pybind11)
-
+# set(PyBind11_SRC_Dir third_party/pybind11)
+# add_subdirectory(${PyBind11_SRC_Dir})
+#
+# set(FlatBuffers_SRC_Dir third_party/flatbuffers)
 # set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "Disable Flatbuffers tests")
 # set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "Disable Flatbuffers flatc")
 # set(FLATBUFFERS_BUILD_FLATHASH OFF CACHE BOOL "Disable Flatbuffers flathash")
-# add_subdirectory(third_party/flatbuffers)
+# add_subdirectory(${FlatBuffers_SRC_Dir})
+#
+# set(FlatBuffers_CPP_Compiler_SRCS
+#   ${FlatBuffers_SRC_Dir}/src/idl_gen_cpp.cpp
+#   ${FlatBuffers_SRC_Dir}/src/idl_gen_general.cpp
+#   ${FlatBuffers_SRC_Dir}/src/idl_gen_grpc.cpp
+#   ${FlatBuffers_SRC_Dir}/grpc/src/compiler/schema_interface.h
+#   ${FlatBuffers_SRC_Dir}/grpc/src/compiler/cpp_generator.h
+#   ${FlatBuffers_SRC_Dir}/grpc/src/compiler/cpp_generator.cc
+# )
+
+# add_library(flatbuffers_compiler STATIC ${FlatBuffers_CPP_Compiler_SRCS})
+# target_include_directories(
+#   flatbuffers_compiler PUBLIC ${FlatBuffers_SRC_Dir}/grpc)
+# target_link_libraries(flatbuffers_compiler PUBLIC flatbuffers)
 
 # Link with releative path
 # set(CMAKE_INSTALL_RPATH "$ORIGIN")

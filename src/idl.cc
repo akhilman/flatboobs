@@ -5,11 +5,11 @@
 #include <variant>
 #include <vector>
 
+// #include <flatbuffers/flatbuffers.h> // used by dump/load bfbs
 #include <flatbuffers/hash.h>
 #include <flatbuffers/idl.h>
+// #include <flatbuffers/reflection.h> // used by dump/load bfbs
 #include <flatbuffers/util.h>
-// #include <flatbuffers/flatbuffers.h>  # used by dump/load bfbs
-// #include <flatbuffers/reflection.h>  # used by dump/load bfbs
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -389,21 +389,17 @@ static void pydefine_Parser(py::module &m) {
       .def_readonly("current_namespace", &fb::Parser::current_namespace_,
                     RETPOL_REFINT)
       .def_readonly("empty_namespace", &fb::Parser::empty_namespace_,
-                    RETPOL_REFINT);
-
-  /*
-  .def("dump_bfbs", [](fb::Parser &self) {
-      if (!self.builder_.GetSize()) {
-        self.Serialize();
-        self.file_extension_ = reflection::SchemaExtension();
-      }
-      auto data = reinterpret_cast<char *>(
-          self.builder_.GetBufferPointer());
-      size_t size = self.builder_.GetSize();
-      py::bytes bytes {data, size};
-      return bytes;
-      })
-  */
+                    RETPOL_REFINT)
+      .def("dump_bfbs", [](fb::Parser &self) {
+        if (!self.builder_.GetSize()) {
+          self.Serialize();
+          self.file_extension_ = reflection::SchemaExtension();
+        }
+        auto data = reinterpret_cast<char *>(self.builder_.GetBufferPointer());
+        size_t size = self.builder_.GetSize();
+        py::bytes bytes{data, size};
+        return bytes;
+      });
 }
 
 /*
@@ -435,15 +431,16 @@ fb::Parser *parse_file(const std::string &source_filename,
   c_include_paths.push_back(local_include_path.c_str());
 
   if (fb::GetExtension(source_filename) == reflection::SchemaExtension()) {
-    /*
+#if false
     ok = parser->Deserialize(
         reinterpret_cast<const uint8_t *>(source.c_str()),
         source.size()
         );
     if (!ok) throw ParserError {
       "Unable to deserialize binary schema file " + source_filename };
-    */
+#else
     throw NotImplementedError();
+#endif
   } else {
     ok = parser->Parse(source.c_str(),
                        const_cast<const char **>(c_include_paths.data()),
@@ -465,6 +462,20 @@ fb::Parser *parse_file(const std::string &source_filename,
 
   return parser;
 }
+
+#if false
+// Deserialize available only in git master
+fb::Parser *load_bfbs(const py::bytes &blob) {
+  auto c_blob = blob.cast<std::string>();
+  bool ok;
+  fb::Parser *parser = new fb::Parser{};
+  ok = parser->Deserialize(reinterpret_cast<const uint8_t *>(c_blob.c_str()),
+                           c_blob.size());
+  if (!ok)
+    throw ParserError{"Unable to deserialize binary schema"};
+  return parser;
+}
+#endif
 
 /*
  * Module
@@ -523,20 +534,8 @@ PYBIND11_MODULE(idl, m) {
   // Functions
   m.def("parse_file", &parse_file, RETPOL_TAKEOWN, "source_filename"_a,
         "include_paths"_a = py::list{}, "hash_identifier"_a = true);
-  /*
-  m.def("load_bfbs", [](py::bytes &blob) {
-        auto c_blob = blob.cast<std::string>();
-        bool ok;
-        fb::Parser *parser = new fb::Parser {};
-        ok = parser->Deserialize(
-          reinterpret_cast<const uint8_t *>(c_blob.c_str()),
-          c_blob.size()
-          );
-        if (!ok) throw ParserError {
-          "Unable to deserialize binary schema" };
-        return parser;
-        }, RETPOL_TAKEOWN
-      );
-  */
+#if false
+  m.def("load_bfbs", load_bfbs, RETPOL_TAKEOWN);
+#endif
 }
 } // namespace flatboobs
