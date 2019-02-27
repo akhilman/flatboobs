@@ -128,6 +128,16 @@ static void pydefine_SymbolTable(py::module &m, const std::string &name) {
 static void pydefine_Value(py::module &m) {
   py::class_<fb::Value>(m, "Value")
       .def(py::init<>())
+      .def("__repr__",
+           [](fb::Value &self) {
+             std::stringstream repr;
+             repr << "<Value: ";
+             repr << py::cast(self.type.base_type);
+             if (fb::IsScalar(self.type.base_type))
+               repr << " " << self.constant;
+             repr << ">";
+             return repr.str();
+           })
       .def_readonly("type", &fb::Value::type, RETPOL_REFINT)
       .def_readonly("constant", &fb::Value::constant)
       .def_readonly("offset", &fb::Value::offset);
@@ -189,6 +199,25 @@ static void pydefine_Definition(py::module &m) {
 static void pydefine_Type(py::module &m) {
   py::class_<fb::Type>(m, "Type")
       .def(py::init<>())
+      .def("__repr__",
+           [](fb::Type &self) {
+             std::stringstream repr;
+             bool is_vector = self.base_type == fb::BaseType::BASE_TYPE_VECTOR;
+             auto type = is_vector ? self.VectorType() : self;
+             repr << "<Type: ";
+             if (is_vector)
+               repr << "[";
+             if (type.struct_def != nullptr)
+               repr << type.struct_def->name;
+             else if (type.enum_def != nullptr)
+               repr << type.enum_def->name;
+             else
+               repr << type.base_type;
+             if (is_vector)
+               repr << "]";
+             repr << ">";
+             return repr.str();
+           })
       .def("__eq__",
            [](const fb::Type &self, const fb::Type &other) {
              return fb::EqualByName(self, other);
