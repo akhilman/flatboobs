@@ -18,8 +18,9 @@ CMakeCache.txt
 CMakeFiles
 compile_commands.json
 
-# Binary modules
+# Inplace installation
 flatboobs/*.so
+flatboobs/include
 
 # Ignore third_party
 third_party

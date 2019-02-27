@@ -81,7 +81,7 @@ setup(name='flatboobs', version=__version__,
       include_package_data=True,
       cmdclass={
           'build': Build,
-          'build_cmake': BuildCmake,
+          'build_ext': BuildCmake,
       },
       # This part is good for when the setup.py itself cannot proceed until dependencies
       # in ``setup_requires`` are met. If you also need some/all of the dependencies in

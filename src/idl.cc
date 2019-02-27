@@ -14,8 +14,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "common.h"
-#include "exceptions.h"
+#include <flatboobs/common.h>
+#include <flatboobs/exceptions.h>
 
 namespace flatboobs {
 

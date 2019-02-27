@@ -10,11 +10,26 @@ from distutils.command.build import build as build_orig  # type: ignore
 __version__ = '0.0.0'
 
 
+def patch_sub_commands(sub_commands):
+
+    patched = []
+
+    for cmd, predecate in sub_commands:
+        if cmd == 'build_ext':
+            patched.append((cmd, lambda *args: True))
+        else:
+            patched.append((cmd, predecate))
+
+    return patched
+
+
 class Build(build_orig):
 
-    def run(self):
-        self.run_command('build_cmake')
-        super().run()
+    # def run(self):
+    #     self.run_command('build_cmake')
+    #     super().run()
+
+    sub_commands = patch_sub_commands(build_orig.sub_commands)
 
 
 class BuildCmake(Command):
@@ -30,7 +45,7 @@ class BuildCmake(Command):
         ('parallel=', 'j',
          "number of parallel build jobs"),
     ]
-    boolean_options = ['inplace', 'parallel']
+    boolean_options = ['debug', 'inplace']
 
     def initialize_options(self):
         # pylint: disable=attribute-defined-outside-init
@@ -75,7 +90,7 @@ class BuildCmake(Command):
 
         make_args = []
         if self.parallel:
-            make_args += ['-j']
+            make_args += [f'-j{self.parallel}']
 
         env = os.environ.copy()
 

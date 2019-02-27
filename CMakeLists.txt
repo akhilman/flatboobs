@@ -22,9 +22,23 @@ find_package(Flatbuffers REQUIRED)
 # set(CMAKE_INSTALL_RPATH "$ORIGIN")
 # set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
+include_directories(include)
+
 # Build modules
 pybind11_add_module(idl src/idl.cc)
-target_link_libraries(idl PUBLIC flatbuffers)
+target_link_libraries(idl PRIVATE flatbuffers)
 
-install(TARGETS idl DESTINATION ./flatboobs/)
-install(FILES "${PROJECT_BINARY_DIR}/compile_commands.json" DESTINATION "${CMAKE_SOURCE_DIR}")
+pybind11_add_module(flatboobs src/flatboobs.cc)
+target_link_libraries(idl PRIVATE flatbuffers)
+
+# Install
+install(TARGETS idl LIBRARY DESTINATION flatboobs/)
+install(TARGETS flatboobs LIBRARY DESTINATION flatboobs/)
+
+install(DIRECTORY include DESTINATION flatboobs)
+
+# Put compile_commands.json to package directory
+install(
+  FILES "${PROJECT_BINARY_DIR}/compile_commands.json"
+  DESTINATION "${CMAKE_SOURCE_DIR}"
+  )
