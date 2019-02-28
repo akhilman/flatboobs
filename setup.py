@@ -7,7 +7,7 @@ from os import path
 # Always prefer setuptools over distutils
 from setuptools import find_packages, setup  # type: ignore
 
-from cmakebuild import Build, BuildCmake
+from cmakebuild import BuildCmake, CMakeExtension
 
 here = path.abspath(path.dirname(__file__))
 install_requirements = [
@@ -79,8 +79,10 @@ setup(name='flatboobs', version=__version__,
       ]),
       zip_safe=True,
       include_package_data=True,
+      ext_modules=[
+          CMakeExtension('flatboobs')
+      ],
       cmdclass={
-          'build': Build,
           'build_ext': BuildCmake,
       },
       # This part is good for when the setup.py itself cannot proceed until dependencies

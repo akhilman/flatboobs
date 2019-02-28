@@ -5,31 +5,25 @@ import os
 import subprocess
 import sys
 from distutils.cmd import Command  # type: ignore
-from distutils.command.build import build as build_orig  # type: ignore
+from pathlib import Path
 
 __version__ = '0.0.0'
 
 
-def patch_sub_commands(sub_commands):
+class CMakeExtension:
+    # pylint: disable=too-few-public-methods
 
-    patched = []
+    def __init__(self, package,
+                 target='install', directory='./', cmake_args=tuple()):
 
-    for cmd, predecate in sub_commands:
-        if cmd == 'build_ext':
-            patched.append((cmd, lambda *args: True))
-        else:
-            patched.append((cmd, predecate))
+        self.package = package
+        self.target = target
+        self.directory = directory
+        self.cmake_args = cmake_args
 
-    return patched
-
-
-class Build(build_orig):
-
-    # def run(self):
-    #     self.run_command('build_cmake')
-    #     super().run()
-
-    sub_commands = patch_sub_commands(build_orig.sub_commands)
+    @property
+    def name(self):
+        return self.package
 
 
 class BuildCmake(Command):
@@ -42,8 +36,6 @@ class BuildCmake(Command):
         ('inplace', 'i',
          "ignore build-lib and put compiled extensions into the source " +
          "directory alongside your pure Python modules"),
-        ('package', 'p',
-         "package where to install"),
         ('parallel=', 'j',
          "number of parallel build jobs"),
     ]
@@ -55,7 +47,6 @@ class BuildCmake(Command):
         self.build_temp = None
         self.debug = False
         self.inplace = False
-        self.package = None
         self.parallel = False
 
     def finalize_options(self):
@@ -66,12 +57,6 @@ class BuildCmake(Command):
                                    ('debug', 'debug'),
                                    ('parallel', 'parallel'),
                                    )
-        if self.package:
-            pass
-        elif self.distribution.ext_package:
-            self.package = self.distribution.ext_package
-        else:
-            self.package = self.distribution.packages[0]
 
     def run(self):
 
@@ -83,21 +68,34 @@ class BuildCmake(Command):
                 + ", ".join(e.name for e in self.extensions)
             )
 
-        self.get_finalized_command('build_py')
+        for ext in self.distribution.ext_modules:
+            assert isinstance(ext, CMakeExtension)
+            self.build(ext)
 
-        src_dir = os.path.dirname(os.path.abspath(
-            self.distribution.get_fullname()))
-        build_dir = os.path.abspath(self.build_temp)
+    def build(self, ext):
+
         build_py = self.get_finalized_command('build_py')
-        install_dir = os.path.abspath(src_dir if self.inplace
-                                      else build_py.build_lib)
-        install_dir = os.path.join(install_dir, *self.package.split('.'))
+
+        distribution_dir = Path(
+            self.distribution.get_fullname()).resolve().parent
+        src_dir = distribution_dir / ext.directory
+        src_dir = src_dir.resolve()
+        build_dir = Path(self.build_temp).resolve()
+
+        if self.inplace:
+            install_dir = distribution_dir
+        else:
+            install_dir = Path(build_py.build_lib)
+        for pack in ext.package.split('.'):
+            install_dir /= pack
+        install_dir = install_dir.resolve()
 
         build_type = 'Debug' if self.debug else 'Release'
         cmake_args = []
         cmake_args += [f'-DPYTHON_EXECUTABLE={sys.executable}']
         cmake_args += [f'-DCMAKE_BUILD_TYPE={build_type}']
         cmake_args += [f'-DCMAKE_INSTALL_PREFIX={install_dir}']
+        cmake_args.extend(ext.cmake_args)
 
         make_args = []
         if self.parallel:
@@ -112,4 +110,8 @@ class BuildCmake(Command):
                               cmake_args, cwd=build_dir, env=env)
         subprocess.check_call(['make'] + make_args, cwd=build_dir)
         subprocess.check_call(
-            ['make'] + make_args + ['install'], cwd=build_dir)
+            ['make'] + make_args + [ext.target], cwd=build_dir)
+
+    @staticmethod
+    def get_source_files():
+        return []
