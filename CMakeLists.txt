@@ -38,23 +38,46 @@ find_package(Flatbuffers REQUIRED)
 # set(CMAKE_INSTALL_RPATH "$ORIGIN")
 # set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
-include_directories(include)
-
 # Build modules
-pybind11_add_module(idl src/idl.cc)
-target_link_libraries(idl PRIVATE flatbuffers)
 
-pybind11_add_module(flatboobs src/flatboobs.cc)
+add_library(flatboobs STATIC src/container.cc)
+target_link_libraries(flatboobs PRIVATE flatbuffers)
+target_include_directories(flatboobs PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_include_directories(flatboobs PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+pybind11_add_module(idl MODULE src/idl.cc)
 target_link_libraries(idl PRIVATE flatbuffers)
+include_directories(idl PRIVATE include)
+
+pybind11_add_module(flatboobs-mod MODULE src/flatboobs.cc)
+set_target_properties(flatboobs-mod PROPERTIES OUTPUT_NAME flatboobs)
+target_link_libraries(flatboobs-mod PRIVATE flatbuffers flatboobs)
+include_directories(flatboobs-mod PRIVATE include)
 
 # Install
-install(TARGETS idl LIBRARY DESTINATION ./)
-install(TARGETS flatboobs LIBRARY DESTINATION ./)
+install(TARGETS idl LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(TARGETS flatboobs-mod LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(TARGETS flatboobs
+    EXPORT FlatBoobsConfig
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
 
-install(DIRECTORY include DESTINATION ./)
+install(EXPORT FlatBoobsConfig
+    DESTINATION cmake
+    EXPORT_LINK_INTERFACE_LIBRARIES
+    )
 
 # Put compile_commands.json to package directory
 install(
   FILES "${PROJECT_BINARY_DIR}/compile_commands.json"
   DESTINATION "${CMAKE_SOURCE_DIR}"
   )
+
+# Sample
+# pybind11_add_module(
+#   monster_generated_py MODULE flatboobs/sample/monster/monster_generated_py.cc)
+# target_link_libraries(monster_generated_py PRIVATE flatbuffers flatboobs)
+# install(TARGETS monster_generated_py DESTINATION sample/monster)

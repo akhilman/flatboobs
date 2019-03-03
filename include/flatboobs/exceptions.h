@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLATBOOBS_EXCEPTIONS_H
+#define FLATBOOBS_EXCEPTIONS_H
 
 #include <stdexcept>
 
@@ -16,3 +17,5 @@ public:
 };
 
 } // namespace flatboobs
+
+#endif // FLATBOOBS_EXCEPTIONS_H

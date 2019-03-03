@@ -1,0 +1,14 @@
+{% set namespace_ = enum_def.defined_namespace.components|join("::") %}
+{% set class_name = enum_def.name|escape_cpp_keyword %}
+// {{ class_name }}
+  py::enum_<{{ namespace_ }}::{{ class_name }}>(m, "{{ class_name }}"
+  {%- if enum_def.attributes["bit_flags"] %}, py::arithmetic() {% endif %})
+    {% for value in enum_def.values %}
+    .value("{{ value.name|escape_python_keyword }}",
+      {{- namespace_ }}::{{ class_name }}_{{ value.name|escape_cpp_keyword }})
+    {% endfor %}
+    ;
+
+{#
+// vim: syntax=cpp
+#}

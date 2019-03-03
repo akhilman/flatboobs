@@ -3,107 +3,88 @@ TODO Write module docstring
 """
 # pylint: disable=missing-docstring
 
-from typing import IO, Optional
+from pathlib import Path
+from typing import Optional, Sequence
 
 import click
 
-import flatboobs.parser
-import flatboobs.schema
-from flatboobs import FlatBuffers, Registry, asnative, logging
-
-
-@click.command(help="Unpack FlatBuffers message.")
-@click.option(
-    '-s', '--schema-file',
-    help='Load schema from file.',
-    type=click.Path(
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True
-    ),
-)
-@click.option(
-    '-p', '--schema-package',
-    help='Load schema from python package.',
-    type=click.STRING
-)
-@click.option(
-    '-n', '--namespace',
-    help='Use schema namespace.',
-    type=click.STRING
-)
-@click.option(
-    '-t', '--type', 'root_type',
-    help='Override message root type.',
-    type=click.STRING
-)
-@click.option(
-    '-f', '--output-format',
-    help='Output format.',
-    type=click.Choice(['json', 'yaml', 'pprint']),
-    default='json'
-)
-@click.option(
-    '-o', '--output', 'output_file',
-    help='Output file.',
-    type=click.File('w'),
-    default='-'
-)
-@click.argument(
-    "input_file",
-    type=click.File('rb')
-)
-def unpack(
-        # pylint: disable=too-many-arguments
-        schema_file: Optional[str],
-        schema_package: Optional[str],
-        namespace: Optional[str],
-        root_type: Optional[str],
-        output_format: str,
-        output_file: IO,
-        input_file: IO,
-):
-    # pylint: disable=too-many-locals
-    registry = Registry(namespace)
-    serializer = FlatBuffers(registry)
-    if schema_file:
-        sch = flatboobs.parser.load_from_file(schema_file)
-        registry.add_types(sch)  # TODO replace with add_schema()
-        namespace = sch.namespace
-        root_type = root_type or sch.root_type
-    if schema_package:
-        raise NotImplementedError  # TODO implement loading schema from module
-
-    message = input_file.read()
-    container = serializer.unpackb(root_type, message)
-
-    dct = asnative(container)
-
-    if output_format == 'json':
-        import json
-        json.dump(dct, output_file, indent=2, ensure_ascii=False)
-    elif output_format == 'yaml':
-        import yaml
-        yaml.dump(dct, stream=output_file)
-    elif output_format == 'pprint':
-        import pprint
-        output_file.write(pprint.pformat(dct))
-    else:
-        raise RuntimeError(f"Unknown output format {output_format}")
-
-    if output_file.name == '<stdout>':
-        output_file.write('\n')
+import flatboobs.codegen
+from flatboobs import logging
 
 
 @click.group()
-@click.option('--debug/--no-debug', default=None)
-def main(debug):
+@click.option('--debug/-no-debug', default=False)
+@click.pass_context
+def main(
+        ctx: click.Context,
+        debug: bool = False,
+) -> None:
     logging.setup_logging(debug)
+    ctx.ensure_object(dict)
+    ctx.obj['debug'] = debug
 
 
-main.add_command(unpack)
+@main.command(help="Generates CMakeLists.txt file.")
+@click.option('--project-name', '-p', default=None)
+@click.option(
+    '--output-dir', '-o', default='./',
+    type=click.Path(
+        file_okay=False, dir_okay=True, writable=True, resolve_path=True))
+@click.option(
+    '--include-path', '-I', multiple=True,
+    type=click.Path(
+        file_okay=False, dir_okay=True, readable=True, resolve_path=True))
+@click.option('--no-grpc', 'grpc', flag_value=None, default=True)
+@click.option('--grpclib', 'grpc', flag_value='grpclib')
+@click.argument(
+    'schema_path', nargs=-1,
+    type=click.Path(
+        file_okay=False, dir_okay=True, readable=True, resolve_path=True))
+def cmake(
+        project_name: Optional[str] = None,
+        output_dir: str = './',
+        include_path: Sequence[str] = tuple(),
+        grpc: Optional[str] = None,
+        schema_path: Sequence[str] = tuple()
+):
+    if not project_name:
+        project_name = Path(output_dir).stem
+    flatboobs.codegen.cmakelists.generate(
+        project_name,
+        list(map(Path, schema_path)) if schema_path else [
+            Path.cwd().resolve()],
+        list(map(Path, include_path)),
+        grpc,
+        Path(output_dir)
+    )
+
+
+@main.command(help="Generates [de]serializer code.")
+@click.option(
+    '--output-dir', '-o', default='./',
+    type=click.Path(
+        file_okay=False, dir_okay=True, writable=True, resolve_path=True))
+@click.option(
+    '--include-path', '-I', multiple=True,
+    type=click.Path(
+        file_okay=False, dir_okay=True, readable=True, resolve_path=True))
+@click.argument(
+    'schema_file', nargs=-1,
+    type=click.Path(
+        file_okay=True, dir_okay=False, readable=True, resolve_path=True))
+def serializer(
+        output_dir: str = './',
+        include_path: Sequence[str] = tuple(),
+        schema_file: Sequence[str] = tuple()
+):
+    flatboobs.codegen.serializer.generate(
+        list(map(Path, schema_file)),
+        list(map(Path, include_path)),
+        Path(output_dir)
+    )
+
 
 if __name__ == '__main__':
-    main()  # pylint: disable=no-value-for-parameter
+    # pylint: disable=no-value-for-parameter
+    # pylint: disable=unexpected-keyword-arg
+    main(obj=dict())

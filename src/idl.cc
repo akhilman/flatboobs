@@ -171,6 +171,18 @@ static void pydefine_Namespace(py::module &m) {
              repr << "]>";
              return repr.str();
            })
+      .def("__eq__",
+           [](const fb::Namespace &self, const fb::Namespace &other) {
+             return self.components == other.components;
+           })
+      .def("__gt__",
+           [](const fb::Namespace &self, const fb::Namespace &other) {
+             return self.components > other.components;
+           })
+      .def("__lt__",
+           [](const fb::Namespace &self, const fb::Namespace &other) {
+             return self.components < other.components;
+           })
       .def("get_fully_qualified_name", &fb::Namespace::GetFullyQualifiedName,
            "name"_a, "max_components"_a = 1000)
       .def_readonly("components", &fb::Namespace::components, RETPOL_REFINT)
@@ -254,8 +266,7 @@ static void pydefine_Type(py::module &m) {
       .def_property_readonly(
           "inline_alignment",
           [](fb::Type &self) { return fb::InlineAlignment(self); })
-      .def_property_readonly("is_struct",
-                             [](fb::Type &self) { return fb::IsStruct(self); });
+      .def("is_struct", [](fb::Type &self) { return fb::IsStruct(self); });
 }
 
 /*
@@ -329,9 +340,9 @@ static void pydefine_EnumDef(py::module &m) {
              return "<EnumDef: \"" + self.name + "\">";
            })
       .def_readonly("values", &fb::EnumDef::vals, RETPOL_REFINT)
-      .def_readonly("is_union", &fb::EnumDef::is_union)
       .def_readonly("underlying_type", &fb::EnumDef::underlying_type,
-                    RETPOL_REFINT);
+                    RETPOL_REFINT)
+      .def("is_union", [](fb::EnumDef &self) { return self.is_union; });
 }
 
 /*

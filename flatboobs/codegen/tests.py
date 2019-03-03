@@ -1,0 +1,3 @@
+TESTS = {
+    'isinstance': isinstance,
+}
