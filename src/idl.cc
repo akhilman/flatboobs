@@ -197,7 +197,9 @@ static void pydefine_Definition(py::module &m) {
                     RETPOL_REFINT)
       .def_property_readonly(
           "fully_qualified_name", [](const fb::Definition &self) {
-            return self.defined_namespace->GetFullyQualifiedName(self.name);
+            if (self.defined_namespace)
+              return self.defined_namespace->GetFullyQualifiedName(self.name);
+            return std::string{};
           });
 }
 
