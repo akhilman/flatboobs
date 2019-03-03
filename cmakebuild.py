@@ -62,7 +62,7 @@ class BuildCmake(Command):
 
         try:
             subprocess.check_output(['cmake', '--version'])
-        except:
+        except subprocess.CalledProcessError:
             raise RuntimeError(
                 "CMake must be installed to build the following extensions: "
                 + ", ".join(e.name for e in self.extensions)
