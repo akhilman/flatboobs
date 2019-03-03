@@ -6,7 +6,6 @@
 #include <vector>
 
 // #include <flatbuffers/flatbuffers.h> // used by dump/load bfbs
-#include <flatbuffers/hash.h>
 #include <flatbuffers/idl.h>
 // #include <flatbuffers/reflection.h> // used by dump/load bfbs
 #include <flatbuffers/util.h>
@@ -14,8 +13,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <flatboobs/common.h>
 #include <flatboobs/exceptions.h>
+#include <flatboobs/utils.h>
+
+#define RETPOL_COPY py::return_value_policy::copy
+#define RETPOL_REFINT py::return_value_policy::reference_internal
+#define RETPOL_TAKEOWN py::return_value_policy::take_ownership
 
 namespace flatboobs {
 
@@ -86,6 +89,15 @@ static void pydefine_SymbolTable(py::module &m, const std::string &name) {
              return self.vec[index];
            },
            RETPOL_REFINT)
+      .def("__getitem__",
+           [](const TT &self, const std::string &key) {
+             IT *value = self.Lookup(key);
+             if (value == NULL) {
+               throw py::key_error("key '" + key + "' does not exist");
+             }
+             return value;
+           },
+           RETPOL_REFINT)
       .def("__len__", [](const TT &self) { return self.vec.size(); })
       .def("__iter__",
            [](const TT &self) {
@@ -110,15 +122,12 @@ static void pydefine_SymbolTable(py::module &m, const std::string &name) {
              return idx;
            })
       .def("keys", [](const TT &self) { return get_sorted_keys(self); })
-      .def("lookup",
-           [](const TT &self, const std::string &key) {
-             IT *value = self.Lookup(key);
-             if (value == NULL) {
-               throw py::key_error("key '" + key + "' does not exist");
-             }
-             return value;
-           },
-           RETPOL_REFINT);
+      .def("items", [](const TT &self) {
+        std::vector<std::pair<std::string, IT *>> items{};
+        for (auto key : get_sorted_keys(self))
+          items.push_back(std::pair(key, self.Lookup(key)));
+        return items;
+      });
 }
 
 /*
@@ -341,36 +350,18 @@ static void pydefine_ServiceDef(py::module &m) {
  * Parser
  */
 
-std::string ascii_or_hex(std::string src) {
-  std::stringstream ret;
-  if (src.find_first_not_of(
-          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_") ==
-      std::string::npos)
-    ret << '"' << src << '"';
-  else {
-    ret << "0x";
-    for (unsigned char c : src)
-      ret << std::hex << (int)c;
-  }
-
-  return ret.str();
-}
-
 static void pydefine_Parser(py::module &m) {
 
   py::class_<fb::Parser>(m, "Parser", py::buffer_protocol())
       .def(py::init<>())
       .def("__repr__",
            [](const fb::Parser &self) {
-             return "<Parser: " + ascii_or_hex(self.file_identifier_) + ">";
+             return "<Parser: \"" + self.file_identifier_ + "\">";
            })
       .def_readonly("error", &fb::Parser::error_, RETPOL_COPY)
       .def_readonly("root_struct_def", &fb::Parser::root_struct_def_,
                     RETPOL_REFINT)
-      .def_property_readonly("file_identifier",
-                             [](const fb::Parser &self) {
-                               return py::bytes(self.file_identifier_);
-                             })
+      .def_readonly("file_identifier", &fb::Parser::file_identifier_)
       .def_readonly("file_extension", &fb::Parser::file_extension_)
       .def_readonly("uses_flexbuffers", &fb::Parser::uses_flexbuffers_)
       .def_readonly("included_files", &fb::Parser::included_files_, RETPOL_COPY)
@@ -407,8 +398,7 @@ static void pydefine_Parser(py::module &m) {
  */
 
 fb::Parser *parse_file(const std::string &source_filename,
-                       const std::vector<std::string> &include_paths,
-                       const bool hash_identifier = false) {
+                       const std::vector<std::string> &include_paths) {
   bool ok;
   std::stringstream message;
 
@@ -447,17 +437,6 @@ fb::Parser *parse_file(const std::string &source_filename,
                        source_filename.c_str());
     if (!ok)
       throw ParserError{parser->error_};
-  }
-
-  if (hash_identifier && parser->file_identifier_.empty() &&
-      parser->root_struct_def_) {
-    auto full_name =
-        parser->root_struct_def_->defined_namespace->GetFullyQualifiedName(
-            parser->root_struct_def_->name);
-    uint32_t hash = fb::HashFnv1a<uint32_t>(full_name.c_str());
-    char *const hash_p = reinterpret_cast<char *const>(&hash);
-    for (size_t i = sizeof(hash); i > 0; i--)
-      parser->file_identifier_.push_back(*(hash_p + i - 1));
   }
 
   return parser;
@@ -516,6 +495,7 @@ PYBIND11_MODULE(idl, m) {
 
   // EnumVal
   pydefine_EnumVal(m);
+  pydefine_SymbolTable<fb::EnumVal>(m, "EnumVal");
 
   // EnumDef
   pydefine_EnumDef(m);
@@ -533,7 +513,7 @@ PYBIND11_MODULE(idl, m) {
 
   // Functions
   m.def("parse_file", &parse_file, RETPOL_TAKEOWN, "source_filename"_a,
-        "include_paths"_a = py::list{}, "hash_identifier"_a = true);
+        "include_paths"_a = py::list{});
 #if false
   m.def("load_bfbs", load_bfbs, RETPOL_TAKEOWN);
 #endif
