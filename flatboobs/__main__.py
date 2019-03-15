@@ -4,9 +4,10 @@ TODO Write module docstring
 # pylint: disable=missing-docstring
 
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 import click
+import toolz.functoolz as ft
 
 import flatboobs.codegen
 from flatboobs import logging
@@ -24,27 +25,39 @@ def main(
     ctx.obj['debug'] = debug
 
 
+def common_options(func: Callable) -> Callable:
+    return ft.compose(
+        click.option(
+            '--output-dir', '-o', default='./',
+            type=click.Path(
+                file_okay=False, dir_okay=True, writable=True,
+                resolve_path=True)),
+        click.option(
+            '--include-path', '-I', multiple=True,
+            type=click.Path(
+                file_okay=False, dir_okay=True, readable=True,
+                resolve_path=True)),
+        click.option('--no-rpc', 'rpc', flag_value=None, default=True),
+        click.option('--grpclib', 'rpc', flag_value='grpclib'),
+        click.option('--python/--no-python', default=False,
+                     help="Generate python module"),
+    )(func)
+
+
 @main.command(help="Generates CMakeLists.txt file.")
+@common_options
 @click.option('--project-name', '-p', default=None)
-@click.option(
-    '--output-dir', '-o', default='./',
-    type=click.Path(
-        file_okay=False, dir_okay=True, writable=True, resolve_path=True))
-@click.option(
-    '--include-path', '-I', multiple=True,
-    type=click.Path(
-        file_okay=False, dir_okay=True, readable=True, resolve_path=True))
-@click.option('--no-grpc', 'grpc', flag_value=None, default=True)
-@click.option('--grpclib', 'grpc', flag_value='grpclib')
 @click.argument(
     'schema_path', nargs=-1,
     type=click.Path(
         file_okay=False, dir_okay=True, readable=True, resolve_path=True))
 def cmake(
+        # pylint: disable=too-many-arguments
         project_name: Optional[str] = None,
         output_dir: str = './',
         include_path: Sequence[str] = tuple(),
-        grpc: Optional[str] = None,
+        rpc: Optional[str] = None,
+        python: bool = False,
         schema_path: Sequence[str] = tuple()
 ):
     if not project_name:
@@ -54,33 +67,31 @@ def cmake(
         list(map(Path, schema_path)) if schema_path else [
             Path.cwd().resolve()],
         list(map(Path, include_path)),
-        grpc,
-        Path(output_dir)
+        Path(output_dir),
+        rpc=rpc,
+        python=python,
     )
 
 
 @main.command(help="Generates [de]serializer code.")
-@click.option(
-    '--output-dir', '-o', default='./',
-    type=click.Path(
-        file_okay=False, dir_okay=True, writable=True, resolve_path=True))
-@click.option(
-    '--include-path', '-I', multiple=True,
-    type=click.Path(
-        file_okay=False, dir_okay=True, readable=True, resolve_path=True))
+@common_options
 @click.argument(
     'schema_file', nargs=-1,
     type=click.Path(
         file_okay=True, dir_okay=False, readable=True, resolve_path=True))
-def serializer(
+def lazy(
         output_dir: str = './',
         include_path: Sequence[str] = tuple(),
-        schema_file: Sequence[str] = tuple()
+        schema_file: Sequence[str] = tuple(),
+        rpc: Optional[str] = None,
+        python: bool = False,
 ):
-    flatboobs.codegen.serializer.generate(
+    flatboobs.codegen.sources.generate(
         list(map(Path, schema_file)),
         list(map(Path, include_path)),
-        Path(output_dir)
+        Path(output_dir),
+        rpc=rpc,
+        python=python,
     )
 
 

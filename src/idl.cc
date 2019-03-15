@@ -81,6 +81,15 @@ static void pydefine_SymbolTable(py::module &m, const std::string &name) {
              repr << "]>";
              return repr.str();
            })
+      .def("__contains__",
+           [](const TT &self, const std::string &key) {
+             IT *value = self.Lookup(key);
+             if (value == NULL) {
+               return false;
+             }
+             return true;
+           },
+           RETPOL_REFINT)
       .def("__getitem__",
            [](const TT &self, const size_t index) {
              if (index >= self.vec.size())
@@ -422,7 +431,7 @@ fb::Parser *parse_file(const std::string &source_filename,
   if (!ok) {
     message << "No such file: \"";
     message << source_filename << "\"";
-    throw ParserError{message.str()};
+    throw parser_error{message.str()};
   }
 
   std::vector<const char *> c_include_paths;
@@ -439,17 +448,17 @@ fb::Parser *parse_file(const std::string &source_filename,
         reinterpret_cast<const uint8_t *>(source.c_str()),
         source.size()
         );
-    if (!ok) throw ParserError {
+    if (!ok) throw parser_error {
       "Unable to deserialize binary schema file " + source_filename };
 #else
-    throw NotImplementedError();
+    throw not_implemented_error();
 #endif
   } else {
     ok = parser->Parse(source.c_str(),
                        const_cast<const char **>(c_include_paths.data()),
                        source_filename.c_str());
     if (!ok)
-      throw ParserError{parser->error_};
+      throw parser_error{parser->error_};
   }
 
   return parser;
@@ -464,7 +473,7 @@ fb::Parser *load_bfbs(const py::bytes &blob) {
   ok = parser->Deserialize(reinterpret_cast<const uint8_t *>(c_blob.c_str()),
                            c_blob.size());
   if (!ok)
-    throw ParserError{"Unable to deserialize binary schema"};
+    throw parser_error{"Unable to deserialize binary schema"};
   return parser;
 }
 #endif
@@ -478,7 +487,7 @@ PYBIND11_MODULE(idl, m) {
 
   // Exceptions
   // TODO separate module for exceptions
-  py::register_exception<ParserError>(m, "ParserError");
+  py::register_exception<parser_error>(m, "ParserError");
 
   // Enums
   pydefine_BaseType(m);

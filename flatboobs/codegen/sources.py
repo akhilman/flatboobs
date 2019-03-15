@@ -1,12 +1,13 @@
 # pylint: disable=missing-docstring
 
 from pathlib import Path
-from typing import Sequence, Set
+from typing import Optional, Sequence, Set
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from flatboobs import idl  # type: ignore
 
+from .cpp_format import cpp_format
 from .filters import FILTERS
 from .tests import TESTS
 
@@ -26,16 +27,20 @@ def gen_header(
 ) -> None:
     root_struct_def = parser.root_struct_def
     root_fname = Path(root_struct_def.file)
-    out_fname = (
+    output_file = (
         output_dir
-        / f'{(root_fname.stem)}_generated_py.h'
+        / f'{(root_fname.stem)}_generated_l.h'
     )
-    template = env.get_template('serializer.h/main.txt')
-    with out_fname.open('w') as out:
-        out.write(template.render(
-            parser=parser,
-            output_file=out_fname,
-        ))
+    template = env.get_template('lazy.h/main.txt')
+    with output_file.open('w') as out:
+        out.write(
+            cpp_format(
+                template.render(
+                    parser=parser,
+                    output_file=output_file,
+                )
+            )
+        )
 
 
 def gen_implementation(
@@ -45,17 +50,21 @@ def gen_implementation(
 ) -> None:
     root_struct_def = parser.root_struct_def
     root_fname = Path(root_struct_def.file)
-    out_fname = (
+    output_file = (
         output_dir
-        / f'{(root_fname.stem)}_generated_py.cc'
+        / f'{(root_fname.stem)}_generated_l.cc'
     )
 
-    template = env.get_template('serializer.cc/main.txt')
-    with out_fname.open('w') as out:
-        out.write(template.render(
-            parser=parser,
-            output_file=out_fname,
-        ))
+    template = env.get_template('lazy.cc/main.txt')
+    with output_file.open('w') as out:
+        out.write(
+            cpp_format(
+                template.render(
+                    parser=parser,
+                    output_file=output_file,
+                )
+            )
+        )
 
 
 def gen_module(
@@ -65,23 +74,29 @@ def gen_module(
 ) -> None:
     root_struct_def = parser.root_struct_def
     root_fname = Path(root_struct_def.file)
-    out_fname = (
+    output_file = (
         output_dir
         / f'{(root_fname.stem)}.cc'
     )
 
     template = env.get_template('serializer.mod/main.txt')
-    with out_fname.open('w') as out:
-        out.write(template.render(
-            parser=parser,
-            output_file=out_fname,
-        ))
+    with output_file.open('w') as out:
+        out.write(
+            cpp_format(
+                template.render(
+                    parser=parser,
+                    output_file=output_file,
+                )
+            )
+        )
 
 
 def generate(
         schema_files: Sequence[Path],
         include_paths: Sequence[Path],
         output_dir: Path,
+        rpc: Optional[str] = None,
+        python: bool = False,
 ) -> None:
 
     env = Environment(
@@ -105,7 +120,11 @@ def generate(
 
         gen_header(env, parser, output_dir)
         gen_implementation(env, parser, output_dir)
-        gen_module(env, parser, output_dir)
+        if python:
+            gen_module(env, parser, output_dir)
+        if rpc:
+            # TODO
+            pass
 
         done.add(Path(root_struct_def.file))
         for inc in map(Path, parser.included_files):

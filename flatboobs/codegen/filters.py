@@ -6,7 +6,7 @@ from typing import Union
 
 import toolz.itertoolz as it
 
-from flatboobs.idl import BaseType  # type: ignore
+from flatboobs import idl  # type: ignore
 
 CPP_KEYWORDS = {
     "alignas",
@@ -145,19 +145,19 @@ PYTHON_KEYWORDS = {
 }
 
 CPP_TYPES = {
-    BaseType.NONE: "uint8_t",
-    BaseType.UTYPE: "uint8_t",
-    BaseType.BOOL: "uint8_t",
-    BaseType.CHAR: "int8_t",
-    BaseType.UCHAR: "uint8_t",
-    BaseType.SHORT: "int16_t",
-    BaseType.USHORT: "uint16_t",
-    BaseType.INT: "int32_t",
-    BaseType.UINT: "uint32_t",
-    BaseType.LONG: "int64_t",
-    BaseType.ULONG: "uint64_t",
-    BaseType.FLOAT: "float",
-    BaseType.DOUBLE: "double",
+    idl.BaseType.NONE: "uint8_t",
+    idl.BaseType.UTYPE: "uint8_t",
+    idl.BaseType.BOOL: "uint8_t",
+    idl.BaseType.CHAR: "int8_t",
+    idl.BaseType.UCHAR: "uint8_t",
+    idl.BaseType.SHORT: "int16_t",
+    idl.BaseType.USHORT: "uint16_t",
+    idl.BaseType.INT: "int32_t",
+    idl.BaseType.UINT: "uint32_t",
+    idl.BaseType.LONG: "int64_t",
+    idl.BaseType.ULONG: "uint64_t",
+    idl.BaseType.FLOAT: "float",
+    idl.BaseType.DOUBLE: "double",
 }
 
 
@@ -174,7 +174,7 @@ def escape_python_keyward(txt: str) -> str:
 
 
 def include_guard(fname: Union[str, Path]) -> str:
-    guard: str = Path(fname).stem
+    guard: str = Path(fname).name
     guard = re.sub(r'[^\w]', '_', guard)
     guard = f'FLATBOOBS_GENERATED_{guard.upper()}_'
     return guard
@@ -204,8 +204,35 @@ def stem(fname: Union[str, Path]) -> str:
     return Path(fname).stem
 
 
-def to_cpp_type(type_: BaseType) -> str:
-    return CPP_TYPES[type_]
+def lazy_class_name(definition: idl.Definition) -> str:
+    return escape_cpp_keyward(definition.name) + "L"
+
+
+def to_cpp_type(
+        type_: idl.Type,
+        const=False,
+        no_namespace=False,
+        no_pointer=False,
+) -> str:
+    base_type = type_.base_type
+    definition = type_.definition
+    if definition and base_type.is_scalar():  # enum
+        type_str = definition.name
+        if not no_namespace:
+            type_str = '::'.join([*definition.defined_namespace, type_str])
+        if const:
+            type_str = f'const {type_str}'
+    elif base_type in CPP_TYPES:  # base types
+        type_str = CPP_TYPES[type_.base_type]
+        if const:
+            type_str = f'const {type_str}'
+    else:
+        raise NotImplementedError('Oops!')
+    return type_str
+
+
+def quote(txt: str) -> str:
+    return f'"{txt}"'
 
 
 FILTERS = {
@@ -217,6 +244,8 @@ FILTERS = {
     'relative_path': relative_path,
     'with_suffix': with_suffix,
     'stem': stem,
+    'lazy_class_name': lazy_class_name,
     'to_cpp_type': to_cpp_type,
     'concat': it.concat,
+    'quote': quote,
 }

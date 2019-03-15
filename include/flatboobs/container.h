@@ -31,6 +31,13 @@ public:
   virtual const size_t size() const = 0;
 };
 
+template <typename T> class LazyBufMessage : public IMessage {
+public:
+  using flatbuf_type = typename T::flatbuf_type;
+  // TODO get root here
+  // TODO validate here
+};
+
 /*
  * Bytes
  */
@@ -76,19 +83,26 @@ private:
  */
 
 class Container {
-
 public:
-  Container(std::shared_ptr<const IMessage> message_)
-      : _message_holder{message_} {}
   virtual ~Container() = default;
 
-  virtual const std::string fully_qualified_name() const = 0;
-  virtual const std::string name() const = 0;
+  // virtual const std::string fully_qualified_name() const = 0;
+  // virtual const std::string name() const = 0;
 
-protected:
-  const std::shared_ptr<const IMessage> _message_holder;
+  // virtual const bool is_evolved() const = 0;
+  // virtual const fb::Offset<FBT> build() const;
 };
 
+class StructLike : public Container {
+public:
+  // type const name() const; // getters
+  virtual const std::vector<std::string> _keys() const;
+  // virtual const VTs _get(const std::string &key) const;
+
+  // evolve
+};
+
+/*
 class StructLike : public Container {
 
 public:
@@ -126,6 +140,7 @@ public:
 
   virtual const py::buffer_info buffer() const = 0;
 };
+*/
 
 /*
  * Struct

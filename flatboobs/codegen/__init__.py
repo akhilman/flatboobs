@@ -1,8 +1,8 @@
 # pylint: disable=missing-docstring
 
-from . import cmakelists, serializer
+from . import cmakelists, sources
 
 __all__ = [
     'cmakelists',
-    'serializer'
+    'sources'
 ]

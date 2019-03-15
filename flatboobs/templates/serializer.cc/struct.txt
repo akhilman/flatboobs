@@ -1,9 +1,0 @@
-{% set namespace_ = struct_def.defined_namespace.components|join("::") %}
-{% set class_name = struct_def.name|escape_cpp_keyword %}
-// {{ class_name }}
-namespace {{ namespace_ }} {
-}
-
-{#
-// vim: syntax=cpp
-#}

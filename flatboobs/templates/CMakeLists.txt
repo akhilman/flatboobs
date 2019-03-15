@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.12)
 
 project ({{ project_name }})
 
@@ -8,6 +8,12 @@ set(CMAKE_CXX_STANDARD 17)
 list(APPEND CMAKE_CXX_FLAGS -Wall)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Set variables
+set(SCHEMA_PATHS
+    "{{ schema_paths|map("relative_path", output_dir)|join(";") }}")
+set(SCHEMA_INCLUDE_PATHS
+    "{{ include_paths|map("relative_path", output_dir)|join(";") }}")
+
 # Find dependencies
 find_package(pybind11 CONFIG REQUIRED)
 find_package(Flatbuffers REQUIRED)
@@ -16,42 +22,45 @@ find_package(FlatBoobs REQUIRED)
 set(FLATBOOBS_EXEC "python" -m flatboobs)
 set(FLATC_EXEC "flatc")
 
-set(SCHEMA_PATHS
-    "{{ schema_paths|map("relative_path", output_dir)|join(";") }}")
-set(SCHEMA_INCLUDE_PATHS
-    "{{ include_paths|map("relative_path", output_dir)|join(";") }}")
 
 # Define functions
 function(make_serializer schema_files)
-    set(base_names)
-    set(gen_headers)
-    set(gen_py_headers)
-    set(gen_py_sources)
-    set(gen_py_modsources)
+    set(base_names "")
+    set(flatbuf_headers "")
+    set(lazy_headers "")
+    set(lazy_sources "")
+    set(py_sources "")
     foreach(name ${schema_files})
         string(REGEX REPLACE "^.*/([^/]+)\.fbs$" "\\1" name ${name})
         list(APPEND base_names ${name})
-        list(APPEND gen_headers "${PROJECT_BINARY_DIR}/${name}_generated.h")
-        list(APPEND gen_py_headers "${PROJECT_BINARY_DIR}/${name}_generated_py.h")
-        list(APPEND gen_py_sources "${PROJECT_BINARY_DIR}/${name}_generated_py.cc")
-        list(APPEND gen_py_modsources "${PROJECT_BINARY_DIR}/${name}.cc")
+        list(APPEND flatbuf_headers "${PROJECT_BINARY_DIR}/${name}_generated.h")
+        list(APPEND lazy_headers
+          "${PROJECT_BINARY_DIR}/${name}_generated_l.h")
+        list(APPEND lazy_sources
+          "${PROJECT_BINARY_DIR}/${name}_generated_l.cc")
+        list(APPEND py_sources "${PROJECT_BINARY_DIR}/${name}.cc")
     endforeach(name)
 
+    list(TRANSFORM SCHEMA_INCLUDE_PATHS PREPEND -I include_paths_args_list)
+    list(JOIN include_paths_args_list " " include_paths_args)
+
     add_custom_command(
-        OUTPUT ${gen_headers}
+        OUTPUT ${flatbuf_headers}
         DEPENDS ${schema_files}
-        COMMAND ${FLATC_EXEC} --cpp -o ${PROJECT_BINARY_DIR} ${schema_files}
+        COMMAND ${FLATC_EXEC} --cpp --scoped-enums ${include_paths_args}
+          -o ${PROJECT_BINARY_DIR} ${schema_files}
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         )
     add_custom_command(
-        OUTPUT ${gen_py_headers} ${gen_py_sources} ${gen_py_modsources}
-        DEPENDS ${source_files} ${gen_headers}
-        COMMAND ${FLATBOOBS_EXEC} serializer -o ${PROJECT_BINARY_DIR}
-            ${schema_files}
+        OUTPUT ${lazy_headers} ${lazy_sources} ${py_sources}
+        DEPENDS ${source_files} ${flatbuf_headers}
+        COMMAND ${FLATBOOBS_EXEC} serializer ${include_paths_args}
+          {{ flatboobs_args }}
+          -o ${PROJECT_BINARY_DIR} ${schema_files}
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         )
 
-    add_library(${PROJECT_NAME} STATIC ${gen_py_sources})
+    add_library(${PROJECT_NAME} STATIC ${lazy_sources})
     target_link_libraries(${PROJECT_NAME} PRIVATE flatbuffers flatboobs)
     target_include_directories(${PROJECT_NAME} PRIVATE ${PYTHON_INCLUDE_DIRS})
     target_include_directories(${PROJECT_NAME} PUBLIC
@@ -72,5 +81,3 @@ foreach(schema_path ${SCHEMA_PATHS})
     list(APPEND schema_files ${new_schema_files})
 endforeach(schema_path)
 make_serializer("${schema_files}")
-
-message("It works" ${SCHEMA_FILES})
