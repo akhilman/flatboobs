@@ -26,7 +26,7 @@ find_package(Flatbuffers REQUIRED)
 #   ${FlatBuffers_SRC_Dir}/src/idl_gen_grpc.cpp
 #   ${FlatBuffers_SRC_Dir}/grpc/src/compiler/schema_interface.h
 #   ${FlatBuffers_SRC_Dir}/grpc/src/compiler/cpp_generator.h
-#   ${FlatBuffers_SRC_Dir}/grpc/src/compiler/cpp_generator.cc
+#   ${FlatBuffers_SRC_Dir}/grpc/src/compiler/cpp_generator.cpp
 # )
 
 # add_library(flatbuffers_compiler STATIC ${FlatBuffers_CPP_Compiler_SRCS})
@@ -40,18 +40,18 @@ find_package(Flatbuffers REQUIRED)
 
 # Build modules
 
-add_library(flatboobs STATIC src/container.cc)
+add_library(flatboobs STATIC src/container.cpp)
 target_link_libraries(flatboobs PRIVATE flatbuffers)
 target_include_directories(flatboobs PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_include_directories(flatboobs PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-pybind11_add_module(idl MODULE src/idl.cc)
+pybind11_add_module(idl MODULE src/idl.cpp)
 target_link_libraries(idl PRIVATE flatbuffers)
 include_directories(idl PRIVATE include)
 
-pybind11_add_module(flatboobs-mod MODULE src/flatboobs.cc)
+pybind11_add_module(flatboobs-mod MODULE src/flatboobs.cpp)
 set_target_properties(flatboobs-mod PROPERTIES OUTPUT_NAME flatboobs)
 target_link_libraries(flatboobs-mod PRIVATE flatbuffers flatboobs)
 include_directories(flatboobs-mod PRIVATE include)
@@ -78,6 +78,6 @@ install(
 
 # Sample
 # pybind11_add_module(
-#   monster_generated_py MODULE flatboobs/sample/monster/monster_generated_py.cc)
+#   monster_generated_py MODULE flatboobs/sample/monster/monster_generated_py.cpp)
 # target_link_libraries(monster_generated_py PRIVATE flatbuffers flatboobs)
 # install(TARGETS monster_generated_py DESTINATION sample/monster)

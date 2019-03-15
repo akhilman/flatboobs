@@ -20,7 +20,7 @@ namespace {{ component }} {
 
 {% for struct_def in group.list|sort(attribute="name") %}
 
-{% include "lazy.cc/struct.txt" %}
+{% include "lazy.cpp/struct.txt" %}
 {% endfor %}
 
 {% for component in group.grouper.components|reverse %}

@@ -52,10 +52,10 @@ def gen_implementation(
     root_fname = Path(root_struct_def.file)
     output_file = (
         output_dir
-        / f'{(root_fname.stem)}_generated_l.cc'
+        / f'{(root_fname.stem)}_generated_l.cpp'
     )
 
-    template = env.get_template('lazy.cc/main.txt')
+    template = env.get_template('lazy.cpp/main.txt')
     with output_file.open('w') as out:
         out.write(
             cpp_format(
@@ -76,7 +76,7 @@ def gen_module(
     root_fname = Path(root_struct_def.file)
     output_file = (
         output_dir
-        / f'{(root_fname.stem)}.cc'
+        / f'{(root_fname.stem)}.cpp'
     )
 
     template = env.get_template('serializer.mod/main.txt')
