@@ -29,14 +29,32 @@ public:
   virtual ~IMessage() = default;
   virtual const char *data() const = 0;
   virtual const size_t size() const = 0;
+  operator const char *() { return (const char *)data(); }
 };
 
 template <typename T> class LazyBufMessage : public IMessage {
 public:
   using flatbuf_type = typename T::flatbuf_type;
-  // TODO get root here
-  // TODO validate here
-};
+
+  LazyBufMessage() : size_{0}, offset_{0}, data_{nullptr} {}
+  virtual ~LazyBufMessage() = default;
+
+  virtual const char *data() const { return data_.get() + offset_; }
+  virtual const size_t size() const { return size_; }
+
+private:
+  friend T;
+  void steal_from_builder(flatbuffers::FlatBufferBuilder &&builder) {
+    size_ = builder.GetSize();
+    size_t buffer_size; // total buffer size with usless padding.
+    const char *data = reinterpret_cast<const char *>(
+        builder.ReleaseRaw(buffer_size, offset_));
+    data_ = std::unique_ptr<const char>(data);
+  };
+  size_t size_;
+  size_t offset_;
+  std::unique_ptr<const char> data_;
+}; // namespace flatboobs
 
 /*
  * Bytes
@@ -72,9 +90,9 @@ public:
   const py::bytes tobytes() const;
 
 private:
-  const char *_data;
-  size_t _size;
-  size_t _offset;
+  const char *data_;
+  size_t size_;
+  size_t offset_;
   holder_t _data_holder;
 };
 

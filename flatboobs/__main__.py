@@ -37,6 +37,8 @@ def common_options(func: Callable) -> Callable:
             type=click.Path(
                 file_okay=False, dir_okay=True, readable=True,
                 resolve_path=True)),
+        click.option('--header-only/--no-header-only', default=False,
+                     help="Generated header only library"),
         click.option('--no-rpc', 'rpc', flag_value=None, default=True),
         click.option('--grpclib', 'rpc', flag_value='grpclib'),
         click.option('--python/--no-python', default=False,
@@ -56,6 +58,7 @@ def cmake(
         project_name: Optional[str] = None,
         output_dir: str = './',
         include_path: Sequence[str] = tuple(),
+        header_only: bool = False,
         rpc: Optional[str] = None,
         python: bool = False,
         schema_path: Sequence[str] = tuple()
@@ -80,8 +83,10 @@ def cmake(
     type=click.Path(
         file_okay=True, dir_okay=False, readable=True, resolve_path=True))
 def lazy(
+        # pylint: disable=too-many-arguments
         output_dir: str = './',
         include_path: Sequence[str] = tuple(),
+        header_only: bool = False,
         schema_file: Sequence[str] = tuple(),
         rpc: Optional[str] = None,
         python: bool = False,
@@ -90,8 +95,11 @@ def lazy(
         list(map(Path, schema_file)),
         list(map(Path, include_path)),
         Path(output_dir),
-        rpc=rpc,
-        python=python,
+        options={
+            "header_only": header_only,
+            "rpc": rpc,
+            "python": python,
+        }
     )
 
 

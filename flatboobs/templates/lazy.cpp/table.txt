@@ -1,0 +1,176 @@
+{% set flatbuf_type = struct_def.name|escape_cpp_keyword %}
+{% set class_name = struct_def|lazy_class_name %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+{% set extra_keywords = [
+  "get", "keys", "data", "is_dirty", "build", "pack", "unpack",
+  "message_", "flatbuf_", "dirty_"
+  ] %}
+
+/* {{ class_name }} */
+
+// Constructors
+
+{{ class_name }}::{{ class_name }}(
+    std::shared_ptr<const flatboobs::IMessage> message,
+    const flatbuf_type *flatbuf
+    ) : message_{message}, flatbuf_{flatbuf}, dirty_{false},
+    {% for field_name in fields|map("attr", "name")|map("escape_cpp_keyword") %}
+        cached_{{ field_name }}_ {}
+        {{- "," if not loop.last }}
+    {% endfor %}
+    {}
+
+{{ class_name }}::{{ class_name }}(
+    {% for field in fields %}
+      {{ field.value.type
+          |to_cpp_type(const=True) }} &_{{ field.name|escape_cpp_keyword }}
+        {{- "," if not loop.last }}
+    {% endfor %}
+    )
+    : message_{}, flatbuf_{},
+     dirty_{true},
+    {% for field_name in fields|map("attr", "name")|map("escape_cpp_keyword") %}
+        cached_{{ field_name }}_ { _{{ field_name }} }
+        {{- "," if not loop.last }}
+    {% endfor %}
+    {}
+
+// Operators
+
+std::ostream& operator<< (std::ostream &stream, {{ class_name }} &src)
+{
+  stream << "{{ flatbuf_type }}("
+  {% for field in fields %}
+      << "{{ field.name }}="
+  {% if field.value.type.base_type == BaseType.BOOL %}
+      << (src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+          ? "true" : "false")
+  {% elif field.value.type.base_type.is_scalar()
+        and field.value.type.base_type.is_one_byte() %}
+      << (int)src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+  {% elif field.value.type.base_type.is_scalar() %}
+      << src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+  {% elif field.value.type.base_type == BaseType.STRING %}
+    << '"' << src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}() << '"'
+  {% else %}
+    << (src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+          ? *(src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+          : "NULL")
+  {% endif %}
+  {% if not loop.last %}
+    << ", "
+  {% endif %}
+  {% endfor %}
+    << ")";
+  return stream;
+};
+
+// Getters
+
+{% for field in fields %}
+{{ field.value.type|to_cpp_type(const=True) }} {{ class_name -}}
+    ::{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}() const
+{
+  if (cached_{{ field.name|escape_cpp_keyword }}_)
+    return *cached_{{ field.name|escape_cpp_keyword }}_;
+  {{ field.value.type|to_cpp_type }} value;
+
+{% if field.value.type.base_type.is_scalar() %}
+  value = flatbuf_->{{ field.name|escape_cpp_keyword }}();
+{% else %}
+  value = nullptr;  // TODO {{ field.name }}
+{% endif %}
+
+  cached_{{ field.name|escape_cpp_keyword }}_
+    = std::optional<{{ field.value.type|to_cpp_type }}>{value};
+  return value;
+}
+
+{% endfor %}
+
+const {{ class_name }}::value_type_variant
+    {{ class_name }}::get(const std::string &key) const
+{
+{% for field in fields %}
+  if (key == "{{ field.name }}")
+    return {{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}();
+  else
+{% endfor %}
+    throw flatboobs::key_error(key);
+}
+
+// Builder
+
+const bool {{ class_name }}::is_dirty() const
+{
+  return dirty_;
+}
+
+flatbuffers::Offset<{{ flatbuf_type }}> {{ class_name }}::build(
+    flatbuffers::FlatBufferBuilder & _fbb,
+    std::map<size_t, flatbuffers::uoffset_t> &_offset_map
+) const {
+
+  auto it = _offset_map.find(size_t(this));
+  if (it != _offset_map.end())
+    return flatbuffers::Offset<{{ flatbuf_type }}>{it->second};
+
+  {{ flatbuf_type }}Builder builder{_fbb};
+{% for field in fields|sort(attribute="value.type.inline_size") %}
+{% if field.value.type.base_type.is_scalar() %}
+  builder.add_{{ field.name|escape_cpp_keyword }}({{
+    field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}());
+{% else %}
+  // TODO {{ field }}
+{% endif %}
+{% endfor %}
+  auto offset = builder.Finish();
+
+  _offset_map[size_t(this)] = offset.o;
+  return offset;
+}
+
+
+// Pack / Unpack
+
+void {{ class_name }}::pack(
+    flatboobs::LazyBufMessage<{{ class_name }}> &_message) const {
+  flatbuffers::FlatBufferBuilder builder {1024};
+  std::map<size_t, flatbuffers::uoffset_t> offset_map {};
+  flatbuffers::Offset<{{ flatbuf_type }}> offset;
+  offset = build(builder, offset_map);
+  Finish{{ flatbuf_type }}Buffer(builder, offset);
+  _message.steal_from_builder(std::move(builder));
+}
+
+void {{ class_name }}::pack(std::string &_bytes) const {
+    flatboobs::LazyBufMessage<{{ class_name }}> message;
+    pack(message);
+    _bytes = std::string(message.data(), message.size());
+}
+
+// const {{ class_name }} {{ class_name }}::unpack(
+//     std::shared_ptr<const flatboobs::LazyBufMessage<{{ class_name }}>> _message) {
+//   return {{ class_name }}(_message, Get{{ flatbuf_type }}(_message->data()));
+// }
+const {{ class_name }} {{ class_name }}::unpack(
+    std::shared_ptr<const flatboobs::IMessage> _message) {
+  auto verifier = flatbuffers::Verifier(
+    reinterpret_cast<const uint8_t *>(_message->data()),
+    _message->size()
+    );
+  bool ok = Verify{{ flatbuf_type }}Buffer(verifier);
+  if (!ok)
+    throw flatboobs::unpack_error("Bad message");
+  return {{ class_name }}(_message, Get{{ flatbuf_type }}(_message->data()));
+
+}
+/*const {{ class_name }} {{ class_name }}::unpack(std::string &_bytes) {
+
+}*/
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

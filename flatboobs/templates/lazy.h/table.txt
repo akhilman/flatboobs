@@ -1,0 +1,115 @@
+{% set flatbuf_type = struct_def.name|escape_cpp_keyword %}
+{% set class_name = struct_def|lazy_class_name %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+{% set extra_keywords = [
+  "get", "keys", "data", "is_dirty", "build", "pack", "unpack",
+  "message_", "flatbuf_", "dirty_"
+  ] %}
+
+
+class {{ class_name }} {
+public:
+  using flatbuf_type = {{ flatbuf_type }};
+  using value_type_variant = std::variant<{{
+    fields|map("attr", "value")|map("attr", "type")
+      |map("to_cpp_type", const=True)
+      |unique|sort|join(", ")
+  }}>;
+
+  // Constructors
+  {{ class_name }}(std::shared_ptr<const flatboobs::IMessage> message,
+    const flatbuf_type *flatbuf);
+  {{ class_name }}(
+    {% for field in fields %}
+      {% if field.value.type.base_type.is_scalar() %}
+        {% set default_value = field.value.constant %}
+      {% else %}
+        {% set default_value = "nullptr" %}
+      {% endif %}
+      {{ field.value.type
+          |to_cpp_type(const=True) }} {# -#}
+        &_{{ field.name|escape_cpp_keyword }} = {{ default_value }}
+        {{- "," if not loop.last }}
+    {% endfor %}
+    );
+
+  // Operators
+  friend std::ostream& operator<< (std::ostream&, {{ class_name }}&);
+
+  // // Metadata
+  // static constexpr std::string_view _name() {
+  //   return "{{ struct_def.name }}";
+  // };
+  // static constexpr std::string_view _fully_qualified_name() {
+  //   return "{{ struct_def.fully_qualified_name }}";
+  // };
+
+  // Getters
+{% for field in fields %}
+{% if field.value.type.base_type.is_scalar() %}
+  {{ field.value.type|to_cpp_type(const=True) }} {{ field.name
+            |escape_cpp_keyword|escape_keyword(extra_keywords) }}() const;
+{% else %}
+  // TODO {{ field.name }}
+{% endif %}
+{% endfor %}
+
+  static constexpr std::array<std::string_view, {{ fields|count }}> keys() {
+    return { {{ fields|map("attr", "name")
+                |escape_cpp_keyword|map("quote")|join(", ")}} };
+  };
+  const value_type_variant get(const std::string &key) const;
+{% if struct_def.fixed %}
+  const std::string_view data const ();
+{% else %}
+  // data() available only for fixed structs
+{% endif %}
+
+  // Defaults
+{% for field in fields %}
+{% if field.value.type.base_type.is_scalar() %}
+  static constexpr {{ field.value.type|to_cpp_type }} default_
+  {{- field.name|escape_cpp_keyword }}() { return {{ field.value.constant }}; };
+{% elif field.value.type.base_type == BaseType.STRING %}
+  static constexpr std::string_view default_
+  {{- field.name|escape_cpp_keyword }}() { return ""; };
+{% else %}
+  static constexpr nullptr_t default_
+  {{- field.name|escape_cpp_keyword }}() { return nullptr; };
+{% endif %}
+{% endfor %}
+
+  // Builder
+  const bool is_dirty() const;
+  flatbuffers::Offset<flatbuf_type> build(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    std::map<size_t, flatbuffers::uoffset_t> &_offset_map) const;
+
+  // Pack / Unpack
+  void pack(flatboobs::LazyBufMessage<{{ class_name }}> &_message) const;
+  void pack(std::string &_bytes) const;
+  // static const {{ class_name }}
+  // unpack(std::shared_ptr<const flatboobs::LazyBufMessage<{{ class_name }}>> _message);
+  static const {{ class_name }}
+  unpack(std::shared_ptr<const flatboobs::IMessage> _message);
+  static const {{ class_name }} unpack(std::string &_bytes);
+
+private:
+  std::shared_ptr<const flatboobs::IMessage> message_;
+  const flatbuf_type *flatbuf_;
+
+{% if not struct_def.fixed %}
+  bool dirty_;
+{% for field in fields %}
+  mutable std::optional<{{ field.value.type|to_cpp_type }}>
+    cached_{{ field.name|escape_cpp_keyword }}_;
+{% endfor %}
+{% endif %}
+
+};
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

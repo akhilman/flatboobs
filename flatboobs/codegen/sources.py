@@ -1,7 +1,7 @@
 # pylint: disable=missing-docstring
 
 from pathlib import Path
-from typing import Optional, Sequence, Set
+from typing import Any, Mapping, Sequence, Set
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -24,20 +24,22 @@ def gen_header(
         env: Environment,
         parser: idl.Parser,
         output_dir: Path,
+        options: Mapping[str, Any],
 ) -> None:
+    template = env.get_template('lazy.h/main.txt')
     root_struct_def = parser.root_struct_def
     root_fname = Path(root_struct_def.file)
     output_file = (
         output_dir
         / f'{(root_fname.stem)}_generated_l.h'
     )
-    template = env.get_template('lazy.h/main.txt')
-    with output_file.open('w') as out:
-        out.write(
+    with output_file.open('w') as output:
+        output.write(
             cpp_format(
                 template.render(
                     parser=parser,
-                    output_file=output_file,
+                    output_file=output.name,
+                    options=options,
                 )
             )
         )
@@ -47,56 +49,60 @@ def gen_implementation(
         env: Environment,
         parser: idl.Parser,
         output_dir: Path,
+        options: Mapping[str, Any],
 ) -> None:
+    if options['header_only']:
+        return
+    template = env.get_template('lazy.cpp/main.txt')
     root_struct_def = parser.root_struct_def
     root_fname = Path(root_struct_def.file)
     output_file = (
         output_dir
         / f'{(root_fname.stem)}_generated_l.cpp'
     )
-
-    template = env.get_template('lazy.cpp/main.txt')
-    with output_file.open('w') as out:
-        out.write(
+    with output_file.open('w') as output:
+        output.write(
             cpp_format(
                 template.render(
                     parser=parser,
-                    output_file=output_file,
+                    output_file=output.name,
+                    options=options,
                 )
             )
         )
 
 
-def gen_module(
+def gen_pymodule(
         env: Environment,
         parser: idl.Parser,
         output_dir: Path,
+        options: Mapping[str, Any],
 ) -> None:
+    template = env.get_template('pymodule/main.txt')
     root_struct_def = parser.root_struct_def
     root_fname = Path(root_struct_def.file)
     output_file = (
         output_dir
         / f'{(root_fname.stem)}.cpp'
     )
-
-    template = env.get_template('serializer.mod/main.txt')
-    with output_file.open('w') as out:
-        out.write(
+    with output_file.open('w') as output:
+        output.write(
             cpp_format(
                 template.render(
                     parser=parser,
-                    output_file=output_file,
+                    output_file=output.name,
+                    options=options,
                 )
             )
         )
 
 
 def generate(
+        # pylint: disable
         schema_files: Sequence[Path],
         include_paths: Sequence[Path],
         output_dir: Path,
-        rpc: Optional[str] = None,
-        python: bool = False,
+        options: Mapping[str, Any],
 ) -> None:
 
     env = Environment(
@@ -118,13 +124,9 @@ def generate(
         parser = idl.parse_file(str(fname), list(map(str, include_paths)))
         root_struct_def = parser.root_struct_def
 
-        gen_header(env, parser, output_dir)
-        gen_implementation(env, parser, output_dir)
-        if python:
-            gen_module(env, parser, output_dir)
-        if rpc:
-            # TODO
-            pass
+        gen_header(env, parser, output_dir, options)
+        gen_implementation(env, parser, output_dir, options)
+        gen_pymodule(env, parser, output_dir, options)
 
         done.add(Path(root_struct_def.file))
         for inc in map(Path, parser.included_files):

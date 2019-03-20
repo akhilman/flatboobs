@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Union
+from typing import Sequence, Union
 
 import toolz.itertoolz as it
 
@@ -161,16 +161,25 @@ CPP_TYPES = {
 }
 
 
-def escape_cpp_keyward(txt: str) -> str:
-    if txt in CPP_KEYWORDS:
+def escape_keyword(
+        txt: str,
+        keywords: Sequence[str] = tuple(),
+) -> str:
+    if txt in set(keywords):
         return txt + '_'
     return txt
 
 
-def escape_python_keyward(txt: str) -> str:
-    if txt in PYTHON_KEYWORDS:
-        return txt + '_'
-    return txt
+def escape_cpp_keyword(
+        txt: str,
+) -> str:
+    return escape_keyword(txt, CPP_KEYWORDS)
+
+
+def escape_python_keyword(
+        txt: str,
+) -> str:
+    return escape_keyword(txt, PYTHON_KEYWORDS)
 
 
 def include_guard(fname: Union[str, Path]) -> str:
@@ -205,7 +214,7 @@ def stem(fname: Union[str, Path]) -> str:
 
 
 def lazy_class_name(definition: idl.Definition) -> str:
-    return escape_cpp_keyward(definition.name) + "L"
+    return escape_cpp_keyword(definition.name) + "L"
 
 
 def to_cpp_type(
@@ -237,8 +246,9 @@ def quote(txt: str) -> str:
 
 FILTERS = {
     'include_guard': include_guard,
-    'escape_cpp_keyword': escape_cpp_keyward,
-    'escape_python_keyword': escape_python_keyward,
+    'escape_keyword': escape_keyword,
+    'escape_cpp_keyword': escape_cpp_keyword,
+    'escape_python_keyword': escape_python_keyword,
     'basename': basename,
     'dirname': dirname,
     'relative_path': relative_path,
