@@ -1,11 +1,14 @@
 cmake_minimum_required (VERSION 3.10)
 
+include(GNUInstallDirs)
+
 project (FlatBoobs)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 list(APPEND CMAKE_CXX_FLAGS -Wall)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+enable_testing()
 
 # Find dependencies
 find_package(pybind11 CONFIG REQUIRED)
@@ -40,44 +43,75 @@ find_package(Flatbuffers REQUIRED)
 
 # Build modules
 
-add_library(flatboobs STATIC src/container.cpp)
-target_link_libraries(flatboobs PRIVATE flatbuffers)
-target_include_directories(flatboobs PRIVATE ${PYTHON_INCLUDE_DIRS})
-target_include_directories(flatboobs PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+# add_library(flatboobs STATIC src/container.cpp)
+# target_link_libraries(flatboobs PRIVATE flatbuffers)
+# target_include_directories(flatboobs PRIVATE ${PYTHON_INCLUDE_DIRS})
+# target_include_directories(flatboobs PUBLIC
+#     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+#     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-pybind11_add_module(idl MODULE src/idl.cpp)
-target_link_libraries(idl PRIVATE flatbuffers)
+add_library(flatboobs INTERFACE)
+# target_link_libraries(flatboobs PRIVATE flatbuffers)
+# target_include_directories(flatboobs PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_include_directories(flatboobs INTERFACE
+     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+pybind11_add_module(idl MODULE src/idl.cpp EXCLUDE_FROM_ALL)
+# target_link_libraries(idl PRIVATE flatbuffers)
 include_directories(idl PRIVATE include)
 
-pybind11_add_module(flatboobs-mod MODULE src/flatboobs.cpp)
-set_target_properties(flatboobs-mod PROPERTIES OUTPUT_NAME flatboobs)
-target_link_libraries(flatboobs-mod PRIVATE flatbuffers flatboobs)
-include_directories(flatboobs-mod PRIVATE include)
+
+# pybind11_add_module(flatboobs-mod MODULE src/flatboobs.cpp)
+# set_target_properties(flatboobs-mod PROPERTIES OUTPUT_NAME flatboobs)
+# target_link_libraries(flatboobs-mod PRIVATE flatbuffers flatboobs)
+# include_directories(flatboobs-mod PRIVATE include)
 
 # Install
-install(TARGETS idl LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
-install(TARGETS flatboobs-mod LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
-install(TARGETS flatboobs
-    EXPORT FlatBoobsConfig
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
 
-install(EXPORT FlatBoobsConfig
-    DESTINATION cmake
-    EXPORT_LINK_INTERFACE_LIBRARIES
-    )
+set(FLATBOOBS_CMAKE_CONFIG_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/flatboobs")
+
+# install(TARGETS idl LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
+# install(TARGETS flatboobs-mod LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(
+  TARGETS
+    flatboobs
+  EXPORT
+    FlatBoobsTargets
+  # ARCHIVE DESTINATION
+  #   ${CMAKE_INSTALL_PREFIX}
+  PUBLIC_HEADER DESTINATION
+    ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(
+  EXPORT
+    FlatBoobsTargets
+  DESTINATION
+    ${FLATBOOBS_CMAKE_CONFIG_DESTINATION}
+  EXPORT_LINK_INTERFACE_LIBRARIES
+)
+
+install(
+  FILES
+    "cmake/FlatBoobsTools.cmake"
+    "cmake/FlatBoobsConfig.cmake"
+  DESTINATION
+    ${FLATBOOBS_CMAKE_CONFIG_DESTINATION}
+)
+
 
 # Put compile_commands.json to package directory
-install(
-  FILES "${PROJECT_BINARY_DIR}/compile_commands.json"
-  DESTINATION "${CMAKE_SOURCE_DIR}"
-  )
+# install(
+#   FILES "${PROJECT_BINARY_DIR}/compile_commands.json"
+#   DESTINATION "${CMAKE_SOURCE_DIR}"
+#   )
 
 # Sample
 # pybind11_add_module(
 #   monster_generated_py MODULE flatboobs/sample/monster/monster_generated_py.cpp)
 # target_link_libraries(monster_generated_py PRIVATE flatbuffers flatboobs)
 # install(TARGETS monster_generated_py DESTINATION sample/monster)
+
+add_subdirectory(tests/cpp)

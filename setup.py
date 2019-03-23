@@ -2,12 +2,13 @@
 # pylint: disable=invalid-name
 
 import sys
+from distutils.command.install_headers import install_headers
 from os import path
+from pathlib import Path
 
+from cmake_setuptools import CMakeBuildExt, CMakeExtension
 # Always prefer setuptools over distutils
 from setuptools import find_packages, setup  # type: ignore
-
-from cmakebuild import BuildCmake, CMakeExtension
 
 here = path.abspath(path.dirname(__file__))
 install_requirements = [
@@ -40,7 +41,7 @@ extras_require = {
     'develop': develop_require,
     'numpy': 'numpy'
 }
-setup_requires = ['pytest-runner']
+setup_requires = ['pytest-runner', 'cmake-setuptools']
 dependency_links = [
     'git+https://github.com/numpy/numpy-stubs.git#egg=numpy-stub',
 ]
@@ -69,6 +70,17 @@ exec(open('flatboobs/about.py').read())
 if __version__ is None:
     raise IOError('about.py in project lacks __version__!')
 
+
+class install_flatboobs_headers(install_headers):
+    def run(self):
+        src = Path('.') / 'include' / 'flatboobs'
+        dst = Path(self.install_dir) / 'flatboobs'
+        self.mkpath(dst)
+        for header in src.glob('*.h'):
+            (out, _) = self.copy_file(header, dst)
+            self.outfiles.append(out)
+
+
 setup(name='flatboobs', version=__version__,
       author='Ildar Akhmetgaleev',
       description='FlatBuffer reader/writer generator',
@@ -77,13 +89,15 @@ setup(name='flatboobs', version=__version__,
       packages=find_packages(exclude=[
           'third_party', 'docs', 'tests*', 'utils'
       ]),
-      zip_safe=True,
+      zip_safe=False,
       include_package_data=True,
+      ext_package='flatboobs',
       ext_modules=[
-          CMakeExtension('flatboobs')
+          CMakeExtension('idl'),
       ],
       cmdclass={
-          'build_ext': BuildCmake,
+          'build_ext': CMakeBuildExt,
+          'install_headers': install_flatboobs_headers,
       },
       # This part is good for when the setup.py itself cannot proceed until dependencies
       # in ``setup_requires`` are met. If you also need some/all of the dependencies in

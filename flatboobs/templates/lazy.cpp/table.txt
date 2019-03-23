@@ -2,8 +2,9 @@
 {% set class_name = struct_def|lazy_class_name %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 {% set extra_keywords = [
-  "get", "keys", "data", "is_dirty", "build", "pack", "unpack",
-  "message_", "flatbuf_", "dirty_"
+  "get", "keys", "data", "is_dirty", "build", "pack", "unpack", "content_id",
+  "fully_qualified_name", "default_values",
+  "message_", "flatbuf_", "dirty_values_", "VTable",
   ] %}
 
 /* {{ class_name }} */
@@ -11,13 +12,9 @@
 // Constructors
 
 {{ class_name }}::{{ class_name }}(
-    std::shared_ptr<const flatboobs::IMessage> message,
+    std::shared_ptr<const flatboobs::IByteData> message,
     const flatbuf_type *flatbuf
-    ) : message_{message}, flatbuf_{flatbuf}, dirty_{false},
-    {% for field_name in fields|map("attr", "name")|map("escape_cpp_keyword") %}
-        cached_{{ field_name }}_ {}
-        {{- "," if not loop.last }}
-    {% endfor %}
+    ) : message_{message}, flatbuf_{flatbuf}, dirty_{false}, dirty_values_{}
     {}
 
 {{ class_name }}::{{ class_name }}(
@@ -26,17 +23,26 @@
           |to_cpp_type(const=True) }} &_{{ field.name|escape_cpp_keyword }}
         {{- "," if not loop.last }}
     {% endfor %}
-    )
-    : message_{}, flatbuf_{},
-     dirty_{true},
-    {% for field_name in fields|map("attr", "name")|map("escape_cpp_keyword") %}
-        cached_{{ field_name }}_ { _{{ field_name }} }
-        {{- "," if not loop.last }}
-    {% endfor %}
+    ) : message_{}, flatbuf_{}, dirty_{true},
+     dirty_values_{
+      {% for field_name in fields|map("attr", "name")
+            |map("escape_cpp_keyword") %}
+          _{{ field_name }} {{- "," if not loop.last }}
+      {% endfor %}
+     }
     {}
 
 // Operators
 
+{{ class_name }}::value_type_variant
+    {{ class_name }}::operator[](const std::string &key) const
+{
+{% for field in fields %}
+  if (key == "{{ field.name }}")
+    return {{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}();
+{% endfor %}
+  throw flatboobs::key_error(key);
+}
 std::ostream& operator<< (std::ostream &stream, {{ class_name }} &src)
 {
   stream << "{{ flatbuf_type }}("
@@ -68,38 +74,28 @@ std::ostream& operator<< (std::ostream &stream, {{ class_name }} &src)
 // Getters
 
 {% for field in fields %}
-{{ field.value.type|to_cpp_type(const=True) }} {{ class_name -}}
+{{ field.value.type|to_cpp_type }} {{ class_name -}}
     ::{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}() const
 {
-  if (cached_{{ field.name|escape_cpp_keyword }}_)
-    return *cached_{{ field.name|escape_cpp_keyword }}_;
-  {{ field.value.type|to_cpp_type }} value;
-
+  if (is_dirty())
+    return dirty_values_.{{ field.name|escape_cpp_keyword }}_;
 {% if field.value.type.base_type.is_scalar() %}
-  value = flatbuf_->{{ field.name|escape_cpp_keyword }}();
+  return flatbuf_->{{ field.name|escape_cpp_keyword }}();
 {% else %}
-  value = nullptr;  // TODO {{ field.name }}
+  return nullptr;  // TODO {{ field.name }}
 {% endif %}
-
-  cached_{{ field.name|escape_cpp_keyword }}_
-    = std::optional<{{ field.value.type|to_cpp_type }}>{value};
-  return value;
 }
 
 {% endfor %}
-
-const {{ class_name }}::value_type_variant
-    {{ class_name }}::get(const std::string &key) const
-{
-{% for field in fields %}
-  if (key == "{{ field.name }}")
-    return {{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}();
-  else
-{% endfor %}
-    throw flatboobs::key_error(key);
-}
 
 // Builder
+
+const size_t {{ class_name }}::content_id() const
+{
+  if (is_dirty())
+    return (size_t) this;
+  return (size_t) flatbuf_;
+}
 
 const bool {{ class_name }}::is_dirty() const
 {
@@ -131,10 +127,24 @@ flatbuffers::Offset<{{ flatbuf_type }}> {{ class_name }}::build(
 }
 
 
+// Verify
+bool {{ class_name }}::verify(const std::string_view _message) {
+  auto verifier = flatbuffers::Verifier(
+    reinterpret_cast<const uint8_t *>(_message.data()),
+    _message.size()
+    );
+  return Verify{{ flatbuf_type }}Buffer(verifier);
+}
+
+bool {{ class_name }}::verify(const flatboobs::IByteData &_message) {
+  return verify(_message.str());
+}
+
+
 // Pack / Unpack
 
 void {{ class_name }}::pack(
-    flatboobs::LazyBufMessage<{{ class_name }}> &_message) const {
+    flatboobs::BuiltByteData &_message) const {
   flatbuffers::FlatBufferBuilder builder {1024};
   std::map<size_t, flatbuffers::uoffset_t> offset_map {};
   flatbuffers::Offset<{{ flatbuf_type }}> offset;
@@ -143,18 +153,14 @@ void {{ class_name }}::pack(
   _message.steal_from_builder(std::move(builder));
 }
 
-void {{ class_name }}::pack(std::string &_bytes) const {
-    flatboobs::LazyBufMessage<{{ class_name }}> message;
-    pack(message);
-    _bytes = std::string(message.data(), message.size());
-}
-
-// const {{ class_name }} {{ class_name }}::unpack(
-//     std::shared_ptr<const flatboobs::LazyBufMessage<{{ class_name }}>> _message) {
-//   return {{ class_name }}(_message, Get{{ flatbuf_type }}(_message->data()));
+// void {{ class_name }}::pack(std::string &_bytes) const {
+//     flatboobs::BuiltByteData message;
+//     pack(message);
+//     _bytes = std::string(message.data(), message.size());
 // }
+
 const {{ class_name }} {{ class_name }}::unpack(
-    std::shared_ptr<const flatboobs::IMessage> _message) {
+    std::shared_ptr<const flatboobs::IByteData> _message) {
   auto verifier = flatbuffers::Verifier(
     reinterpret_cast<const uint8_t *>(_message->data()),
     _message->size()
