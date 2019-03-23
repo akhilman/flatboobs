@@ -1,11 +1,49 @@
-{% set flatbuf_type = struct_def.name|escape_cpp_keyword %}
-{% set class_name = struct_def|lazy_class_name %}
-{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+{% set class_name = table_def.name|escape_cpp_keyword %}
+{% set flatbuf_type = class_name + "FBTable" %}
+{% set fields = table_def.fields|rejectattr("attributes.deprecated")|list %}
 {% set extra_keywords = [
-  "get", "keys", "data", "is_dirty", "build", "pack", "unpack", "content_id",
-  "fully_qualified_name", "default_values",
-  "message_", "flatbuf_", "dirty_values_", "VTable",
+  "is_dirty", "build", "pack", "unpack", "content_id", "verify",
+  "fully_qualified_name", "file_identifier", "default_values", "keys",
+  "message_", "flatbuf_", "dirty_values_", "diryt_",
   ] %}
+
+
+class {{ class_name }}FBTable final : private flatbuffers::Table {
+public:
+  enum {
+  {% for field in fields %}
+    VT_{{ field.name|upper }} = {{ field.value.offset }},
+  {% endfor %}
+  };
+{% for field in fields %}
+{% if field.value.type.definition is instance_of("EnumDef") %}
+  {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}() const
+  { return static_cast<{{field.value.type|to_cpp_type}}>(GetField<{{
+      field.value.type|to_cpp_type(no_enum=True) }}>(VT_{{
+      field.name|upper }}, {{ field.value.constant }})); }
+{% elif field.value.type.base_type.is_scalar() %}
+  {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}() const
+  { return GetField<{{ field.value.type|to_cpp_type }}>(
+      VT_{{ field.name|upper }}, {{ field.value.constant }}); }
+{% else %}
+  // TODO {{ field.name }}
+{% endif %}
+{% endfor %}
+
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+    {% for field in fields %}
+    {% if field.value.type.base_type.is_scalar() %}
+      VerifyField<{{ field.value.type|to_cpp_type
+        }}>(verifier, VT_{{ field.name|upper }}) &&
+    {% else %}
+      // TODO {{ field.name }}
+    {% endif %}
+    {% endfor %}
+      verifier.EndTable();
+  }
+
+};
 
 
 class {{ class_name }} {
@@ -25,7 +63,10 @@ public:
     );
   explicit {{ class_name }}(
     {% for field in fields %}
-      {% if field.value.type.base_type.is_scalar() %}
+      {% if field.value.type.definition is instance_of("EnumDef") %}
+        {% set default_value = field.value.constant
+            |to_cpp_enum(field.value.type.definition) %}
+      {% elif field.value.type.base_type.is_scalar() %}
         {% set default_value = field.value.constant %}
       {% else %}
         {% set default_value = "nullptr" %}
@@ -43,7 +84,14 @@ public:
 
   // Metadata
   static constexpr std::string_view fully_qualified_name() {
-    return "{{ struct_def.fully_qualified_name }}";
+    return "{{ table_def.fully_qualified_name }}";
+  };
+  static constexpr std::string_view file_identifier() {
+  {% if table_def == parser.root_table_def %}
+    return "{{ parser.file_identifier }}";
+  {% else %}
+    return "";
+  {% endif %}
   };
   static constexpr std::array<std::string_view, {{ fields|count }}> keys() {
     return { {{ fields|map("attr", "name")
@@ -63,7 +111,11 @@ public:
   // Defaults
   struct default_values {
   {% for field in fields %}
-  {% if field.value.type.base_type.is_scalar() %}
+  {% if field.value.type.definition is instance_of("EnumDef") %}
+    static constexpr {{ field.value.type|to_cpp_type }}
+    {{field.name|escape_cpp_keyword }}() { return {{
+          field.value.constant|to_cpp_enum(field.value.type.definition) }}; };
+  {% elif field.value.type.base_type.is_scalar() %}
     static constexpr {{ field.value.type|to_cpp_type }}
     {{field.name|escape_cpp_keyword }}() { return {{ field.value.constant }}; };
   {% elif field.value.type.base_type == BaseType.STRING %}
@@ -88,11 +140,9 @@ public:
   static bool verify(const flatboobs::IByteData&);
 
   // Pack / Unpack
-  void pack(flatboobs::BuiltByteData &_message) const;
-  // void pack(std::string &_bytes) const;
-  static const {{ class_name }}
+  std::shared_ptr<flatboobs::BuiltByteData> pack() const;
+  static std::shared_ptr<const {{ class_name }}>
   unpack(std::shared_ptr<const flatboobs::IByteData> _message);
-  // static const {{ class_name }} unpack(std::string &_bytes);
 
 
 private:

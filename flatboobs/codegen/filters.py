@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Sequence, Union
+from typing import Sequence, Set, Union
 
 import toolz.itertoolz as it
 
@@ -163,7 +163,7 @@ CPP_TYPES = {
 
 def escape_keyword(
         txt: str,
-        keywords: Sequence[str] = tuple(),
+        keywords: Union[Sequence[str], Set[str]] = tuple(),
 ) -> str:
     if txt in set(keywords):
         return txt + '_'
@@ -213,22 +213,54 @@ def stem(fname: Union[str, Path]) -> str:
     return Path(fname).stem
 
 
-def lazy_class_name(definition: idl.Definition) -> str:
-    return escape_cpp_keyword(definition.name) + "L"
+def to_cpp_enum(src: Union[str, int], enum_def: idl.EnumDef) -> str:
+    value = int(src)
+    result = []
+    if 'bit_flags' in enum_def.attributes:
+        for enum_value in enum_def.values:
+            if value & enum_value.value:
+                result.append('::'.join([
+                    *enum_def.defined_namespace.components,
+                    escape_cpp_keyword(enum_def.name),
+                    escape_cpp_keyword(enum_value.name),
+                ]))
+        if not result:
+            result.append('::'.join([
+                *enum_def.defined_namespace.components,
+                escape_cpp_keyword(enum_def.name),
+                "NONE"
+            ]))
+    else:
+        for enum_value in enum_def.values:
+            if value == enum_value.value:
+                result.append('::'.join([
+                    *enum_def.defined_namespace.components,
+                    escape_cpp_keyword(enum_def.name),
+                    escape_cpp_keyword(enum_value.name),
+                ]))
+        if not result:
+            result.append('::'.join([
+                *enum_def.defined_namespace.components,
+                escape_cpp_keyword(enum_def.name),
+                escape_cpp_keyword(enum_def.values[0].name)
+            ]))
+    return '|'.join(result)
 
 
 def to_cpp_type(
         type_: idl.Type,
         const=False,
         no_namespace=False,
+        no_enum=False,
         no_pointer=False,
 ) -> str:
     base_type = type_.base_type
     definition = type_.definition
-    if definition and base_type.is_scalar():  # enum
+    if isinstance(definition, idl.EnumDef) and not no_enum:
         type_str = definition.name
         if not no_namespace:
-            type_str = '::'.join([*definition.defined_namespace, type_str])
+            type_str = '::'.join(
+                [*definition.defined_namespace.components, type_str])
         if const:
             type_str = f'const {type_str}'
     elif base_type in CPP_TYPES:  # base types
@@ -254,7 +286,7 @@ FILTERS = {
     'relative_path': relative_path,
     'with_suffix': with_suffix,
     'stem': stem,
-    'lazy_class_name': lazy_class_name,
+    'to_cpp_enum': to_cpp_enum,
     'to_cpp_type': to_cpp_type,
     'concat': it.concat,
     'quote': quote,

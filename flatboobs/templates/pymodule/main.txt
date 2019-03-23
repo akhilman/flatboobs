@@ -19,7 +19,7 @@ PYBIND11_MODULE({{ output_file|stem }}, m) {
 
 {% for enum_def in parser.enums
     | selectattr("file", "equalto", parser.root_struct_def.file) %}
-  {% include "serializer.mod/enum.txt" %}
+  {% include "pymodule/enum.txt" %}
 {% endfor %}
 
 // Structs
@@ -27,7 +27,7 @@ PYBIND11_MODULE({{ output_file|stem }}, m) {
 {#
 {% for struct_def in parser.structs
     | selectattr("file", "equalto", parser.root_struct_def.file) %}
-  {% include "serializer.mod/struct.txt" %}
+  {% include "pymodule/struct.txt" %}
 {% endfor %}
 #}
 
@@ -42,7 +42,7 @@ PYBIND11_MODULE({{ output_file|stem }}, m) {
     | unique(attribute="definition")
     | sort(attribute="definition.name")
     %}
-  {% include "serializer.mod/vector.txt" %}
+  {% include "pymodule/vector.txt" %}
 {% endfor %}
 #}
 
