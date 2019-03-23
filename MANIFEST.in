@@ -22,6 +22,6 @@ include Makefile
 
 include CMakeLists.txt
 recursive-include include/flatboobs *.h
-recursive-include src *.cc
+recursive-include src *.cpp
 recursive-include cmake *.cmake
 
