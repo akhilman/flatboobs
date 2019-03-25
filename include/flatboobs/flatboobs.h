@@ -11,10 +11,11 @@ public:
 
   virtual ~IData() = default;
   virtual const value_type *data() const = 0;
-  virtual const size_t size() const = 0;
+  virtual bool has_data() const = 0;
+  virtual size_t size() const = 0;
 
-  virtual operator const value_type *() const { return data(); }
-  virtual const std::string_view str() const {
+  operator const value_type *() const { return data(); }
+  const std::string_view str() const {
     return std::string_view(reinterpret_cast<const char *>(data()),
                             size() * sizeof(value_type));
   }
@@ -34,8 +35,9 @@ public:
     data_ = std::unique_ptr<const std::byte>(data);
   };
 
-  virtual const std::byte *data() const { return data_.get() + offset_; }
-  virtual const size_t size() const { return size_; }
+  const std::byte *data() const override { return data_.get() + offset_; }
+  bool has_data() const override { return data_.get() != nullptr && size_ > 0; }
+  size_t size() const override { return size_; }
 
 private:
   size_t size_;
