@@ -1,10 +1,9 @@
 {% set class_name = table_def.name|escape_cpp_keyword %}
-{% set flatbuf_type = class_name + "FBTable" %}
 {% set fields = table_def.fields|rejectattr("attributes.deprecated")|list %}
 {% set extra_keywords = [
   "is_dirty", "build", "pack", "unpack", "content_id", "verify",
   "fully_qualified_name", "file_identifier", "default_values", "keys",
-  "message_", "flatbuf_", "dirty_values_", "diryt_",
+  "message_", "flatbuf_", "is_dirty_", "dirty_values_",
   ] %}
 
 /* {{ class_name }} */
@@ -12,29 +11,31 @@
 // Constructors
 
 {{ class_name }}::{{ class_name }}(
-    std::shared_ptr<const flatboobs::IByteData> message,
-    const flatbuf_type *flatbuf
-    ) : message_{message}, flatbuf_{flatbuf}, dirty_{false}, dirty_values_{}
-    {}
+  std::shared_ptr<const flatboobs::IByteData> message,
+  const {{ class_name }}::flatbuf_type *flatbuf
+  ) : message_{}, flatbuf_{flatbuf}, is_dirty_{false}, dirty_values_{}
+  {}
+
+{{ class_name }}:: {{ class_name }}(const {{ class_name }}T &_values)
+  : message_{}, flatbuf_{}, is_dirty_{true}, dirty_values_{_values} {}
 
 {{ class_name }}::{{ class_name }}(
-    {% for field in fields %}
-      {{ field.value.type
-          |to_cpp_type(const=True) }} &_{{ field.name|escape_cpp_keyword }}
-        {{- "," if not loop.last }}
+  {% for field in fields %}
+    {{ field.value.type
+        |to_cpp_type(const=True) }} &_{{ field.name|escape_cpp_keyword }}
+      {{- "," if not loop.last }}
+  {% endfor %}
+  ) : message_{}, flatbuf_{}, is_dirty_{true}, dirty_values_{
+    {% for field_name in fields|map("attr", "name")
+          |map("escape_cpp_keyword") %}
+        _{{ field_name }} {{- "," if not loop.last }}
     {% endfor %}
-    ) : message_{}, flatbuf_{}, dirty_{true},
-     dirty_values_{
-      {% for field_name in fields|map("attr", "name")
-            |map("escape_cpp_keyword") %}
-          _{{ field_name }} {{- "," if not loop.last }}
-      {% endfor %}
-     }
-    {}
+   }
+  {}
 
 // Operators
 
-{{ class_name }}::value_type_variant
+{{ class_name }}::value_variant_type
     {{ class_name }}::operator[](const std::string &key) const
 {
 {% for field in fields %}
@@ -43,7 +44,7 @@
 {% endfor %}
   throw flatboobs::key_error(key);
 }
-std::ostream& operator<< (std::ostream &stream, {{ class_name }} &src)
+std::ostream& operator<< (std::ostream &stream, const {{ class_name }} &src)
 {
   stream << "{{ class_name }}("
   {% for field in fields %}
@@ -102,31 +103,31 @@ const size_t {{ class_name }}::content_id() const
 
 const bool {{ class_name }}::is_dirty() const
 {
-  return dirty_;
+  return is_dirty_;
 }
 
-flatbuffers::Offset<{{ flatbuf_type }}> {{ class_name }}::build(
+flatbuffers::Offset<{{ class_name }}::flatbuf_type> {{ class_name }}::build(
     flatbuffers::FlatBufferBuilder & _fbb,
     std::map<size_t, flatbuffers::uoffset_t> &_offset_map
 ) const {
 
   auto it = _offset_map.find(content_id());
   if (it != _offset_map.end())
-    return flatbuffers::Offset<{{ flatbuf_type }}>{it->second};
+    return flatbuffers::Offset<{{ class_name }}::flatbuf_type>{it->second};
 
   flatbuffers::uoffset_t start;
   start = _fbb.StartTable();
 {% for field in fields|sort(attribute="value.type.inline_size") %}
 {% if field.value.type.definition is instance_of("EnumDef") %}
   _fbb.AddElement<{{ field.value.type|to_cpp_type(no_enum=True) }}>(
-    flatbuf_type::VT_{{ field.name|upper }},
+    {{ class_name }}::flatbuf_type::VT_{{ field.name|upper }},
     static_cast<{{ field.value.type|to_cpp_type(no_enum=True) }}>({{
     field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()),
     {{ field.value.constant }}
     );
 {% elif field.value.type.base_type.is_scalar() %}
   _fbb.AddElement<{{ field.value.type|to_cpp_type }}>(
-    flatbuf_type::VT_{{ field.name|upper }},
+    {{ class_name }}::flatbuf_type::VT_{{ field.name|upper }},
     {{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}(),
     {{ field.value.constant }}
     );
@@ -136,7 +137,7 @@ flatbuffers::Offset<{{ flatbuf_type }}> {{ class_name }}::build(
 {% endfor %}
   flatbuffers::uoffset_t end = _fbb.EndTable(start);
   _offset_map[content_id()] = end;
-  flatbuffers::Offset<{{ flatbuf_type }}> offset {end};
+  flatbuffers::Offset<{{ class_name }}::flatbuf_type> offset {end};
   return offset;
 }
 
@@ -150,7 +151,7 @@ bool {{ class_name }}::verify(const std::string_view _message) {
   const char *ident = nullptr;
   if (file_identifier().size())
     ident = file_identifier().data();
-  return verifier.VerifyBuffer<{{ class_name }}FBTable>(ident);
+  return verifier.VerifyBuffer<{{ class_name }}::flatbuf_type>(ident);
 }
 
 bool {{ class_name }}::verify(const flatboobs::IByteData &_message) {
@@ -164,7 +165,7 @@ std::shared_ptr<flatboobs::BuiltByteData> {{ class_name }}::pack() const {
 
   const char *ident = nullptr;
   std::map<size_t, flatbuffers::uoffset_t> offset_map {};
-  flatbuffers::Offset<{{ flatbuf_type }}> offset;
+  flatbuffers::Offset<{{ class_name }}::flatbuf_type> offset;
   flatbuffers::FlatBufferBuilder fbb {1024};
 
   offset = build(fbb, offset_map);
@@ -181,7 +182,7 @@ std::shared_ptr<const {{ class_name }}> {{ class_name }}::unpack(
     std::shared_ptr<const flatboobs::IByteData> _message) {
   if (!verify(*_message.get()))
     throw flatboobs::unpack_error("Bad message");
-  auto root = flatbuffers::GetRoot<{{ flatbuf_type }}>(_message->data());
+  auto root = flatbuffers::GetRoot<{{ class_name }}::flatbuf_type>(_message->data());
   return std::make_shared<{{ class_name }}>(_message, root);
 }
 

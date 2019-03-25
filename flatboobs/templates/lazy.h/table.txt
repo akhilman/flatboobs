@@ -1,11 +1,37 @@
 {% set class_name = table_def.name|escape_cpp_keyword %}
-{% set flatbuf_type = class_name + "FBTable" %}
 {% set fields = table_def.fields|rejectattr("attributes.deprecated")|list %}
 {% set extra_keywords = [
   "is_dirty", "build", "pack", "unpack", "content_id", "verify",
   "fully_qualified_name", "file_identifier", "default_values", "keys",
-  "message_", "flatbuf_", "dirty_values_", "diryt_",
+  "message_", "flatbuf_", "is_dirty_", "dirty_values_",
   ] %}
+
+struct {{ class_name }}T {
+  {% for field in fields %}
+    {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}_;
+  {% endfor %}
+
+  {{ class_name }}T(
+    {% for field in fields %}
+      {% if field.value.type.definition is instance_of("EnumDef") %}
+        {% set default_value = field.value.constant
+            |to_cpp_enum(field.value.type.definition) %}
+      {% elif field.value.type.base_type.is_scalar() %}
+        {% set default_value = field.value.constant %}
+      {% else %}
+        {% set default_value = "nullptr" %}
+      {% endif %}
+      {{ field.value.type
+          |to_cpp_type(const=True) }} {# -#}
+        &_{{ field.name|escape_cpp_keyword }} = {{ default_value }}
+        {{- "," if not loop.last }}
+    {% endfor %}
+    ) :
+    {% for field_name in fields|map("attr", "name")
+          |map("escape_cpp_keyword") %}
+       {{ field_name }}_ {_{{ field_name }}} {{- "," if not loop.last }}
+    {% endfor %}
+    {} };
 
 
 class {{ class_name }}FBTable final : private flatbuffers::Table {
@@ -17,12 +43,14 @@ public:
   };
 {% for field in fields %}
 {% if field.value.type.definition is instance_of("EnumDef") %}
-  {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}() const
+  {{ field.value.type|to_cpp_type }} {{
+        field.name|escape_cpp_keyword }}() const
   { return static_cast<{{field.value.type|to_cpp_type}}>(GetField<{{
       field.value.type|to_cpp_type(no_enum=True) }}>(VT_{{
       field.name|upper }}, {{ field.value.constant }})); }
 {% elif field.value.type.base_type.is_scalar() %}
-  {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}() const
+  {{ field.value.type|to_cpp_type }} {{
+        field.name|escape_cpp_keyword }}() const
   { return GetField<{{ field.value.type|to_cpp_type }}>(
       VT_{{ field.name|upper }}, {{ field.value.constant }}); }
 {% else %}
@@ -48,19 +76,21 @@ public:
 
 class {{ class_name }} {
 public:
-
-  using flatbuf_type = {{ flatbuf_type }};
-  using value_type_variant = std::variant<{{
+  using flatbuf_type = {{ class_name }}FBTable;
+  using value_type = {{ class_name }}T;
+  using value_variant_type = std::variant<{{
     fields|map("attr", "value")|map("attr", "type")
       |map("to_cpp_type", const=True)
       |unique|sort|join(", ")
   }}>;
+
 
   // Constructors
   explicit {{ class_name }}(
     std::shared_ptr<const flatboobs::IByteData> message,
     const flatbuf_type *flatbuf
     );
+  explicit {{ class_name }}(const {{ class_name }}T&);
   explicit {{ class_name }}(
     {% for field in fields %}
       {% if field.value.type.definition is instance_of("EnumDef") %}
@@ -79,8 +109,8 @@ public:
     );
 
   // Operators
-  value_type_variant operator[](const std::string &key) const;
-  friend std::ostream& operator<< (std::ostream&, {{ class_name }}&);
+  value_variant_type operator[](const std::string &key) const;
+  friend std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
 
   // Metadata
   static constexpr std::string_view fully_qualified_name() {
@@ -148,13 +178,8 @@ public:
 private:
   std::shared_ptr<const flatboobs::IByteData> message_;
   const flatbuf_type *flatbuf_;
-
-  bool dirty_;
-  struct {
-  {% for field in fields %}
-    {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}_;
-  {% endfor %}
-  } dirty_values_;
+  const bool is_dirty_;
+  const value_type dirty_values_;
 
 };
 
