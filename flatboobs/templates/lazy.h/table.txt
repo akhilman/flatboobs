@@ -43,6 +43,14 @@ struct {{ class_name }}T {
   }
 {% endfor %}
 
+  // Setters
+{% for field in fields %}
+  inline void set_{{ field.name|escape_cpp_keyword }}(const {{
+      field.value.type|to_cpp_type }} &_value) {
+    {{ field.name|escape_cpp_keyword }}_ = _value;
+  }
+{% endfor %}
+
   friend bool operator== (const {{ class_name }}T&, const {{ class_name }}T&);
   friend bool operator!= (const {{ class_name }}T&, const {{ class_name }}T&);
   friend std::ostream& operator<< (std::ostream&, const {{ class_name }}T&);
