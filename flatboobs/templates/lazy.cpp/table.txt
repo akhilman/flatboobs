@@ -7,26 +7,6 @@
   ] %}
 
 
-/* {{ class_name }}T */
-
-bool operator== (const {{ class_name }}T &lhs, const {{ class_name }}T &rhs){
-  return
-  {% for field in fields %}
-  {% if field.value.type.base_type.is_scalar() %}
-    lhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
-    == rhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
-  {% else %}
-    *(lhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
-    == *(rhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
-  {% endif %}
-  {%- if not loop.last %} &&{% endif %}
-  {% endfor %}
-  ;
-}
-bool operator!= (const {{ class_name }}T &lhs, const {{ class_name }}T &rhs){
-  return !(lhs == rhs);
-}
-
 /* {{ class_name }} */
 
 // Constructors
@@ -178,7 +158,10 @@ const {{ class_name }}::value_variant_type
   throw flatboobs::key_error(key);
 }
 
-bool operator== (const {{ class_name }} &lhs, const {{ class_name }} &rhs){
+// Common operats for {{ class_name }}T and {{ class_name }}
+
+{% for class_name_ in [class_name + "T", class_name] %}
+bool operator== (const {{ class_name_ }} &lhs, const {{ class_name_ }} &rhs){
   return
   {% for field in fields %}
   {% if field.value.type.base_type.is_scalar() %}
@@ -192,13 +175,10 @@ bool operator== (const {{ class_name }} &lhs, const {{ class_name }} &rhs){
   {% endfor %}
   ;
 }
-bool operator!= (const {{ class_name }} &lhs, const {{ class_name }} &rhs){
+bool operator!= (const {{ class_name_ }} &lhs, const {{ class_name_ }} &rhs){
   return !(lhs == rhs);
 }
 
-// String stream output
-
-{% for class_name_ in [class_name, class_name + "T"] %}
 std::ostream& operator<< (std::ostream &stream, const {{ class_name_ }} &src) {
   stream << "{{ class_name_ }}("
   {% for field in fields %}
