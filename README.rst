@@ -2,23 +2,31 @@ TODO
 -----
 
 - [X] Parse schema file.
-- [ ] Unpack/pack types.
+- [ ] Unpack/pack types (C++).
    - [X] Table with scalar values.
    - [X] Enum.
-   - [X] Union.
-   - [X] Struct.
+   - [ ] Union.
+   - [ ] Struct.
+   - [ ] Vector of scalars.
+   - [ ] Strings.
+   - [ ] Vector of tables.
+   - [ ] Vector of structs.
+- [ ] Unpack/pack types (Python).
+   - [ ] Table with scalar values.
+   - [ ] Enum.
+   - [ ] Union.
+   - [ ] Struct.
    - [ ] Vector of scalars.
    - [ ] Strings.
    - [ ] Vector of tables.
    - [ ] Vector of structs.
 - [ ] gRPC.
-- [ ] Implement FlatBuffers unpack/pack with C++.
 - [ ] Examples.
 - [ ] Documentation.
-- [ ] Schema validation.
+- [X] Schema validation (uses google's schema parsers code).
 - [ ] 100% test coverage.
 - [ ] Benchmarks against Goolge's FlatBuffers implementation.
-- [ ] ZMQ RPC
+- [ ] JSON RPC
 - [ ] Unpack/pack to JSON.
 - [ ] Unpack/pack to MessagePack.
 
