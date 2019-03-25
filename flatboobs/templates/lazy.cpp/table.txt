@@ -33,48 +33,6 @@
    }
   {}
 
-// Operators
-
-{{ class_name }}::value_variant_type
-    {{ class_name }}::operator[](const std::string &key) const
-{
-{% for field in fields %}
-  if (key == "{{ field.name }}")
-    return {{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}();
-{% endfor %}
-  throw flatboobs::key_error(key);
-}
-std::ostream& operator<< (std::ostream &stream, const {{ class_name }} &src)
-{
-  stream << "{{ class_name }}("
-  {% for field in fields %}
-      << "{{ field.name }}="
-  {% if field.value.type.base_type == BaseType.BOOL %}
-      << (src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
-          ? "true" : "false")
-  {% elif field.value.type.definition is instance_of("EnumDef") %}
-      << {{ field.value.type|to_cpp_type }}_to_string(src.{{
-        field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
-  {% elif field.value.type.base_type.is_scalar()
-        and field.value.type.base_type.is_one_byte() %}
-      << (int)src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
-  {% elif field.value.type.base_type.is_scalar() %}
-      << src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
-  {% elif field.value.type.base_type == BaseType.STRING %}
-    << '"' << src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}() << '"'
-  {% else %}
-    << (src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
-          ? *(src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
-          : "NULL")
-  {% endif %}
-  {% if not loop.last %}
-    << ", "
-  {% endif %}
-  {% endfor %}
-    << ")";
-  return stream;
-};
-
 // Getters
 
 {% for field in fields %}
@@ -141,7 +99,6 @@ flatbuffers::Offset<{{ class_name }}::flatbuf_type> {{ class_name }}::build(
   return offset;
 }
 
-
 // Verify
 bool {{ class_name }}::verify(const std::string_view _message) {
   auto verifier = flatbuffers::Verifier(
@@ -157,7 +114,6 @@ bool {{ class_name }}::verify(const std::string_view _message) {
 bool {{ class_name }}::verify(const flatboobs::IByteData &_message) {
   return verify(_message.str());
 }
-
 
 // Pack / Unpack
 
@@ -185,6 +141,50 @@ std::shared_ptr<const {{ class_name }}> {{ class_name }}::unpack(
   auto root = flatbuffers::GetRoot<{{ class_name }}::flatbuf_type>(_message->data());
   return std::make_shared<{{ class_name }}>(_message, root);
 }
+
+// Operators
+
+{{ class_name }}::value_variant_type
+    {{ class_name }}::operator[](const std::string &key) const
+{
+{% for field in fields %}
+  if (key == "{{ field.name }}")
+    return {{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}();
+{% endfor %}
+  throw flatboobs::key_error(key);
+}
+
+{% for class_name_ in [class_name, class_name + "T"] %}
+std::ostream& operator<< (std::ostream &stream, const {{ class_name_ }} &src)
+{
+  stream << "{{ class_name_ }}("
+  {% for field in fields %}
+      << "{{ field.name }}="
+  {% if field.value.type.base_type == BaseType.BOOL %}
+      << (src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+          ? "true" : "false")
+  {% elif field.value.type.definition is instance_of("EnumDef") %}
+      << {{ field.value.type|to_cpp_type }}_to_string(src.{{
+        field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+  {% elif field.value.type.base_type.is_scalar() %}
+      << +src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+  {% elif field.value.type.base_type == BaseType.STRING %}
+    << '"' << src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}() << '"'
+  {% else %}
+    << (src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+          ? *(src.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+          : "NULL")
+  {% endif %}
+  {% if not loop.last %}
+    << ", "
+  {% endif %}
+  {% endfor %}
+    << ")";
+  return stream;
+};
+
+{% endfor %}
+
 
 {#
 // vim: syntax=cpp

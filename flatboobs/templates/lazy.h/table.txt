@@ -7,32 +7,43 @@
   ] %}
 
 struct {{ class_name }}T {
+{% for field in fields %}
+  {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}_;
+{% endfor %}
+
+{{ class_name }}T(
   {% for field in fields %}
-    {{ field.value.type|to_cpp_type }} {{ field.name|escape_cpp_keyword }}_;
+    {% if field.value.type.definition is instance_of("EnumDef") %}
+      {% set default_value = field.value.constant
+          |to_cpp_enum(field.value.type.definition) %}
+    {% elif field.value.type.base_type.is_scalar() %}
+      {% set default_value = field.value.constant %}
+    {% else %}
+      {% set default_value = "nullptr" %}
+    {% endif %}
+    {{ field.value.type
+        |to_cpp_type(const=True) }} {# -#}
+      &_{{ field.name|escape_cpp_keyword }} = {{ default_value }}
+      {{- "," if not loop.last }}
   {% endfor %}
+  ) :
+  {% for field_name in fields|map("attr", "name")
+        |map("escape_cpp_keyword") %}
+     {{ field_name }}_ {_{{ field_name }}} {{- "," if not loop.last }}
+  {% endfor %}
+  {}
 
-  {{ class_name }}T(
-    {% for field in fields %}
-      {% if field.value.type.definition is instance_of("EnumDef") %}
-        {% set default_value = field.value.constant
-            |to_cpp_enum(field.value.type.definition) %}
-      {% elif field.value.type.base_type.is_scalar() %}
-        {% set default_value = field.value.constant %}
-      {% else %}
-        {% set default_value = "nullptr" %}
-      {% endif %}
-      {{ field.value.type
-          |to_cpp_type(const=True) }} {# -#}
-        &_{{ field.name|escape_cpp_keyword }} = {{ default_value }}
-        {{- "," if not loop.last }}
-    {% endfor %}
-    ) :
-    {% for field_name in fields|map("attr", "name")
-          |map("escape_cpp_keyword") %}
-       {{ field_name }}_ {_{{ field_name }}} {{- "," if not loop.last }}
-    {% endfor %}
-    {} };
+  friend std::ostream& operator<< (std::ostream&, const {{ class_name }}T&);
 
+  // Getters
+{% for field in fields %}
+  inline {{ field.value.type|to_cpp_type }} {{
+    field.name|escape_cpp_keyword }}() const {
+    return {{ field.name|escape_cpp_keyword }}_;
+  }
+{% endfor %}
+
+};
 
 class {{ class_name }}FBTable final : private flatbuffers::Table {
 public:
