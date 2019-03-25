@@ -6,6 +6,27 @@
   "message_", "flatbuf_", "is_dirty_", "dirty_values_",
   ] %}
 
+
+/* {{ class_name }}T */
+
+bool operator== (const {{ class_name }}T &lhs, const {{ class_name }}T &rhs){
+  return
+  {% for field in fields %}
+  {% if field.value.type.base_type.is_scalar() %}
+    lhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+    == rhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+  {% else %}
+    *(lhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+    == *(rhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+  {% endif %}
+  {%- if not loop.last %} &&{% endif %}
+  {% endfor %}
+  ;
+}
+bool operator!= (const {{ class_name }}T &lhs, const {{ class_name }}T &rhs){
+  return !(lhs == rhs);
+}
+
 /* {{ class_name }} */
 
 // Constructors
@@ -144,7 +165,7 @@ std::shared_ptr<const {{ class_name }}> {{ class_name }}::unpack(
 
 // Operators
 
-{{ class_name }}::value_variant_type
+const {{ class_name }}::value_variant_type
     {{ class_name }}::operator[](const std::string &key) const
 {
 {% for field in fields %}
@@ -154,9 +175,28 @@ std::shared_ptr<const {{ class_name }}> {{ class_name }}::unpack(
   throw flatboobs::key_error(key);
 }
 
+bool operator== (const {{ class_name }} &lhs, const {{ class_name }} &rhs){
+  return
+  {% for field in fields %}
+  {% if field.value.type.base_type.is_scalar() %}
+    lhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+    == rhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()
+  {% else %}
+    *(lhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+    == *(rhs.{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}())
+  {% endif %}
+  {%- if not loop.last %} &&{% endif %}
+  {% endfor %}
+  ;
+}
+bool operator!= (const {{ class_name }} &lhs, const {{ class_name }} &rhs){
+  return !(lhs == rhs);
+}
+
+// String stream output
+
 {% for class_name_ in [class_name, class_name + "T"] %}
-std::ostream& operator<< (std::ostream &stream, const {{ class_name_ }} &src)
-{
+std::ostream& operator<< (std::ostream &stream, const {{ class_name_ }} &src) {
   stream << "{{ class_name_ }}("
   {% for field in fields %}
       << "{{ field.name }}="

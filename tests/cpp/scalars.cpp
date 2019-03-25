@@ -88,6 +88,20 @@ BOOST_DATA_TEST_CASE(test_random_values, Dataset()) {
   BOOST_TEST(table.bool_false() == sample.bool_false_);
 }
 
+BOOST_DATA_TEST_CASE(test_equals, Dataset()) {
+
+  TestScalars lhs{sample};
+  TestScalars rhs{sample};
+  BOOST_TEST(lhs == rhs);
+}
+
+BOOST_AUTO_TEST_CASE(test_not_equals) {
+
+  TestScalars lhs{1, 2, 3};
+  TestScalars rhs{3, 2, 1};
+  BOOST_TEST(lhs != rhs);
+}
+
 BOOST_DATA_TEST_CASE(test_pack_unpack, Dataset()) {
 
   auto source = std::make_shared<TestScalars>(sample);
