@@ -17,7 +17,7 @@
       result |= {{ class_name }}::{{ value.name|escape_cpp_keyword }};
   {% endfor %}
     } else {
-      throw flatboobs::key_error("Bad enum value: \"" + value_str + '"');
+      throw flatboobs::key_error("Bad enum value: \"" + str + '"');
     }
   }
   return result;
