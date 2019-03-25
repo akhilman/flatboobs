@@ -18,6 +18,8 @@ FLATBUFFERS_DEFINE_BITMASK_OPERATORS({{ class_name }}, {{
     enum_def.underlying_type|to_cpp_type(no_enum=True) }})
 {% endif %}
 
+std::string {{ class_name }}_to_string(const {{ class_name }}&);
+{{ class_name }} {{ class_name }}_from_string(const std::string&);
 std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
 
 {#
