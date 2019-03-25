@@ -147,7 +147,7 @@ PYTHON_KEYWORDS = {
 CPP_TYPES = {
     idl.BaseType.NONE: "uint8_t",
     idl.BaseType.UTYPE: "uint8_t",
-    idl.BaseType.BOOL: "uint8_t",
+    idl.BaseType.BOOL: "bool",
     idl.BaseType.CHAR: "int8_t",
     idl.BaseType.UCHAR: "uint8_t",
     idl.BaseType.SHORT: "int16_t",
@@ -251,12 +251,11 @@ def to_cpp_type(
         type_: idl.Type,
         const=False,
         no_namespace=False,
-        no_enum=False,
         no_pointer=False,
 ) -> str:
     base_type = type_.base_type
     definition = type_.definition
-    if isinstance(definition, idl.EnumDef) and not no_enum:
+    if isinstance(definition, idl.EnumDef):
         type_str = definition.name
         if not no_namespace:
             type_str = '::'.join(
@@ -265,6 +264,23 @@ def to_cpp_type(
             type_str = f'const {type_str}'
     elif base_type in CPP_TYPES:  # base types
         type_str = CPP_TYPES[type_.base_type]
+        if const:
+            type_str = f'const {type_str}'
+    else:
+        raise NotImplementedError('Oops!')
+    return type_str
+
+
+def to_flatbuf_type(
+        type_: idl.Type,
+        const=False,
+) -> str:
+    base_type = type_.base_type
+    if base_type in CPP_TYPES:
+        if base_type == idl.BaseType.BOOL:
+            type_str = CPP_TYPES[idl.BaseType.CHAR]
+        else:
+            type_str = CPP_TYPES[type_.base_type]
         if const:
             type_str = f'const {type_str}'
     else:
@@ -288,6 +304,7 @@ FILTERS = {
     'stem': stem,
     'to_cpp_enum': to_cpp_enum,
     'to_cpp_type': to_cpp_type,
+    'to_flatbuf_type': to_flatbuf_type,
     'concat': it.concat,
     'quote': quote,
 }

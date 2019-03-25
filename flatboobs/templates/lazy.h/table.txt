@@ -67,27 +67,17 @@ public:
   {% endfor %}
   };
 {% for field in fields %}
-{% if field.value.type.definition is instance_of("EnumDef") %}
-  {{ field.value.type|to_cpp_type }} {{
+  inline {{ field.value.type|to_flatbuf_type }} {{
         field.name|escape_cpp_keyword }}() const
-  { return static_cast<{{field.value.type|to_cpp_type}}>(GetField<{{
-      field.value.type|to_cpp_type(no_enum=True) }}>(VT_{{
-      field.name|upper }}, {{ field.value.constant }})); }
-{% elif field.value.type.base_type.is_scalar() %}
-  {{ field.value.type|to_cpp_type }} {{
-        field.name|escape_cpp_keyword }}() const
-  { return GetField<{{ field.value.type|to_cpp_type }}>(
+  { return GetField<{{ field.value.type|to_flatbuf_type }}>(
       VT_{{ field.name|upper }}, {{ field.value.constant }}); }
-{% else %}
-  // TODO {{ field.name }}
-{% endif %}
 {% endfor %}
 
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
     {% for field in fields %}
     {% if field.value.type.base_type.is_scalar() %}
-      VerifyField<{{ field.value.type|to_cpp_type
+      VerifyField<{{ field.value.type|to_flatbuf_type
         }}>(verifier, VT_{{ field.name|upper }}) &&
     {% else %}
       // TODO {{ field.name }}

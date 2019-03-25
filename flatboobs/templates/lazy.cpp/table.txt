@@ -61,8 +61,11 @@ bool operator!= (const {{ class_name }}T &lhs, const {{ class_name }}T &rhs){
     ::{{ field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}() const
 {
   if (is_dirty())
-    return dirty_values_.{{ field.name|escape_cpp_keyword }}_;
-{% if field.value.type.base_type.is_scalar() %}
+    return dirty_values_.{{ field.name|escape_cpp_keyword }}();
+{% if field.value.type.definition is instance_of("EnumDef") %}
+  return static_cast<{{ field.value.type|to_cpp_type -}}
+    >(flatbuf_->{{ field.name|escape_cpp_keyword }}());
+{% elif field.value.type.base_type.is_scalar() %}
   return flatbuf_->{{ field.name|escape_cpp_keyword }}();
 {% else %}
   return nullptr;  // TODO {{ field.name }}
@@ -98,9 +101,9 @@ flatbuffers::Offset<{{ class_name }}::flatbuf_type> {{ class_name }}::build(
   start = _fbb.StartTable();
 {% for field in fields|sort(attribute="value.type.inline_size") %}
 {% if field.value.type.definition is instance_of("EnumDef") %}
-  _fbb.AddElement<{{ field.value.type|to_cpp_type(no_enum=True) }}>(
+  _fbb.AddElement<{{ field.value.type|to_flatbuf_type }}>(
     {{ class_name }}::flatbuf_type::VT_{{ field.name|upper }},
-    static_cast<{{ field.value.type|to_cpp_type(no_enum=True) }}>({{
+    static_cast<{{ field.value.type|to_flatbuf_type }}>({{
     field.name|escape_cpp_keyword|escape_keyword(extra_keywords) }}()),
     {{ field.value.constant }}
     );
