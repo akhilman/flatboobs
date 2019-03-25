@@ -57,6 +57,11 @@ std::string {{ class_name }}_to_string(const {{ class_name }} &value) {
 
 {% endif %}
 
+std::ostream& operator<< (std::ostream &stream, const {{ class_name }} &value) {
+  stream << {{ class_name }}_to_string(value);
+  return stream;
+}
+
 {#
 // vim: syntax=cpp
 // vim: tabstop=2

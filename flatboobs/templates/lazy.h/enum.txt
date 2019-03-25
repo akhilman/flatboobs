@@ -18,6 +18,8 @@ FLATBUFFERS_DEFINE_BITMASK_OPERATORS({{ class_name }}, {{
     enum_def.underlying_type|to_cpp_type(no_enum=True) }})
 {% endif %}
 
+std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
+
 {#
 // vim: syntax=cpp
 // vim: tabstop=2
