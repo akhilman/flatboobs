@@ -4,11 +4,12 @@ include(GNUInstallDirs)
 
 project (FlatBoobs)
 
+option(FLATBOOBS_BUILD_TESTING "Build SelfTest project" OFF)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 list(APPEND CMAKE_CXX_FLAGS -Wall)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-enable_testing()
 
 # Find dependencies
 find_package(pybind11 CONFIG REQUIRED)
@@ -114,4 +115,8 @@ install(
 # target_link_libraries(monster_generated_py PRIVATE flatbuffers flatboobs)
 # install(TARGETS monster_generated_py DESTINATION sample/monster)
 
-add_subdirectory(tests/cpp)
+if (FLATBOOBS_BUILD_TESTING)
+  enable_testing()
+  add_subdirectory(tests/cpp)
+endif()
+
