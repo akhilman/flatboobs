@@ -13,8 +13,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <flatboobs/exceptions.h>
-#include <flatboobs/utils.h>
+#include <flatboobs/exceptions.hpp>
+#include <flatboobs/utils.hpp>
 
 #define RETPOL_COPY py::return_value_policy::copy
 #define RETPOL_REFINT py::return_value_policy::reference_internal

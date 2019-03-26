@@ -1,5 +1,5 @@
-#ifndef FLATBOOBS_UTILS_H
-#define FLATBOOBS_UTILS_H
+#ifndef FLATBOOBS_UTILS_HPP
+#define FLATBOOBS_UTILS_HPP
 
 #include <iomanip>
 #include <sstream>
@@ -50,4 +50,4 @@ inline std::string unescape_string(const std::string src) {
 
 } // namespace flatboobs
 
-#endif // FLATBOOBS_UTILS_H
+#endif // FLATBOOBS_UTILS_HPP

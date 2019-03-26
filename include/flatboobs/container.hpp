@@ -1,5 +1,5 @@
-#ifndef FLATBOOBS_CONTAINER_H
-#define FLATBOOBS_CONTAINER_H
+#ifndef FLATBOOBS_CONTAINER_HPP
+#define FLATBOOBS_CONTAINER_HPP
 
 #include <stdexcept>
 #include <variant>
@@ -7,7 +7,7 @@
 #include <flatbuffers/flatbuffers.h>
 #include <flatbuffers/idl.h>
 
-#include <flatboobs/exceptions.h>
+#include <flatboobs/exceptions.hpp>
 #include <pybind11/buffer_info.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -266,4 +266,4 @@ template <typename T> std::shared_ptr<const T> unpackb(py::buffer &buffer) {
 
 } // namespace flatboobs
 
-#endif // FLATBOOBS_CONTAINER_H
+#endif // FLATBOOBS_CONTAINER_HPP

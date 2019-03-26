@@ -1,5 +1,5 @@
-#ifndef FLATBOOBS_EXCEPTIONS_H
-#define FLATBOOBS_EXCEPTIONS_H
+#ifndef FLATBOOBS_EXCEPTIONS_HPP
+#define FLATBOOBS_EXCEPTIONS_HPP
 
 #include <stdexcept>
 
@@ -24,4 +24,4 @@ class key_error : public std::runtime_error {
 
 } // namespace flatboobs
 
-#endif // FLATBOOBS_EXCEPTIONS_H
+#endif // FLATBOOBS_EXCEPTIONS_HPP

@@ -26,12 +26,12 @@ def gen_header(
         output_dir: Path,
         options: Mapping[str, Any],
 ) -> None:
-    template = env.get_template('lazy.h/main.txt')
+    template = env.get_template('lazy.hpp/main.txt')
     root_struct_def = parser.root_struct_def
     root_fname = Path(root_struct_def.file)
     output_file = (
         output_dir
-        / f'{(root_fname.stem)}_flatboobs.h'
+        / f'{(root_fname.stem)}_flatboobs.hpp'
     )
     with output_file.open('w') as output:
         output.write(

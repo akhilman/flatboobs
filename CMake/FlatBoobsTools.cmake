@@ -11,7 +11,7 @@ function(flatboobs_add_schema target)
   set(header_files)
   foreach(schema ${schema_files})
     string(REGEX REPLACE "^.*/([^/]+)\.fbs$" "\\1" name ${schema})
-    list(APPEND header_files ${output_dir}/${name}_flatboobs.h)
+    list(APPEND header_files ${output_dir}/${name}_flatboobs.hpp)
   endforeach(schema)
 
   add_custom_target("${target}_make_directory" ALL

@@ -9,12 +9,12 @@
 #include <sstream>
 #include <variant>
 
-#include <flatboobs/exceptions.h>
-#include <flatboobs/flatboobs.h>
 #include <flatbuffers/flatbuffers.h>
+#include <flatboobs/exceptions.hpp>
+#include <flatboobs/flatboobs.hpp>
 
 {% for file in parser.native_included_files %}
-#include "{{ file|stem + "_flatboobs.h" }}"
+#include "{{ file|stem + "_flatboobs.hpp" }}"
 {% endfor %}
 
 
@@ -52,7 +52,7 @@ namespace {{ component }} {
 
 {% for enum_def in group.list|sort(attribute="name") %}
 
-{% include "lazy.h/enum.txt" %}
+{% include "lazy.hpp/enum.txt" %}
 {% endfor %}
 
 {% for component in group.grouper.components|reverse %}
@@ -74,7 +74,7 @@ namespace {{ component }} {
 
 {% for table_def in group.list|sort(attribute="name") %}
 
-{% include "lazy.h/table.txt" %}
+{% include "lazy.hpp/table.txt" %}
 {% endfor %}
 
 {% for component in group.grouper.components|reverse %}

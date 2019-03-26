@@ -1,5 +1,5 @@
 #define BOOST_TEST_MODULE Table with enums
-#include "enums_flatboobs.h"
+#include "enums_flatboobs.hpp"
 #include <boost/test/unit_test.hpp>
 #include <iostream>
 

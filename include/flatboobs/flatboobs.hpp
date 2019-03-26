@@ -1,5 +1,5 @@
-#ifndef FLATBOOBS_FLATBOOBS_H
-#define FLATBOOBS_FLATBOOBS_H
+#ifndef FLATBOOBS_FLATBOOBS_HPP
+#define FLATBOOBS_FLATBOOBS_HPP
 
 #include <flatbuffers/flatbuffers.h>
 
@@ -47,4 +47,4 @@ private:
 
 } // namespace flatboobs
 
-#endif // FLATBOOBS_FLATBOOBS_H
+#endif // FLATBOOBS_FLATBOOBS_HPP
