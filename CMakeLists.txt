@@ -96,8 +96,8 @@ install(
 
 install(
   FILES
-    "cmake/FlatBoobsTools.cmake"
-    "cmake/FlatBoobsConfig.cmake"
+    "CMake/FlatBoobsTools.cmake"
+    "CMake/FlatBoobsConfig.cmake"
   DESTINATION
     ${FLATBOOBS_CMAKE_CONFIG_DESTINATION}
 )
