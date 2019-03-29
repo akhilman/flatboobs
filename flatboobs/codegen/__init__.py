@@ -1,8 +1,7 @@
 # pylint: disable=missing-docstring
 
-from . import cmakelists, sources
+from .generate import generate
 
 __all__ = [
-    'cmakelists',
-    'sources'
+    'generate'
 ]

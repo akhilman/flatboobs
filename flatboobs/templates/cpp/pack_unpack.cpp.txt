@@ -1,0 +1,46 @@
+// Verify {{ struct_name }}
+bool verify_{{ struct_name }}(const std::string_view _message) {
+  auto verifier = flatbuffers::Verifier(
+    reinterpret_cast<const uint8_t *>(_message.data()),
+    _message.size()
+    );
+  const char *ident = nullptr;
+  if ({{ iface_type }}::file_identifier().size())
+    ident = {{ iface_type }}::file_identifier().data();
+  return verifier.VerifyBuffer<{{ flatbuffer_type }}>(ident);
+}
+
+bool verify_{{ struct_name }}(const flatboobs::IByteData &_message) {
+  return verify_{{ struct_name }}(_message.str());
+}
+
+// Unpack {{ struct_name }} from bytes
+std::shared_ptr<{{ iface_type }}>
+unpack_{{ struct_name }}(std::shared_ptr<const IByteData> _message) {
+
+  if (!verify_{{ struct_name }}(*_message.get()))
+    throw flatboobs::unpack_error("Message verification failed");
+
+  auto root = flatbuffers::GetRoot<{{ flatbuffer_type }}>(_message->data());
+
+  return std::make_shared<{{ unpacked_type }}>(_message, root);
+}
+
+// Pack {{ struct_name }} to bytes
+std::shared_ptr<BuiltByteData>
+pack_{{ struct_name }}(const {{ iface_type }} &_table) {
+
+  auto message = std::make_shared<BuiltByteData>();
+  flatbuffers::FlatBufferBuilder fbb{1024};
+
+  _table.build(fbb, true);
+  message->steal_from_builder(std::move(fbb));
+
+  return message;
+};
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

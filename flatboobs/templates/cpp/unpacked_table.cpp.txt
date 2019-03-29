@@ -1,0 +1,50 @@
+/* {{ flatbuffer_type }} */
+
+// Verify
+
+bool {{ flatbuffer_type }}::Verify(
+    flatbuffers::Verifier &verifier) const {
+  return VerifyTableStart(verifier) &&
+{% for field in fields %}
+{% if field.value.type.base_type.is_scalar() %}
+  VerifyField<{{ field.value.type|to_flatbuf_type
+    }}>(verifier, VT_{{ field.name|upper }}) &&
+{% else %}
+  // TODO {{ field.name }}
+{% endif %}
+{% endfor %}
+  verifier.EndTable();
+}
+
+/* {{ unpacked_type }} */
+
+// Constructors
+
+{{ unpacked_type }}::{{ unpacked_type }}(
+  std::shared_ptr<const flatboobs::IByteData> &_message,
+  const {{ flatbuffer_type }} *_flatbuf
+  ) : message_{_message}, flatbuf_{_flatbuf} {}
+
+// Getters
+
+{% for field in fields %}
+{{ field.value.type|to_cpp_type }} {{ unpacked_type -}}
+    ::{{ field.name|escape_keyword }}() const {
+{% if field.value.type.definition is instance_of("EnumDef") %}
+  return static_cast<{{ field.value.type|to_cpp_type -}}
+    >(flatbuf_->{{ field.name|escape_keyword }}());
+{% elif field.value.type.base_type.is_scalar() %}
+  return flatbuf_->{{ field.name|escape_keyword }}();
+{% else %}
+  return nullptr;  // TODO {{ field.name }}
+{% endif %}
+}
+
+{% endfor %}
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}
+

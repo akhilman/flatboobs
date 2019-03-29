@@ -1,0 +1,36 @@
+/* {{ default_type }} */
+
+class {{ default_type }} : public {{ iface_type }}{
+public:
+
+  // Getters
+{% for field in fields %}
+  {% if field.value.type.definition is instance_of("EnumDef") %}
+    {% set default_value = field.value.constant
+        |to_cpp_enum(field.value.type.definition) %}
+  {% elif field.value.type.base_type.is_scalar() %}
+    {% set default_value = field.value.constant %}
+  {% endif %}
+  {{ field.value.type|to_cpp_type }} {{
+    field.name|escape_keyword }}() const override {
+    return {{ default_value }};
+  }
+{% endfor %}
+
+  // Builder
+  flatboobs::content_id_t content_id () const override { return 0; }
+{% if not struct_def.fixed %}
+  flatbuffers::Offset<{{ flatbuffer_type }}> build(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    std::map<flatboobs::content_id_t, flatbuffers::uoffset_t> &_offset_map
+    ) const override{ return flatbuffers::Offset<{{ flatbuffer_type }}>(); }
+
+{% endif %}
+};
+
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

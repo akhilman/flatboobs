@@ -1,0 +1,42 @@
+/* {{ shared_type }} */
+
+class {{ shared_type }} : public {{ iface_type }}{
+public:
+
+  // Constructors
+  explicit {{ shared_type }}(const {{ iface_type }} &_table) {
+    {{ shared_type }} shared = _table.clone_shared();
+    std::swap(*this, shared);
+    assert(ptr_.get());
+  }
+  explicit {{ shared_type }}(std::shared_ptr<const {{ iface_type }}> _table) {
+    ptr_ = _table;
+    assert(ptr_.get());
+  }
+
+  // Clone
+  {{ shared_type }} clone_shared() const override {
+    return {{ shared_type }}(*this);
+    }
+
+  // Getters
+{% for field in fields %}
+  {{ field.value.type|to_cpp_type }} {{
+    field.name|escape_keyword }}() const override
+  { return ptr_->{{ field.name|escape_keyword }}(); }
+{% endfor %}
+
+  // Builder
+  size_t content_id () const override { return ptr_->content_id(); }
+
+private:
+  std::shared_ptr<const {{ iface_type }}> ptr_;
+
+};
+
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

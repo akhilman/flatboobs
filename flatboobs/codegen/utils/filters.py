@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Sequence, Set, Union
+from typing import Any, Mapping, Union
 
 import toolz.itertoolz as it
 
@@ -144,6 +144,23 @@ PYTHON_KEYWORDS = {
     "yield",
 }
 
+EXTRA_KEYWORDS = {
+    "build",
+    "content_id",
+    "default_values",
+    "dirty_values_",
+    "file_identifier",
+    "flatbuf_",
+    "fully_qualified_name",
+    "is_dirty",
+    "is_dirty_",
+    "keys",
+    "message_",
+    "pack",
+    "unpack",
+    "verify",
+}
+
 CPP_TYPES = {
     idl.BaseType.NONE: "uint8_t",
     idl.BaseType.UTYPE: "uint8_t",
@@ -161,25 +178,11 @@ CPP_TYPES = {
 }
 
 
-def escape_keyword(
-        txt: str,
-        keywords: Union[Sequence[str], Set[str]] = tuple(),
-) -> str:
-    if txt in set(keywords):
-        return txt + '_'
+def escape_keyword(txt: str) -> str:
+    for kwd in CPP_KEYWORDS | PYTHON_KEYWORDS | EXTRA_KEYWORDS:
+        if re.match(r'^'+kwd+r'_*$', txt):
+            return txt + '_'
     return txt
-
-
-def escape_cpp_keyword(
-        txt: str,
-) -> str:
-    return escape_keyword(txt, CPP_KEYWORDS)
-
-
-def escape_python_keyword(
-        txt: str,
-) -> str:
-    return escape_keyword(txt, PYTHON_KEYWORDS)
 
 
 def include_guard(fname: Union[str, Path]) -> str:
@@ -221,13 +224,13 @@ def to_cpp_enum(src: Union[str, int], enum_def: idl.EnumDef) -> str:
             if value & enum_value.value:
                 result.append('::'.join([
                     *enum_def.defined_namespace.components,
-                    escape_cpp_keyword(enum_def.name),
-                    escape_cpp_keyword(enum_value.name),
+                    escape_keyword(enum_def.name),
+                    escape_keyword(enum_value.name),
                 ]))
         if not result:
             result.append('::'.join([
                 *enum_def.defined_namespace.components,
-                escape_cpp_keyword(enum_def.name),
+                escape_keyword(enum_def.name),
                 "NONE"
             ]))
     else:
@@ -235,14 +238,14 @@ def to_cpp_enum(src: Union[str, int], enum_def: idl.EnumDef) -> str:
             if value == enum_value.value:
                 result.append('::'.join([
                     *enum_def.defined_namespace.components,
-                    escape_cpp_keyword(enum_def.name),
-                    escape_cpp_keyword(enum_value.name),
+                    escape_keyword(enum_def.name),
+                    escape_keyword(enum_value.name),
                 ]))
         if not result:
             result.append('::'.join([
                 *enum_def.defined_namespace.components,
-                escape_cpp_keyword(enum_def.name),
-                escape_cpp_keyword(enum_def.values[0].name)
+                escape_keyword(enum_def.name),
+                escape_keyword(enum_def.values[0].name)
             ]))
     return '|'.join(result)
 
@@ -292,19 +295,22 @@ def quote(txt: str) -> str:
     return f'"{txt}"'
 
 
-FILTERS = {
-    'include_guard': include_guard,
-    'escape_keyword': escape_keyword,
-    'escape_cpp_keyword': escape_cpp_keyword,
-    'escape_python_keyword': escape_python_keyword,
-    'basename': basename,
-    'dirname': dirname,
-    'relative_path': relative_path,
-    'with_suffix': with_suffix,
-    'stem': stem,
-    'to_cpp_enum': to_cpp_enum,
-    'to_cpp_type': to_cpp_type,
-    'to_flatbuf_type': to_flatbuf_type,
-    'concat': it.concat,
-    'quote': quote,
-}
+def filters(
+        output_dir: Path,
+        options: Mapping[str, Any]
+):
+    # pylint: disable=unused-argument
+    return {
+        'include_guard': include_guard,
+        'escape_keyword': escape_keyword,
+        'basename': basename,
+        'dirname': dirname,
+        'relative_path': relative_path,
+        'with_suffix': with_suffix,
+        'stem': stem,
+        'to_cpp_enum': to_cpp_enum,
+        'to_cpp_type': to_cpp_type,
+        'to_flatbuf_type': to_flatbuf_type,
+        'concat': it.concat,
+        'quote': quote,
+    }

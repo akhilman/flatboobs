@@ -1,0 +1,64 @@
+/* {{ mutable_type }} */
+
+class {{ mutable_type }} : public {{ iface_type }}{
+public:
+{% for field in fields %}
+  {{ field.value.type|to_cpp_type }} {{
+    field.name|escape_keyword }}_;
+{% endfor %}
+
+{{ mutable_type }}(
+  {% for field in fields %}
+    {% if field.value.type.definition is instance_of("EnumDef") %}
+      {% set default_value = field.value.constant
+          |to_cpp_enum(field.value.type.definition) %}
+    {% elif field.value.type.base_type.is_scalar() %}
+      {% set default_value = field.value.constant %}
+    {% else %}
+      {% set default_value = "nullptr" %}
+    {% endif %}
+    {{ field.value.type
+        |to_cpp_type(const=True) }} {# -#}
+      &_{{ field.name|escape_keyword }} = {{ default_value }}
+      {{- "," if not loop.last }}
+  {% endfor %}
+  ) :
+  {% for field_name in fields|map("attr", "name")|map("escape_keyword") %}
+     {{ field_name }}_ {_{{ field_name }}} {{- "," if not loop.last }}
+  {% endfor %}
+  {}
+  {{ mutable_type }}(const {{ iface_type }} &_table)
+  : {% for field_name in fields|map("attr", "name")|map("escape_keyword") %}
+     {{ field_name }}_ {_table.{{ field_name }}()} {{- "," if not loop.last }}
+  {% endfor %}
+  {}
+
+  // Getters
+{% for field in fields %}
+  {{ field.value.type|to_cpp_type }} {{
+    field.name|escape_keyword }}() const override {
+    return {{ field.name|escape_keyword }}_;
+  }
+{% endfor %}
+
+  // Setters
+{% for field in fields %}
+  inline void set_{{ field.name|escape_keyword }}(
+      {{- field.value.type|to_cpp_type }} _value) {
+    {{ field.name|escape_keyword }}_ = _value;
+  }
+{% endfor %}
+
+  // Builder
+  flatboobs::content_id_t content_id () const override {
+    return flatboobs::content_id_t(this);
+  }
+
+};
+
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

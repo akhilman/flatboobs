@@ -1,0 +1,17 @@
+// Verify {{ struct_name }}
+bool verify_{{ struct_name }}(const std::string_view _message);
+bool verify_{{ struct_name }}(const flatboobs::IByteData &_message);
+
+// Unpack {{ struct_name }} from bytes
+std::shared_ptr<{{ iface_type }}>
+unpack_{{ struct_name }}(std::shared_ptr<const IByteData> _message);
+
+// Pack {{ struct_name }} to bytes
+std::shared_ptr<BuiltByteData>
+pack_{{ struct_name }}(const {{ iface_type }} &_table);
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

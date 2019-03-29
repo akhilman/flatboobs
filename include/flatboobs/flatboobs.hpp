@@ -2,8 +2,11 @@
 #define FLATBOOBS_FLATBOOBS_HPP
 
 #include <flatbuffers/flatbuffers.h>
+#include <map>
 
 namespace flatboobs {
+
+using content_id_t = size_t;
 
 template <typename T> class IData {
 public:

@@ -1,0 +1,53 @@
+/* {{ flatbuffer_type }} */
+
+class {{ flatbuffer_type }} final : private flatbuffers::Table {
+public:
+  enum {
+    {% for field in fields %}
+      VT_{{ field.name|escape_keyword|upper }} = {{ field.value.offset }},
+    {% endfor %}
+  };
+
+{% for field in fields %}
+  inline {{ field.value.type|to_flatbuf_type }} {{
+        field.name|escape_keyword }}() const
+  { return GetField<{{ field.value.type|to_flatbuf_type }}>(
+      VT_{{- field.name|escape_keyword|upper }}, {{ field.value.constant }}); }
+{% endfor %}
+
+  bool Verify(flatbuffers::Verifier &verifier) const;
+};
+
+/* {{ unpacked_type }} */
+
+class {{ unpacked_type }} : public {{ iface_type }}{
+public:
+
+  explicit {{ unpacked_type }}(
+    std::shared_ptr<const flatboobs::IByteData> &_message,
+    const {{ flatbuffer_type }} *_flatbuf
+    );
+
+  // Getters
+{% for field in fields %}
+  {{ field.value.type|to_cpp_type }} {{
+    field.name|escape_keyword }}() const override;
+{% endfor %}
+
+  // Builder
+  flatboobs::content_id_t content_id () const override {
+    return flatboobs::content_id_t(flatbuf_);
+  }
+
+private:
+  std::shared_ptr<const flatboobs::IByteData> message_;
+  const {{ flatbuffer_type }} *flatbuf_;
+
+};
+
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

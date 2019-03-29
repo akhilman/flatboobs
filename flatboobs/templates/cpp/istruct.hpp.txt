@@ -1,0 +1,64 @@
+/* {{ iface_type }} */
+
+{% if not struct_def.fixed %}
+class {{ flatbuffer_type }};
+{% endif %}
+
+class {{ iface_type }} {
+public:
+  using value_variant_type = std::variant<{{
+    fields|map("attr", "value")|map("attr", "type")
+      |map("to_cpp_type")|unique|sort|join(", ")
+  }}>;
+
+  // Destructor
+  virtual ~{{ iface_type }}() = default;
+
+  // Operators
+  const value_variant_type operator[](const std::string &key) const;
+  friend bool operator== (const {{ iface_type }}&, const {{ iface_type }}&);
+  friend bool operator!= (const {{ iface_type }}&, const {{ iface_type }}&);
+  friend std::ostream& operator<< (std::ostream&, const {{ iface_type }}&);
+
+  // Metadata
+  static constexpr std::string_view fully_qualified_name() {
+    return "{{ struct_def.fully_qualified_name }}";
+  }
+{% if not struct_def.fixed %}
+  static constexpr std::string_view file_identifier() {
+  {% if struct_def == parser.root_struct_def %}
+    return "{{ parser.file_identifier }}";
+  {% else %}
+    return "";
+  {% endif %}
+  }
+{% endif %}
+  static constexpr std::array<std::string_view, {{ fields|count }}> keys() {
+    return { {{ fields|map("attr", "name")
+                |map("escape_keyword")|map("quote")|join(", ")}} };
+  }
+
+  // Getters
+{% for field in fields %}
+  virtual {{ field.value.type|to_cpp_type }} {{
+      field.name|escape_keyword }}() const = 0;
+{% endfor %}
+
+  // Builder
+  virtual flatboobs::content_id_t content_id () const = 0;
+{% if not struct_def.fixed %}
+  virtual flatbuffers::Offset<{{ flatbuffer_type }}> build(
+    flatbuffers::FlatBufferBuilder &_fbb, bool finish = true) const;
+  virtual flatbuffers::Offset<{{ flatbuffer_type }}> build(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    std::map<flatboobs::content_id_t, flatbuffers::uoffset_t> &_offset_map
+    ) const;
+{% endif %}
+
+};
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

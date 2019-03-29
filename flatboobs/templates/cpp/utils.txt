@@ -1,0 +1,18 @@
+    "pass",
+    "raise",
+    "return",
+    "try",
+    "while",
+    "with",
+    "yield",
+] %}
+
+{% set EXTRA_KEYWORDS = [
+  "is_dirty", "build", "pack", "unpack", "content_id", "verify",
+  "fully_qualified_name", "file_identifier", "default_values", "keys",
+  "message_", "flatbuf_", "is_dirty_", "dirty_values_",
+  ] %}
+
+{% macro escape(name) -%}
+    {{ name|escape_keyword(CPP_KEYWORDS, PYTHON_KEYWORDS, EXTRA_KEYWORDS) }}
+{%- endmacro %}
