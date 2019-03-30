@@ -32,7 +32,7 @@ namespace {{ component }} {
         |sort(attribute="name") %}
 {% set struct_name = struct_def.name|escape_keyword %}
 {% set iface_type = "I" + struct_name %}
-{% set fixed_type = struct_name %}
+{% set mutable_type = struct_name %}
 {% set flatbuffer_type = "FlatBuffer" + struct_name %}
 {% set unpacked_type = "Unpacked" + struct_name %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
