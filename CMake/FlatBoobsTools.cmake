@@ -42,12 +42,12 @@ function(flatboobs_add_schema target)
 
   if(ARG_HEADER_ONLY)
     add_library(${target} INTERFACE)
-    add_dependencies(${target} "${target}_generate")
   elseif(ARG_SHARED)
     add_library(${target} SHARED ${source_files})
   else()
     add_library(${target} STATIC ${source_files})
   endif()
+  add_dependencies(${target} "${target}_generate")
   target_link_libraries(${target} INTERFACE flatbuffers)
   target_include_directories(${target} INTERFACE ${output_dir})
 
