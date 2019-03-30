@@ -1,0 +1,13 @@
+namespace flatboobs.schema.test;
+
+enum TestFlag:ushort (bit_flags) { Foo, Bar, Buz=5 }
+
+enum TestEnum:byte { Foo, Bar, Buz=5 }
+
+table TestEnumAndFlag {
+    test_flag: TestFlag;
+    test_enum: TestEnum = Buz;
+}
+
+root_type TestEnumAndFlag;
+file_identifier "FBTE";
