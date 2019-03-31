@@ -17,4 +17,4 @@ table TestScalars {
 }
 
 root_type TestScalars;
-file_identifier "FBTS";
+file_identifier "TSCR";

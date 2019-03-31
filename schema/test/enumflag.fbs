@@ -10,4 +10,4 @@ table TestEnumAndFlag {
 }
 
 root_type TestEnumAndFlag;
-file_identifier "FBTE";
+file_identifier "TEnF";
