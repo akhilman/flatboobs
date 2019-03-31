@@ -1,5 +1,15 @@
 /* {{ iface_type }} */
 
+const {{ iface_type }}::value_variant_type
+    {{ iface_type }}::operator[](const std::string &key) const
+{
+{% for field in fields %}
+  if (key == "{{ field.name }}")
+    return {{ utils.escape(field.name) }}();
+{% endfor %}
+  throw flatboobs::key_error(key);
+}
+
 bool operator== (const {{ iface_type }} &lhs, const {{ iface_type }} &rhs){
   return
   {% for field in fields %}
