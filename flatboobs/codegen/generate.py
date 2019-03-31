@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from jinja2 import Environment, PackageLoader, Template, select_autoescape
+from jinja2 import Environment, PackageLoader, Template
 from toolz import functoolz as ft
 
 from flatboobs import idl  # type: ignore
@@ -69,7 +69,7 @@ def generate(
 
     env = Environment(
         loader=PackageLoader('flatboobs', 'templates'),
-        autoescape=select_autoescape(['cpp']),
+        autoescape=False,
         trim_blocks=True,
         lstrip_blocks=True,
     )
