@@ -5,15 +5,9 @@ public:
 
   // Getters
 {% for field in fields %}
-  {% if field.value.type.definition is instance_of("EnumDef") %}
-    {% set default_value = field.value.constant
-        |to_cpp_enum(field.value.type.definition) %}
-  {% elif field.value.type.base_type.is_scalar() %}
-    {% set default_value = field.value.constant %}
-  {% endif %}
   {{ field.value.type|to_cpp_type }} {{
-    field.name|escape_keyword }}() const override {
-    return {{ default_value }};
+    utils.escape(field.name) }}() const override {
+    return {{ field.value|default_value }};
   }
 {% endfor %}
 

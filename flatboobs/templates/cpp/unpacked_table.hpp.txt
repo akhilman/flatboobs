@@ -4,15 +4,15 @@ class {{ flatbuffer_type }} final : private flatbuffers::Table {
 public:
   enum {
     {% for field in fields %}
-      VT_{{ field.name|escape_keyword|upper }} = {{ field.value.offset }},
+      VT_{{ utils.escape(field.name)|upper }} = {{ field.value.offset }},
     {% endfor %}
   };
 
 {% for field in fields %}
   inline {{ field.value.type|to_flatbuf_type }} {{
-        field.name|escape_keyword }}() const
+        utils.escape(field.name) }}() const
   { return GetField<{{ field.value.type|to_flatbuf_type }}>(
-      VT_{{- field.name|escape_keyword|upper }}, {{ field.value.constant }}); }
+      VT_{{- utils.escape(field.name)|upper }}, {{ field.value.constant }}); }
 {% endfor %}
 
   bool Verify(flatbuffers::Verifier &verifier) const;
@@ -31,7 +31,7 @@ public:
   // Getters
 {% for field in fields %}
   {{ field.value.type|to_cpp_type }} {{
-    field.name|escape_keyword }}() const override;
+    utils.escape(field.name) }}() const override;
 {% endfor %}
 
   // Builder

@@ -3,8 +3,8 @@
 bool operator== (const {{ iface_type }} &lhs, const {{ iface_type }} &rhs){
   return
   {% for field in fields %}
-    lhs.{{ field.name|escape_keyword }}()
-    == rhs.{{ field.name|escape_keyword }}()
+    lhs.{{ utils.escape(field.name) }}()
+    == rhs.{{ utils.escape(field.name) }}()
   {%- if not loop.last %}
   &&
   {% endif %}
@@ -20,17 +20,17 @@ std::ostream& operator<< (std::ostream &stream, const {{ iface_type }} &src) {
   {% for field in fields %}
       << "{{ field.name }}="
   {% if field.value.type.base_type == BaseType.BOOL %}
-      << (src.{{ field.name|escape_keyword }}()
+      << (src.{{ utils.escape(field.name) }}()
           ? "true" : "false")
   {% elif field.value.type.definition is instance_of("EnumDef") %}
       << {{ field.value.type|to_cpp_type }}_to_string(src.{{
-        field.name|escape_keyword }}())
+        utils.escape(field.name) }}())
   {% elif field.value.type.base_type.is_scalar() %}
-      << +src.{{ field.name|escape_keyword }}()
+      << +src.{{ utils.escape(field.name) }}()
   {% elif field.value.type.base_type == BaseType.STRING %}
-    << '"' << src.{{ field.name|escape_keyword }}() << '"'
+    << '"' << src.{{ utils.escape(field.name) }}() << '"'
   {% else %}
-      << src.{{ field.name|escape_keyword }}()
+      << src.{{ utils.escape(field.name) }}()
   {% endif %}
   {% if not loop.last %}
     << ", "
@@ -75,13 +75,13 @@ flatbuffers::Offset<{{ flatbuffer_type }}> {{ iface_type }}::build(
   _fbb.AddElement<{{ field.value.type|to_flatbuf_type }}>(
     {{ flatbuffer_type }}::VT_{{ field.name|upper }},
     static_cast<{{ field.value.type|to_flatbuf_type }}>({{
-    field.name|escape_keyword }}()),
+    utils.escape(field.name) }}()),
     {{ field.value.constant }}
     );
 {% elif field.value.type.base_type.is_scalar() %}
   _fbb.AddElement<{{ field.value.type|to_cpp_type }}>(
     {{ flatbuffer_type }}::VT_{{ field.name|upper }},
-    {{ field.name|escape_keyword }}(),
+    {{ utils.escape(field.name) }}(),
     {{ field.value.constant }}
     );
 {% else %}

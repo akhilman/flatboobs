@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Mapping, Union
+from typing import Any, Callable, Mapping, Sequence, Set, Union
 
 import toolz.itertoolz as it
 
@@ -144,22 +144,7 @@ PYTHON_KEYWORDS = {
     "yield",
 }
 
-EXTRA_KEYWORDS = {
-    "build",
-    "content_id",
-    "default_values",
-    "dirty_values_",
-    "file_identifier",
-    "flatbuf_",
-    "fully_qualified_name",
-    "is_dirty",
-    "is_dirty_",
-    "keys",
-    "message_",
-    "pack",
-    "unpack",
-    "verify",
-}
+KEYWORDS = CPP_KEYWORDS | PYTHON_KEYWORDS
 
 CPP_TYPES = {
     idl.BaseType.NONE: "uint8_t",
@@ -178,10 +163,12 @@ CPP_TYPES = {
 }
 
 
-def escape_keyword(txt: str) -> str:
-    for kwd in CPP_KEYWORDS | PYTHON_KEYWORDS | EXTRA_KEYWORDS:
-        if re.match(r'^'+kwd+r'_*$', txt):
-            return txt + '_'
+def escape_keyword(
+        txt: str,
+        keywords: Union[Sequence, Set] = KEYWORDS
+) -> str:
+    if any(map(lambda x: re.match(r'^'+x+r'_*$', txt), set(keywords))):
+        return txt + '_'
     return txt
 
 
@@ -192,29 +179,11 @@ def include_guard(fname: Union[str, Path]) -> str:
     return guard
 
 
-def basename(fname: Union[str, Path]) -> str:
-    return Path(fname).name
+def quote(txt: str) -> str:
+    return f'"{txt}"'
 
 
-def dirname(fname: Union[str, Path]) -> Path:
-    return Path(fname).parent
-
-
-def relative_path(fname: Union[str, Path], other: Union[str, Path]) -> Path:
-    fname_path = Path(fname).resolve()
-    other_path = Path(other).resolve()
-    if other_path.is_file():
-        other_path = other_path.parent
-    return fname_path.relative_to(other_path)
-
-
-def with_suffix(fname: Union[str, Path], suffix: str) -> Path:
-    return Path(fname).with_suffix(suffix)
-
-
-def stem(fname: Union[str, Path]) -> str:
-    return Path(fname).stem
-
+# Will be converted to macro
 
 def to_cpp_enum(src: Union[str, int], enum_def: idl.EnumDef) -> str:
     value = int(src)
@@ -258,19 +227,22 @@ def to_cpp_type(
 ) -> str:
     base_type = type_.base_type
     definition = type_.definition
-    if isinstance(definition, idl.EnumDef):
+    is_pointer = False
+    if definition:
         type_str = definition.name
+        if isinstance(definition, idl.StructDef) and not definition.fixed:
+            is_pointer = True
         if not no_namespace:
             type_str = '::'.join(
                 [*definition.defined_namespace.components, type_str])
-        if const:
-            type_str = f'const {type_str}'
     elif base_type in CPP_TYPES:  # base types
         type_str = CPP_TYPES[type_.base_type]
-        if const:
-            type_str = f'const {type_str}'
     else:
         raise NotImplementedError('Oops!')
+    if const:
+        type_str = f'const {type_str}'
+    if is_pointer and not no_pointer:
+        type_str = f'std::shared_ptr<{type_str}>'
     return type_str
 
 
@@ -279,20 +251,79 @@ def to_flatbuf_type(
         const=False,
 ) -> str:
     base_type = type_.base_type
+    definition = type_.definition
+    if base_type == idl.BaseType.BOOL:
+        type_str = CPP_TYPES[idl.BaseType.CHAR]
     if base_type in CPP_TYPES:
-        if base_type == idl.BaseType.BOOL:
-            type_str = CPP_TYPES[idl.BaseType.CHAR]
+        type_str = CPP_TYPES[type_.base_type]
+    elif base_type == idl.BaseType.STRUCT:
+        if definition.fixed:
+            type_str = definition.name
         else:
-            type_str = CPP_TYPES[type_.base_type]
-        if const:
-            type_str = f'const {type_str}'
+            type_str = "FlatBuffer" + definition.name
     else:
         raise NotImplementedError('Oops!')
+    if const:
+        type_str = f'const {type_str}'
     return type_str
 
 
-def quote(txt: str) -> str:
-    return f'"{txt}"'
+def default_value(
+        value: idl.Value
+) -> str:
+
+    type_ = value.type
+    definition = type_.definition
+    is_vector = type_.base_type == idl.BaseType.VECTOR
+    element_type = type_.element if is_vector else type_.base_type
+    if isinstance(definition, idl.EnumDef):
+        return to_cpp_enum(value.constant, definition)
+    if isinstance(definition, idl.StructDef):
+        return class_name(definition, "Default", False, is_vector) + "()"
+    if element_type.is_scalar():
+        return value.constant
+    raise NotImplementedError
+
+
+# Path related
+
+def basename(fname: Union[str, Path]) -> str:
+    return Path(fname).name
+
+
+def dirname(fname: Union[str, Path]) -> Path:
+    return Path(fname).parent
+
+
+def relative_path(fname: Union[str, Path], other: Union[str, Path]) -> Path:
+    fname_path = Path(fname).resolve()
+    other_path = Path(other).resolve()
+    if other_path.is_file():
+        other_path = other_path.parent
+    return fname_path.relative_to(other_path)
+
+
+def with_suffix(fname: Union[str, Path], suffix: str) -> Path:
+    return Path(fname).with_suffix(suffix)
+
+
+def stem(fname: Union[str, Path]) -> str:
+    return Path(fname).stem
+
+
+def class_name(
+        definition: Union[idl.EnumDef, idl.StructDef],
+        prefix: str = "",
+        no_namespace: bool = False,
+        vector: bool = False
+) -> str:
+    name = prefix + escape_keyword(definition.name)
+    if not no_namespace:
+        name = '::'.join([
+            *definition.defined_namespace.components,
+            name
+        ])
+    return name
 
 
 def filters(
@@ -301,16 +332,19 @@ def filters(
 ):
     # pylint: disable=unused-argument
     return {
-        'include_guard': include_guard,
+        'concat': it.concat,
         'escape_keyword': escape_keyword,
-        'basename': basename,
-        'dirname': dirname,
-        'relative_path': relative_path,
-        'with_suffix': with_suffix,
-        'stem': stem,
+        'include_guard': include_guard,
+        'quote': quote,
+        # will be converted to macro
         'to_cpp_enum': to_cpp_enum,
         'to_cpp_type': to_cpp_type,
         'to_flatbuf_type': to_flatbuf_type,
-        'concat': it.concat,
-        'quote': quote,
+        'default_value': default_value,
+        # path related
+        'basename': basename,
+        'dirname': dirname,
+        'relative_path': relative_path,
+        'stem': stem,
+        'with_suffix': with_suffix,
     }

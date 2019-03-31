@@ -29,12 +29,12 @@ bool {{ flatbuffer_type }}::Verify(
 
 {% for field in fields %}
 {{ field.value.type|to_cpp_type }} {{ unpacked_type -}}
-    ::{{ field.name|escape_keyword }}() const {
+    ::{{ utils.escape(field.name) }}() const {
 {% if field.value.type.definition is instance_of("EnumDef") %}
   return static_cast<{{ field.value.type|to_cpp_type -}}
-    >(flatbuf_->{{ field.name|escape_keyword }}());
+    >(flatbuf_->{{ utils.escape(field.name) }}());
 {% elif field.value.type.base_type.is_scalar() %}
-  return flatbuf_->{{ field.name|escape_keyword }}();
+  return flatbuf_->{{ utils.escape(field.name) }}();
 {% else %}
   return nullptr;  // TODO {{ field.name }}
 {% endif %}

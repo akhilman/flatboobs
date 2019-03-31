@@ -1,4 +1,4 @@
-{% set class_name = enum_def.name|escape_keyword %}
+{% set class_name = utils.escape(enum_def.name) %}
 
 /* {{ class_name }} */
 {% if "bit_flags" in enum_def.attributes %}
@@ -14,7 +14,7 @@
     } else if (value_str == "NONE") {
   {% for value in enum_def.values %}
     } else if (value_str == "{{ value.name }}") {
-      result |= {{ class_name }}::{{ value.name|escape_keyword }};
+      result |= {{ class_name }}::{{ utils.escape(value.name) }};
   {% endfor %}
     } else {
       throw flatboobs::key_error("Bad enum value: \"" + str + '"');
@@ -28,8 +28,8 @@ std::string {{ class_name }}_to_string(const {{ class_name }} &value) {
     return "NONE";
   std::string output {};
 {% for value in enum_def.values %}
-  if ((value & {{ class_name }}::{{ value.name|escape_keyword }}) == {{
-      class_name }}::{{ value.name|escape_keyword }})
+  if ((value & {{ class_name }}::{{ utils.escape(value.name) }}) == {{
+      class_name }}::{{ utils.escape(value.name) }})
     output = output + (output.empty() ? "" : "|") + "{{ value.name }}";
 {% endfor %}
   return output;
@@ -40,7 +40,7 @@ std::string {{ class_name }}_to_string(const {{ class_name }} &value) {
 {{ class_name }} {{ class_name }}_from_string(const std::string &str) {
 {% for value in enum_def.values %}
   if (str == "{{ value.name }}")
-    return {{ class_name }}::{{ value.name|escape_keyword }};
+    return {{ class_name }}::{{ utils.escape(value.name) }};
 {% endfor %}
   throw flatboobs::key_error("Bad enum value: \"" + str + '"');
 }
@@ -48,7 +48,7 @@ std::string {{ class_name }}_to_string(const {{ class_name }} &value) {
 std::string {{ class_name }}_to_string(const {{ class_name }} &value) {
   switch(value) {
 {% for value in enum_def.values %}
-    case {{ class_name }}::{{ value.name|escape_keyword }} :
+    case {{ class_name }}::{{ utils.escape(value.name) }} :
       return "{{ value.name }}";
 {% endfor %}
   }

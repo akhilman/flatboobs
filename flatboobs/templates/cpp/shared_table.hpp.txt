@@ -22,8 +22,8 @@ public:
   // Getters
 {% for field in fields %}
   {{ field.value.type|to_cpp_type }} {{
-    field.name|escape_keyword }}() const override
-  { return ptr_->{{ field.name|escape_keyword }}(); }
+    utils.escape(field.name) }}() const override
+  { return ptr_->{{ utils.escape(field.name) }}(); }
 {% endfor %}
 
   // Builder

@@ -1,9 +1,9 @@
-{% set class_name = enum_def.name|escape_keyword %}
+{% set class_name = utils.escape(enum_def.name) %}
 
 enum class {{ class_name }} : {{
   enum_def.underlying_type|to_flatbuf_type }} {
 {% for value in enum_def.values %}
-  {{ value.name|escape_keyword }} = {{ value.value }},
+  {{ utils.escape(value.name) }} = {{ value.value }},
 {% endfor %}
 {% if "bit_flags" in enum_def.attributes %}
   NONE = 0,

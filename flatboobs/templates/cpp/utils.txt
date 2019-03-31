@@ -1,18 +1,150 @@
-    "pass",
-    "raise",
-    "return",
-    "try",
-    "while",
-    "with",
-    "yield",
-] %}
+{% set CPP_KEYWORDS %}
+    alignas
+    alignof
+    and
+    and_eq
+    asm
+    atomic_cancel
+    atomic_commit
+    atomic_noexcept
+    auto
+    bitand
+    bitor
+    bool
+    break
+    case
+    catch
+    char
+    char16_t
+    char32_t
+    class
+    compl
+    concept
+    const
+    constexpr
+    const_cast
+    continue
+    co_await
+    co_return
+    co_yield
+    decltype
+    default
+    delete
+    do
+    double
+    dynamic_cast
+    else
+    enum
+    explicit
+    export
+    extern
+    false
+    float
+    for
+    friend
+    goto
+    if
+    import
+    inline
+    int
+    long
+    module
+    mutable
+    namespace
+    new
+    noexcept
+    not
+    not_eq
+    nullptr
+    operator
+    or
+    or_eq
+    private
+    protected
+    public
+    register
+    reinterpret_cast
+    requires
+    return
+    short
+    signed
+    sizeof
+    static
+    static_assert
+    static_cast
+    struct
+    switch
+    synchronized
+    template
+    this
+    thread_local
+    throw
+    true
+    try
+    typedef
+    typeid
+    typename
+    union
+    unsigned
+    using
+    virtual
+    void
+    volatile
+    wchar_t
+    while
+    xor
+    xor_eq
+{% endset %}
 
-{% set EXTRA_KEYWORDS = [
-  "is_dirty", "build", "pack", "unpack", "content_id", "verify",
-  "fully_qualified_name", "file_identifier", "default_values", "keys",
-  "message_", "flatbuf_", "is_dirty_", "dirty_values_",
-  ] %}
+{% set PYTHON_KEYWORDS %}
+    False
+    None
+    True
+    and
+    as
+    assert
+    async
+    await
+    break
+    class
+    continue
+    def
+    del
+    elif
+    else
+    except
+    finally
+    for
+    from
+    global
+    if
+    import
+    in
+    is
+    lambda
+    nonlocal
+    not
+    or
+    pass
+    raise
+    return
+    try
+    while
+    with
+    yield
+{% endset %}
+
+{% set EXTRA_KEYWORDS %}
+  is_dirty build pack unpack content_id verify
+  fully_qualified_name file_identifier default_values keys
+  message_ flatbuf_ is_dirty_ dirty_values_
+{% endset %}
+
+{% set KEYWORDS
+    = CPP_KEYWORDS.split()
+    + PYTHON_KEYWORDS.split()
+    + EXTRA_KEYWORDS.split() %}
 
 {% macro escape(name) -%}
-    {{ name|escape_keyword(CPP_KEYWORDS, PYTHON_KEYWORDS, EXTRA_KEYWORDS) }}
+    {{ name|escape_keyword(KEYWORDS) }}
 {%- endmacro %}
