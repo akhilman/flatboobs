@@ -1,6 +1,6 @@
-/* {{ flatbuffer_type }} */
+/* {{ flatbuffer_class }} */
 
-class {{ flatbuffer_type }} final : private flatbuffers::Table {
+class {{ flatbuffer_class }} final : private flatbuffers::Table {
 public:
   enum {
     {% for field in fields %}
@@ -18,14 +18,14 @@ public:
   bool Verify(flatbuffers::Verifier &verifier) const;
 };
 
-/* {{ unpacked_type }} */
+/* {{ unpacked_class }} */
 
-class {{ unpacked_type }} : public {{ iface_type }}{
+class {{ unpacked_class }} : public {{ iface_class }}{
 public:
 
-  explicit {{ unpacked_type }}(
+  explicit {{ unpacked_class }}(
     std::shared_ptr<const flatboobs::IByteData> &_message,
-    const {{ flatbuffer_type }} *_flatbuf
+    const {{ flatbuffer_class }} *_flatbuf
     );
 
   // Getters
@@ -41,7 +41,7 @@ public:
 
 private:
   std::shared_ptr<const flatboobs::IByteData> message_;
-  const {{ flatbuffer_type }} *flatbuf_;
+  const {{ flatbuffer_class }} *flatbuf_;
 
 };
 

@@ -1,4 +1,4 @@
-{% set class_name = utils.escape(enum_def.name) %}
+{% set class_name = utils.enum_class(enum_def) %}
 
 enum class {{ class_name }} : {{
   enum_def.underlying_type|to_flatbuf_type }} {

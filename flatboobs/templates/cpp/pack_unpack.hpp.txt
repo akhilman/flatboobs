@@ -3,12 +3,12 @@ bool verify_{{ struct_name }}(const std::string_view _message);
 bool verify_{{ struct_name }}(const flatboobs::IByteData &_message);
 
 // Unpack {{ struct_name }} from bytes
-std::shared_ptr<{{ iface_type }}>
+std::shared_ptr<{{ iface_class }}>
 unpack_{{ struct_name }}(std::shared_ptr<const IByteData> _message);
 
 // Pack {{ struct_name }} to bytes
 std::shared_ptr<BuiltByteData>
-pack_{{ struct_name }}(const {{ iface_type }} &_table);
+pack_{{ struct_name }}(const {{ iface_class }} &_table);
 
 {#
 // vim: syntax=cpp

@@ -1,10 +1,10 @@
-/* {{ iface_type }} */
+/* {{ iface_class }} */
 
 {% if not struct_def.fixed %}
-class {{ flatbuffer_type }};
+class {{ flatbuffer_class }};
 {% endif %}
 
-class {{ iface_type }} {
+class {{ iface_class }} {
 public:
   using value_variant_type = std::variant<{{
     fields|map("attr", "value")|map("attr", "type")
@@ -12,13 +12,13 @@ public:
   }}>;
 
   // Destructor
-  virtual ~{{ iface_type }}() = default;
+  virtual ~{{ iface_class }}() = default;
 
   // Operators
   const value_variant_type operator[](const std::string &key) const;
-  friend bool operator== (const {{ iface_type }}&, const {{ iface_type }}&);
-  friend bool operator!= (const {{ iface_type }}&, const {{ iface_type }}&);
-  friend std::ostream& operator<< (std::ostream&, const {{ iface_type }}&);
+  friend bool operator== (const {{ iface_class }}&, const {{ iface_class }}&);
+  friend bool operator!= (const {{ iface_class }}&, const {{ iface_class }}&);
+  friend std::ostream& operator<< (std::ostream&, const {{ iface_class }}&);
 
   // Metadata
   static constexpr std::string_view fully_qualified_name() {
@@ -46,9 +46,9 @@ public:
   // Builder
   virtual flatboobs::content_id_t content_id () const = 0;
 {% if not struct_def.fixed %}
-  virtual flatbuffers::Offset<{{ flatbuffer_type }}> build(
+  virtual flatbuffers::Offset<{{ flatbuffer_class }}> build(
     flatbuffers::FlatBufferBuilder &_fbb, bool finish = true) const;
-  virtual flatbuffers::Offset<{{ flatbuffer_type }}> build(
+  virtual flatbuffers::Offset<{{ flatbuffer_class }}> build(
     flatbuffers::FlatBufferBuilder &_fbb,
     std::map<flatboobs::content_id_t, flatbuffers::uoffset_t> &_offset_map
     ) const;

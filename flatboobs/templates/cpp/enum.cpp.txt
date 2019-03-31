@@ -1,4 +1,4 @@
-{% set class_name = utils.escape(enum_def.name) %}
+{% set class_name = utils.enum_class(enum_def) %}
 
 /* {{ class_name }} */
 {% if "bit_flags" in enum_def.attributes %}

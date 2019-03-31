@@ -31,10 +31,10 @@ namespace {{ component }} {
 {% for struct_def in group.list|select("instance_of", "StructDef")
         |sort(attribute="name") %}
 {% set struct_name = utils.escape(struct_def.name) %}
-{% set iface_type = "I" + struct_name %}
-{% set mutable_type = struct_name %}
-{% set flatbuffer_type = "FlatBuffer" + struct_name %}
-{% set unpacked_type = "Unpacked" + struct_name %}
+{% set iface_class = utils.interface_class(struct_def) %}
+{% set mutable_class = utils.mutable_class(struct_def) %}
+{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 {% include "cpp/istruct.cpp.txt" %}
 {% if not struct_def.fixed %}

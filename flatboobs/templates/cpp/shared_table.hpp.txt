@@ -1,15 +1,15 @@
 /* {{ shared_type }} */
 
-class {{ shared_type }} : public {{ iface_type }}{
+class {{ shared_type }} : public {{ iface_class }}{
 public:
 
   // Constructors
-  explicit {{ shared_type }}(const {{ iface_type }} &_table) {
+  explicit {{ shared_type }}(const {{ iface_class }} &_table) {
     {{ shared_type }} shared = _table.clone_shared();
     std::swap(*this, shared);
     assert(ptr_.get());
   }
-  explicit {{ shared_type }}(std::shared_ptr<const {{ iface_type }}> _table) {
+  explicit {{ shared_type }}(std::shared_ptr<const {{ iface_class }}> _table) {
     ptr_ = _table;
     assert(ptr_.get());
   }
@@ -30,7 +30,7 @@ public:
   size_t content_id () const override { return ptr_->content_id(); }
 
 private:
-  std::shared_ptr<const {{ iface_type }}> ptr_;
+  std::shared_ptr<const {{ iface_class }}> ptr_;
 
 };
 

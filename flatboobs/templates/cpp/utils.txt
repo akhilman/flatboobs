@@ -1,3 +1,7 @@
+{#
+    Escape keywords
+#}
+
 {% set CPP_KEYWORDS %}
     alignas
     alignof
@@ -147,4 +151,33 @@
 
 {% macro escape(name) -%}
     {{ name|escape_keyword(KEYWORDS) }}
+{%- endmacro %}
+
+
+{#
+    Class names
+#}
+
+{% macro interface_class(definition) -%}
+    I{{ escape(definition.name) }}
+{%- endmacro %}
+
+{% macro default_class(definition) -%}
+    Default{{ escape(definition.name) }}
+{%- endmacro %}
+
+{% macro mutable_class(definition) -%}
+    {{ escape(definition.name) }}
+{%- endmacro %}
+
+{% macro flatbuffer_class(definition) -%}
+    FlatBuffer{{ escape(definition.name) }}
+{%- endmacro %}
+
+{% macro unpacked_class(definition) -%}
+    Unpacked{{ escape(definition.name) }}
+{%- endmacro %}
+
+{% macro enum_class(definition) -%}
+    {{ escape(definition.name) }}
 {%- endmacro %}

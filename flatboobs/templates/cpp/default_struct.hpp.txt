@@ -1,6 +1,6 @@
-/* {{ default_type }} */
+/* {{ default_class }} */
 
-class {{ default_type }} : public {{ iface_type }}{
+class {{ default_class }} : public {{ iface_class }}{
 public:
 
   // Getters
@@ -14,10 +14,10 @@ public:
   // Builder
   flatboobs::content_id_t content_id () const override { return 0; }
 {% if not struct_def.fixed %}
-  flatbuffers::Offset<{{ flatbuffer_type }}> build(
+  flatbuffers::Offset<{{ flatbuffer_class }}> build(
     flatbuffers::FlatBufferBuilder &_fbb,
     std::map<flatboobs::content_id_t, flatbuffers::uoffset_t> &_offset_map
-    ) const override{ return flatbuffers::Offset<{{ flatbuffer_type }}>(); }
+    ) const override{ return flatbuffers::Offset<{{ flatbuffer_class }}>(); }
 
 {% endif %}
 };

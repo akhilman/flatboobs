@@ -1,7 +1,7 @@
-/* {{ iface_type }} */
+/* {{ iface_class }} */
 
-const {{ iface_type }}::value_variant_type
-    {{ iface_type }}::operator[](const std::string &key) const
+const {{ iface_class }}::value_variant_type
+    {{ iface_class }}::operator[](const std::string &key) const
 {
 {% for field in fields %}
   if (key == "{{ field.name }}")
@@ -10,7 +10,7 @@ const {{ iface_type }}::value_variant_type
   throw flatboobs::key_error(key);
 }
 
-bool operator== (const {{ iface_type }} &lhs, const {{ iface_type }} &rhs){
+bool operator== (const {{ iface_class }} &lhs, const {{ iface_class }} &rhs){
   return
   {% for field in fields %}
     lhs.{{ utils.escape(field.name) }}()
@@ -21,12 +21,12 @@ bool operator== (const {{ iface_type }} &lhs, const {{ iface_type }} &rhs){
   {% endfor %}
   ;
 }
-bool operator!= (const {{ iface_type }} &lhs, const {{ iface_type }} &rhs){
+bool operator!= (const {{ iface_class }} &lhs, const {{ iface_class }} &rhs){
   return !(lhs == rhs);
 }
 
-std::ostream& operator<< (std::ostream &stream, const {{ iface_type }} &src) {
-  stream << "{{ iface_type }}("
+std::ostream& operator<< (std::ostream &stream, const {{ iface_class }} &src) {
+  stream << "{{ iface_class }}("
   {% for field in fields %}
       << "{{ field.name }}="
   {% if field.value.type.base_type == BaseType.BOOL %}
@@ -52,14 +52,14 @@ std::ostream& operator<< (std::ostream &stream, const {{ iface_type }} &src) {
 
 // Builder
 
-flatbuffers::Offset<{{ flatbuffer_type }}> {{ iface_type }}::build(
+flatbuffers::Offset<{{ flatbuffer_class }}> {{ iface_class }}::build(
     flatbuffers::FlatBufferBuilder & _fbb,
     bool _finish
 ) const {
 
   std::map<flatboobs::content_id_t, flatbuffers::uoffset_t> offset_map{};
 
-  flatbuffers::Offset<{{ flatbuffer_type }}> offset = build( _fbb, offset_map);
+  flatbuffers::Offset<{{ flatbuffer_class }}> offset = build( _fbb, offset_map);
   if (_finish) {
     auto ident = file_identifier();
     const char *ident_ptr = (ident.size() ? ident.data() : nullptr);
@@ -69,28 +69,28 @@ flatbuffers::Offset<{{ flatbuffer_type }}> {{ iface_type }}::build(
 }
 
 
-flatbuffers::Offset<{{ flatbuffer_type }}> {{ iface_type }}::build(
+flatbuffers::Offset<{{ flatbuffer_class }}> {{ iface_class }}::build(
     flatbuffers::FlatBufferBuilder & _fbb,
     std::map<flatboobs::content_id_t, flatbuffers::uoffset_t> &_offset_map
 ) const {
 
   auto it = _offset_map.find(content_id());
   if (it != _offset_map.end())
-    return flatbuffers::Offset<{{ flatbuffer_type }}>{it->second};
+    return flatbuffers::Offset<{{ flatbuffer_class }}>{it->second};
 
   flatbuffers::uoffset_t start;
   start = _fbb.StartTable();
 {% for field in fields|sort(attribute="value.type.inline_size") %}
 {% if field.value.type.definition is instance_of("EnumDef") %}
   _fbb.AddElement<{{ field.value.type|to_flatbuf_type }}>(
-    {{ flatbuffer_type }}::VT_{{ field.name|upper }},
+    {{ flatbuffer_class }}::VT_{{ field.name|upper }},
     static_cast<{{ field.value.type|to_flatbuf_type }}>({{
     utils.escape(field.name) }}()),
     {{ field.value.constant }}
     );
 {% elif field.value.type.base_type.is_scalar() %}
   _fbb.AddElement<{{ field.value.type|to_cpp_type }}>(
-    {{ flatbuffer_type }}::VT_{{ field.name|upper }},
+    {{ flatbuffer_class }}::VT_{{ field.name|upper }},
     {{ utils.escape(field.name) }}(),
     {{ field.value.constant }}
     );
@@ -100,7 +100,7 @@ flatbuffers::Offset<{{ flatbuffer_type }}> {{ iface_type }}::build(
 {% endfor %}
   flatbuffers::uoffset_t end = _fbb.EndTable(start);
   _offset_map[content_id()] = end;
-  flatbuffers::Offset<{{ flatbuffer_type }}> offset {end};
+  flatbuffers::Offset<{{ flatbuffer_class }}> offset {end};
   return offset;
 }
 

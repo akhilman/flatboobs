@@ -1,6 +1,6 @@
-/* {{ mutable_type }} */
+/* {{ mutable_class }} */
 
-class {{ mutable_type }} : public {{ iface_type }}{
+class {{ mutable_class }} : public {{ iface_class }}{
 public:
 {% for field in fields %}
   {{ field.value.type|to_cpp_type }} {{
@@ -8,7 +8,7 @@ public:
 {% endfor %}
 
   // Constructor
-  {{ mutable_type }}(
+  {{ mutable_class }}(
   {% for field in fields %}
     {% if field.value.type.definition is instance_of("EnumDef") %}
       {% set default_value = field.value.constant
@@ -29,7 +29,7 @@ public:
      {{- "," if not loop.last }}
   {% endfor %}
   {}
-  {{ mutable_type }}(const {{ iface_type }} &_table)
+  {{ mutable_class }}(const {{ iface_class }} &_table)
   : {% for field_name in fields|map("attr", "name") %}
      {{ utils.escape(field_name) }}_ {_table.{{ utils.escape(field_name) }}()}
      {{- "," if not loop.last }}
