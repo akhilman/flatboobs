@@ -48,6 +48,50 @@ inline std::string unescape_string(const std::string src) {
   return ret.str();
 }
 
+std::ostream &hex_dump(std::ostream &stream, const std::string_view _data) {
+
+  stream << std::hex << std::setfill('0');
+
+  auto begin = _data.begin();
+  auto end = _data.end();
+
+  int address = 0;
+  for (auto row = begin; row < end; row += 16) {
+
+    auto last = row + 16;
+    if (last > end)
+      last = end;
+
+    // Show the address
+    stream << std::setw(8) << address;
+    address += 16;
+
+    // Show the hex codes
+    for (auto i = 0; i < 16; i++) {
+      if (i % 8 == 0)
+        stream << ' ';
+      if (row + i < end)
+        stream << ' ' << std::setw(2) << (unsigned)(uint8_t)row[i];
+      else
+        stream << "   ";
+    }
+
+    // Show printable characters
+    stream << "  ";
+    for (auto i = 0; i < 16; i++) {
+      if (row + i >= end)
+        break;
+      if (int(row[i]) < 32)
+        stream << '.';
+      else
+        stream << (char)row[i];
+    }
+
+    stream << "\n";
+  }
+  return stream;
+}
+
 } // namespace flatboobs
 
 #endif // FLATBOOBS_UTILS_HPP
