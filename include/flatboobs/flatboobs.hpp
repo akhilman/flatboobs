@@ -4,6 +4,8 @@
 #include <flatbuffers/flatbuffers.h>
 #include <map>
 
+#include <flatboobs/data.hpp>
+
 namespace flatboobs {
 
 using content_id_t = size_t;
@@ -46,7 +48,7 @@ private:
   size_t size_;
   size_t offset_;
   std::unique_ptr<const std::byte> data_;
-}; // namespace flatboobs
+};
 
 } // namespace flatboobs
 
