@@ -12,7 +12,7 @@
     | selectattr("file", "equalto", parser.root_struct_def.file)
     | groupby("defined_namespace") %}
 {% for component in group.grouper.components %}
-namespace {{ component }} {
+namespace {{ utils.escape(component) }} {
 {% endfor %}
 
 /*
@@ -30,21 +30,11 @@ namespace {{ component }} {
 
 {% for struct_def in group.list|select("instance_of", "StructDef")
         |sort(attribute="name") %}
-{% set struct_name = utils.escape(struct_def.name) %}
-{% set iface_class = utils.interface_class(struct_def) %}
-{% set mutable_class = utils.mutable_class(struct_def) %}
-{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
-{% set unpacked_class = utils.unpacked_class(struct_def) %}
-{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
-{% include "cpp/istruct.cpp.txt" %}
-{% if not struct_def.fixed %}
-{% include "cpp/unpacked_table.cpp.txt" %}
-{% include "cpp/pack_unpack.cpp.txt" %}
-{% endif %}
+{% include "cpp/table.cpp.txt" %}
 {% endfor %}
 
 {% for component in group.grouper.components|reverse %}
-}  // {{ component }}
+}  // {{ utils.escape(component) }}
 {% endfor %}
 {% endfor %}
 

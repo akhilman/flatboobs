@@ -1,3 +1,7 @@
+{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set unpacked_class = utils.unpacked_class(struct_def) %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+
 /* {{ flatbuffer_class }} */
 
 class {{ flatbuffer_class }} final : private flatbuffers::Table {
@@ -9,10 +13,13 @@ public:
   };
 
 {% for field in fields %}
-  inline {{ field.value.type|to_flatbuf_type }} {{
-        utils.escape(field.name) }}() const
-  { return GetField<{{ field.value.type|to_flatbuf_type }}>(
-      VT_{{- utils.escape(field.name)|upper }}, {{ field.value.constant }}); }
+  inline {{ utils.flatbuffer_type(field.value.type) }} {# -#}
+    {{ utils.escape(field.name) }}() const
+  { return GetField<{{ utils.flatbuffer_type(field.value.type) }}>(
+      VT_{{- utils.escape(field.name)|upper -}}
+      {% if field.value.type.base_type.is_scalar() %}
+      , {{ field.value.constant }});
+      {% endif %} }
 {% endfor %}
 
   bool Verify(flatbuffers::Verifier &verifier) const;
@@ -20,27 +27,26 @@ public:
 
 /* {{ unpacked_class }} */
 
-class {{ unpacked_class }} : public {{ iface_class }}{
+class {{ unpacked_class }} {
 public:
-
+  explicit {{ unpacked_class }}(flatboobs::Data);
   explicit {{ unpacked_class }}(
-    std::shared_ptr<const flatboobs::IByteData> &_message,
-    const {{ flatbuffer_class }} *_flatbuf
-    );
+    flatboobs::Data, const {{ flatbuffer_class }} *);
 
-  // Getters
-{% for field in fields %}
-  {{ field.value.type|to_cpp_type }} {{
-    utils.escape(field.name) }}() const override;
-{% endfor %}
+  // Metadata
 
-  // Builder
-  flatboobs::content_id_t content_id () const override {
+  inline flatboobs::content_id_t content_id() const {
     return flatboobs::content_id_t(flatbuf_);
   }
 
+  // Getters
+{% for field in fields %}
+  {{ utils.cpp_type(field.value.type) }} {{
+    utils.escape(field.name) }}() const;
+{% endfor %}
+
 private:
-  std::shared_ptr<const flatboobs::IByteData> message_;
+  const flatboobs::Data message_;
   const {{ flatbuffer_class }} *flatbuf_;
 
 };

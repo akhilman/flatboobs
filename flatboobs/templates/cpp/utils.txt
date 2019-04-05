@@ -153,10 +153,20 @@
     {{ name|escape_keyword(KEYWORDS) }}
 {%- endmacro %}
 
+{% macro namespace(nspace) -%}
+    {% set oper=joiner("::") %}
+    {% for comp in nspace.components %}
+        {{- oper() }}{{ escape(comp) -}}
+    {% endfor %}
+{%- endmacro %}
 
 {#
     Class names
 #}
+
+{% macro class_name(definition) -%}
+    {{ escape(definition.name) }}
+{%- endmacro %}
 
 {% macro interface_class(definition) -%}
     I{{ escape(definition.name) }}
@@ -167,7 +177,7 @@
 {%- endmacro %}
 
 {% macro mutable_class(definition) -%}
-    {{ escape(definition.name) }}
+    Mutable{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro flatbuffer_class(definition) -%}
@@ -178,6 +188,83 @@
     Unpacked{{ escape(definition.name) }}
 {%- endmacro %}
 
+{% macro builder_class(definition) -%}
+    Unpacked{{ escape(definition.name) }}
+{%- endmacro %}
+
 {% macro enum_class(definition) -%}
     {{ escape(definition.name) }}
+{%- endmacro %}
+
+
+{#
+    cpp types
+#}
+
+{% set CPP_TYPES = {
+    BaseType.NONE: "uint8_t",
+    BaseType.UTYPE: "uint8_t",
+    BaseType.BOOL: "bool",
+    BaseType.CHAR: "int8_t",
+    BaseType.UCHAR: "uint8_t",
+    BaseType.SHORT: "int16_t",
+    BaseType.USHORT: "uint16_t",
+    BaseType.INT: "int32_t",
+    BaseType.UINT: "uint32_t",
+    BaseType.LONG: "int64_t",
+    BaseType.ULONG: "uint64_t",
+    BaseType.FLOAT: "float",
+    BaseType.DOUBLE: "double",
+    } %}
+
+{% macro cpp_type(type_) -%}
+    {% if type_.definition %}
+        {{ namespace(type_.definition.defined_namespace) -}}
+        ::{%- if type_.base_type == BaseType.VECTOR %}VectorOf{% endif -%}
+        {{ class_name(type_.definition) }}
+    {% elif type_.base_type in CPP_TYPES %}
+        {{ CPP_TYPES[type_.base_type] }}
+    {% else %}
+        /* FIXME: UNHANDLED TYPE {{ type_ }} */
+    {% endif %}
+{%- endmacro %}
+
+{% macro cpp_variant_type(types) -%}
+    {% set type_strings %}
+        {% for type_ in types %}
+            {% if type_ is instance_of("Type") %}
+                {{ cpp_type(type_) }}
+            {% else %}
+                {{ type_ }}
+            {% endif %}
+        {% endfor %}
+    {% endset %}
+    std::variant<{{ type_strings.split()|unique|sort|join(", ") }}>
+{%- endmacro %}
+
+{% macro flatbuffer_type(type_) -%}
+    {% if type_.base_type == BaseType.BOOL %}
+        char
+    {% elif type_.base_type in CPP_TYPES %}
+        {{ CPP_TYPES[type_.base_type] }}
+    {% elif type_.base_type == BaseType.STRUCT and type_.definition.fixed %}
+        {{ class_name(type_.definition) }}
+    {% elif type_.base_type == BaseType.STRUCT %}
+        {{ flatbuffer_class(type_.definition) }}
+    {% else %}
+        /* FIXME: unahndled type {{ type_ }} */
+    {% endif %}
+{%- endmacro %}
+
+{#
+    Default values
+#}
+{% macro default_value(field) -%}
+    {% if field.value.definition is instance_of("EnumDef") %}
+        /* TODO: enums values */
+    {% elif field.value.type.base_type.is_scalar() %}
+        {{- field.value.constant -}}
+    {% else %}
+        /* FIXME: unhandled type in field {{ field }} */
+    {% endif %}
 {%- endmacro %}

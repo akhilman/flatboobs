@@ -2,53 +2,27 @@
 #define FLATBOOBS_FLATBOOBS_HPP
 
 #include <flatbuffers/flatbuffers.h>
-#include <map>
 
+#include <flatboobs/builder.hpp>
 #include <flatboobs/data.hpp>
 
 namespace flatboobs {
 
-using content_id_t = size_t;
+template <typename T> flatboobs::Data pack(T _table) {
 
-template <typename T> class IData {
-public:
-  using value_type = T;
+  flatbuffers::FlatBufferBuilder fbb{1024};
+  BuilderContext context{&fbb};
 
-  virtual ~IData() = default;
-  virtual const value_type *data() const = 0;
-  virtual bool has_data() const = 0;
-  virtual size_t size() const = 0;
+  build(context, _table);
 
-  operator const value_type *() const { return data(); }
-  const std::string_view str() const {
-    return std::string_view(reinterpret_cast<const char *>(data()),
-                            size() * sizeof(value_type));
-  }
-};
+  BuiltData built_data{};
+  built_data.steal_from_builder(std::move(fbb));
+  Data data{std::move(built_data)};
 
-class IByteData : public IData<std::byte> {};
+  return data;
+}
 
-class BuiltByteData : public IByteData {
-public:
-  BuiltByteData() : size_{0}, offset_{0}, data_{nullptr} {}
-
-  void steal_from_builder(flatbuffers::FlatBufferBuilder &&builder) {
-    size_ = builder.GetSize();
-    size_t buffer_size; // total buffer size with usless padding.
-    const std::byte *data = reinterpret_cast<const std::byte *>(
-        builder.ReleaseRaw(buffer_size, offset_));
-    data_ = std::unique_ptr<const std::byte>(data);
-  };
-
-  const std::byte *data() const override { return data_.get() + offset_; }
-  bool has_data() const override { return data_.get() != nullptr && size_ > 0; }
-  size_t size() const override { return size_; }
-
-private:
-  size_t size_;
-  size_t offset_;
-  std::unique_ptr<const std::byte> data_;
-};
+template <typename T> const T unpack(Data _data) { return T(_data); }
 
 } // namespace flatboobs
 

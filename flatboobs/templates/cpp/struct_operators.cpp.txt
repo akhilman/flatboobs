@@ -1,0 +1,64 @@
+{% set class_name = utils.class_name(struct_def) %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+
+/* {{ class_name }} operators */
+
+template <typename T>
+static inline {{ class_name }}::value_variant_type
+    get_from_{{ class_name }}_by_key(const T &_table, const std::string &_key)
+{
+{% for field in fields %}
+  if (_key == "{{ field.name }}")
+    return _table.{{ utils.escape(field.name) }}();
+{% endfor %}
+  throw flatboobs::key_error(_key);
+}
+
+template <typename L, typename R>
+static inline bool is_{{ class_name }}_eq (const L &_lhs, const R &_rhs){
+  return
+  {% set and_ = joiner(" && ") %}
+  {% for field in fields %}
+    {{ and_() }} _lhs.{{ utils.escape(field.name) }}() {# -#}
+        == _rhs.{{ utils.escape(field.name) }}()
+  {% endfor %}
+  ;
+}
+template <typename L, typename R>
+static inline bool is_{{ class_name }}_ne (const L &_lhs, const R &_rhs){
+  return !(_lhs == _rhs);
+}
+
+template <typename T>
+static inline std::ostream& print_{{ class_name -}}
+      (std::ostream &_stream, const T &_obj) {
+  _stream << "{{ class_name }}("
+  {% for field in fields %}
+      << "{{ field.name }}="
+  {% if field.value.type.base_type == BaseType.BOOL %}
+      << (_obj.{{ utils.escape(field.name) }}()
+          ? "true" : "false")
+  {% elif field.value.type.definition is instance_of("EnumDef") %}
+      << {{ field.value.type|to_cpp_type }}_to_string(_obj.{{
+        utils.escape(field.name) }}())
+  {% elif field.value.type.base_type.is_scalar() %}
+      << +_obj.{{ utils.escape(field.name) }}()
+  {% elif field.value.type.base_type == BaseType.STRING %}
+    << '"' << _obj.{{ utils.escape(field.name) }}() << '"'
+  {% else %}
+      << _obj.{{ utils.escape(field.name) }}()
+  {% endif %}
+  {% if not loop.last %}
+    << ", "
+  {% endif %}
+  {% endfor %}
+    << ")";
+  return _stream;
+};
+
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

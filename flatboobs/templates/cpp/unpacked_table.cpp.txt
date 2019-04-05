@@ -1,3 +1,14 @@
+{% set class_name = utils.class_name(struct_def) %}
+{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set unpacked_class = utils.unpacked_class(struct_def) %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+
+{% if struct_def == parser.root_struct_def %}
+  {% set file_identifier = parser.file_identifier %}
+{% else %}
+  {% set file_identifier = None %}
+{% endif %}
+
 /* {{ flatbuffer_class }} */
 
 // Verify
@@ -7,7 +18,7 @@ bool {{ flatbuffer_class }}::Verify(
   return VerifyTableStart(verifier) &&
 {% for field in fields %}
 {% if field.value.type.base_type.is_scalar() %}
-  VerifyField<{{ field.value.type|to_flatbuf_type
+  VerifyField<{{ utils.flatbuffer_type(field.value.type)
     }}>(verifier, VT_{{ field.name|upper }}) &&
 {% else %}
   // TODO {{ field.name }}
@@ -16,27 +27,51 @@ bool {{ flatbuffer_class }}::Verify(
   verifier.EndTable();
 }
 
+// Verify {{ class_name }}
+static bool verify_{{ class_name }}(const flatboobs::Data &_message) {
+  auto verifier = flatbuffers::Verifier(
+    reinterpret_cast<const uint8_t *>(_message.data()),
+    _message.size()
+    );
+{% if file_identifier %}
+  const char* identifier = "{{ file_identifier }}";
+{% else %}
+  const char* identifier = nullptr;
+{% endif %}
+  return verifier.VerifyBuffer<{{ flatbuffer_class }}>(identifier);
+}
+
 /* {{ unpacked_class }} */
 
 // Constructors
 
+{{ unpacked_class }}::{{ unpacked_class }}(flatboobs::Data _message)
+    : message_{std::move(_message)}, flatbuf_{nullptr} {
+
+  if (!verify_{{ class_name }}(message_))
+    throw flatboobs::unpack_error("{{ class_name }} message verification failed");
+
+  flatbuf_ = flatbuffers::GetRoot<{{ flatbuffer_class }}>(message_.data());
+
+}
+
 {{ unpacked_class }}::{{ unpacked_class }}(
-  std::shared_ptr<const flatboobs::IByteData> &_message,
+  flatboobs::Data _message,
   const {{ flatbuffer_class }} *_flatbuf
-  ) : message_{_message}, flatbuf_{_flatbuf} {}
+  ) : message_{std::move(_message)}, flatbuf_{_flatbuf} {}
 
 // Getters
 
 {% for field in fields %}
-{{ field.value.type|to_cpp_type }} {{ unpacked_class -}}
+{{ utils.cpp_type(field.value.type) }} {{ unpacked_class -}}
     ::{{ utils.escape(field.name) }}() const {
 {% if field.value.type.definition is instance_of("EnumDef") %}
-  return static_cast<{{ field.value.type|to_cpp_type -}}
+  return static_cast<{{ utils.cpp_type(field.value.type) -}}
     >(flatbuf_->{{ utils.escape(field.name) }}());
 {% elif field.value.type.base_type.is_scalar() %}
   return flatbuf_->{{ utils.escape(field.name) }}();
 {% else %}
-  return nullptr;  // TODO {{ field.name }}
+  return;  // TODO {{ field.name }}
 {% endif %}
 }
 

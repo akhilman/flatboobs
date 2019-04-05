@@ -1,6 +1,7 @@
 #ifndef FLATBOOBS_DATA_HPP_
 #define FLATBOOBS_DATA_HPP_
 
+#include <flatbuffers/flatbuffers.h>
 #include <memory>
 #include <ostream>
 
@@ -80,7 +81,10 @@ struct DataIterator {
 class Data {
 public:
   template <typename T>
-  Data(T _x) noexcept : self_{std::make_shared<model_t<T>>(std::move(_x))} {}
+  Data(T _x) noexcept : self_{std::make_shared<model_t<T>>(std::move(_x))} {
+    assert(self_);
+    assert(self_.get());
+  }
 
   const std::byte *data() const { return self_->data(); }
   size_t size() const { return self_->size(); }
@@ -138,6 +142,37 @@ private:
   };
   std::shared_ptr<const concept_t> self_;
 };
+
+class BuiltData {
+public:
+  BuiltData() : size_{0}, offset_{0}, data_{nullptr} {}
+
+  // Move
+  BuiltData(BuiltData &&_other) = default;
+  BuiltData &operator=(BuiltData &&_other) = default;
+
+  // Copy
+  BuiltData(const BuiltData &) = delete;
+  BuiltData &operator=(const BuiltData &) = delete;
+
+  void steal_from_builder(flatbuffers::FlatBufferBuilder &&builder) {
+    size_ = builder.GetSize();
+    size_t buffer_size; // total buffer size with usless padding.
+    const std::byte *data = reinterpret_cast<const std::byte *>(
+        builder.ReleaseRaw(buffer_size, offset_));
+    data_ = std::unique_ptr<const std::byte>(data);
+  };
+
+  const std::byte *data() const { return data_.get() + offset_; }
+  bool has_data() const { return data_.get() != nullptr && size_ > 0; }
+  size_t size() const { return size_; }
+
+private:
+  size_t size_;
+  size_t offset_;
+  std::unique_ptr<const std::byte> data_;
+};
+
 } // namespace flatboobs
 
 #endif // FLATBOOBS_DATA_HPP_

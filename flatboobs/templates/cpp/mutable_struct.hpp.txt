@@ -1,26 +1,26 @@
-/* {{ mutable_class }} */
+{% if struct_def.fixed %}
+  {% set struct_name = utils.class_name(struct_def) %}
+{% else %}
+  {% set struct_name = utils.mutable_class(struct_def) %}
+{% endif %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
-class {{ mutable_class }} : public {{ iface_class }}{
-public:
+/* {{ struct_name }} */
+
+struct {{ struct_name }} {
+
+  using value_variant_type = {{ utils.cpp_variant_type(
+      fields|map("attr", "value")|map("attr", "type")) }};
+
 {% for field in fields %}
-  {{ field.value.type|to_cpp_type }} {{
-    utils.escape(field.name) }}_;
+  {{ utils.cpp_type(field.value.type) }} {{utils.escape(field.name) }}_;
 {% endfor %}
 
   // Constructor
-  {{ mutable_class }}(
+  {{ struct_name }}(
   {% for field in fields %}
-    {% if field.value.type.definition is instance_of("EnumDef") %}
-      {% set default_value = field.value.constant
-          |to_cpp_enum(field.value.type.definition) %}
-    {% elif field.value.type.base_type.is_scalar() %}
-      {% set default_value = field.value.constant %}
-    {% else %}
-      {% set default_value = "nullptr" %}
-    {% endif %}
-    {{ field.value.type
-        |to_cpp_type(const=True) }} {# -#}
-      &_{{ utils.escape(field.name) }} = {{ default_value }}
+    {{ utils.cpp_type(field.value.type) }} {# -#}
+      _{{ utils.escape(field.name) }} = {{ utils.default_value(field) }}
       {{- "," if not loop.last }}
   {% endfor %}
   ) :
@@ -29,17 +29,23 @@ public:
      {{- "," if not loop.last }}
   {% endfor %}
   {}
-  {{ mutable_class }}(const {{ iface_class }} &_table)
-  : {% for field_name in fields|map("attr", "name") %}
-     {{ utils.escape(field_name) }}_ {_table.{{ utils.escape(field_name) }}()}
-     {{- "," if not loop.last }}
-  {% endfor %}
-  {}
+
+  // Metadata
+  static constexpr std::string_view fully_qualified_name() {
+    return "{{ struct_def.fully_qualified_name }}";
+  }
+  static constexpr std::array<std::string_view, {{ fields|count }}> keys() {
+    return { {{ fields|map("attr", "name")|map("quote")|join(", ")}} };
+  }
+
+  inline flatboobs::content_id_t content_id() const {
+    return flatboobs::content_id_t(this);
+  }
 
   // Getters
 {% for field in fields %}
-  {{ field.value.type|to_cpp_type }} {{
-    utils.escape(field.name) }}() const override {
+  inline {{ utils.cpp_type(field.value.type) }} {{
+    utils.escape(field.name) }}() const {
     return {{ utils.escape(field.name) }}_;
   }
 {% endfor %}
@@ -47,15 +53,16 @@ public:
   // Setters
 {% for field in fields %}
   inline void set_{{ utils.escape(field.name) }}(
-      {{- field.value.type|to_cpp_type }} _value) {
-    {{ utils.escape(field.name) }}_ = _value;
+      {{- utils.cpp_type(field.value.type) }} _value) {
+    {{ utils.escape(field.name) }}_ = std::move(_value);
   }
 {% endfor %}
 
-  // Builder
-  flatboobs::content_id_t content_id () const override {
-    return flatboobs::content_id_t(this);
-  }
+  // Operators
+  const value_variant_type operator[](const std::string &_key) const;
+  friend bool operator== (const {{ class_name }}&, const {{ class_name }}&);
+  friend bool operator!= (const {{ class_name }}&, const {{ class_name }}&);
+  friend std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
 
 };
 

@@ -75,9 +75,9 @@ def generate(
     )
     env.filters.update(filters(output_dir, options))
     env.tests.update(tests(output_dir, options))
-    env.globals = {
+    env.globals.update({
         'BaseType': idl.BaseType,
-    }
+    })
 
     pending = set(schema_files)
     done = set()

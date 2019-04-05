@@ -1,0 +1,110 @@
+{% set class_name = utils.class_name(struct_def) %}
+{% set mutable_class = utils.mutable_class(struct_def) %}
+{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+
+{% include "cpp/struct_operators.cpp.txt" %}
+
+{% include "cpp/mutable_struct.cpp.txt" %}
+{% include "cpp/unpacked_table.cpp.txt" %}
+
+/* {{ class_name }} */
+
+// Evolve
+{% set comma = joiner(", ") %}
+{{ class_name }} {{ class_name }}::evolve (
+{% for field in fields %}
+  {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
+    _{{ utils.escape(field.name) }}
+{% endfor %}
+) {
+  return {{ class_name }}({{ mutable_class }}(
+  {% set comma = joiner(", ") %}
+  {% for field in fields %}
+    {% set field_name = utils.escape(field.name) %}
+    {{ comma() }} _{{ field_name }} ? std::move(*_{{ field_name -}}
+      ) : this->{{ field_name }}()
+  {% endfor %}
+  ));
+}
+
+// Operators
+const {{ class_name }}::value_variant_type
+    {{ class_name }}::operator[](const std::string &_key) const {
+  return get_from_{{ class_name }}_by_key(*this, _key);
+}
+
+bool operator== (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
+  return is_{{ class_name }}_eq(_lhs, _rhs);
+}
+bool operator!= (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
+  return is_{{ class_name }}_ne(_lhs, _rhs);
+}
+
+std::ostream& operator<< (std::ostream &_stream, const {{ class_name }} &_obj) {
+  return print_{{ class_name }}(_stream, _obj);
+};
+
+
+// Builder
+
+flatbuffers::Offset<{{ flatbuffer_class }}>
+build(
+    flatboobs::BuilderContext &_context,
+    const {{ class_name }} &_table,
+    bool _is_root
+) {
+
+  if (!_is_root && !_table.content_id())
+    return flatbuffers::Offset<{{ flatbuffer_class }}>{0};
+
+  auto it = _context.offset_map().find(_table.content_id());
+  if (it != _context.offset_map().end())
+    return flatbuffers::Offset<{{ flatbuffer_class }}>{it->second};
+
+  flatbuffers::FlatBufferBuilder *fbb = _context.builder();
+  flatbuffers::uoffset_t start;
+  start = fbb->StartTable();
+{% for field in fields|sort(attribute="value.type.inline_size") %}
+{% if field.value.type.definition is instance_of("EnumDef") %}
+  /* TODO
+  fbb->AddElement<{{ field.value.type|to_flatbuf_type }}>(
+    {{ flatbuffer_class }}::VT_{{ field.name|upper }},
+    static_cast<{{ field.value.type|to_flatbuf_type }}>({{
+    utils.escape(field.name) }}()),
+    {{ field.value.constant }}
+    );
+    */
+{% elif field.value.type.base_type.is_scalar() %}
+  fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
+    {{ flatbuffer_class }}::VT_{{ field.name|upper }},
+    _table.{{ utils.escape(field.name) }}(),
+    {{ field.value.constant }}
+    );
+{% else %}
+  // TODO {{ field }}
+{% endif %}
+{% endfor %}
+  flatbuffers::uoffset_t end = fbb->EndTable(start);
+  _context.offset_map()[_table.content_id()] = end;
+  flatbuffers::Offset<{{ flatbuffer_class }}> offset {end};
+
+  if (_is_root) {
+  {% if struct_def == parser.root_struct_def %}
+    {% set file_identifier = parser.file_identifier %}
+    const char* identifier = "{{ parser.file_identifier }}";
+  {% else %}
+    const char* identifier = nullptr;
+  {% endif %}
+    fbb->Finish(offset, identifier);
+  }
+
+  return offset;
+}
+
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

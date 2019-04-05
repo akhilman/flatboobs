@@ -1,25 +1,22 @@
+{% import "cpp/utils.txt" as utils %}
+{% set default_class = utils.default_class(struct_def) %}
 /* {{ default_class }} */
 
-class {{ default_class }} : public {{ iface_class }}{
+class {{ default_class }} {
 public:
+
+  // Metadata
+  inline flatboobs::content_id_t content_id() const {
+    return flatboobs::content_id_t(0);
+  }
 
   // Getters
 {% for field in fields %}
-  {{ field.value.type|to_cpp_type }} {{
-    utils.escape(field.name) }}() const override {
-    return {{ field.value|default_value }};
+  static {{ utils.cpp_type(field.value.type) }} {# -#}
+      {{ utils.escape(field.name) }}() {
+    return {{ utils.default_value(field) }};
   }
 {% endfor %}
-
-  // Builder
-  flatboobs::content_id_t content_id () const override { return 0; }
-{% if not struct_def.fixed %}
-  flatbuffers::Offset<{{ flatbuffer_class }}> build(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    std::map<flatboobs::content_id_t, flatbuffers::uoffset_t> &_offset_map
-    ) const override{ return flatbuffers::Offset<{{ flatbuffer_class }}>(); }
-
-{% endif %}
 };
 
 
