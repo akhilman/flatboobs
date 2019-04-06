@@ -81,10 +81,7 @@ struct DataIterator {
 class Data {
 public:
   template <typename T>
-  Data(T _x) noexcept : self_{std::make_shared<model_t<T>>(std::move(_x))} {
-    assert(self_);
-    assert(self_.get());
-  }
+  Data(T _x) noexcept : self_{std::make_shared<model_t<T>>(std::move(_x))} {}
 
   const std::byte *data() const { return self_->data(); }
   size_t size() const { return self_->size(); }
