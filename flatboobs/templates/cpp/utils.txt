@@ -168,8 +168,8 @@
     {{ escape(definition.name) }}
 {%- endmacro %}
 
-{% macro interface_class(definition) -%}
-    I{{ escape(definition.name) }}
+{% macro abstract_class(definition) -%}
+    Abstract{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro default_class(definition) -%}
@@ -190,6 +190,10 @@
 
 {% macro builder_class(definition) -%}
     Unpacked{{ escape(definition.name) }}
+{%- endmacro %}
+
+{% macro implement(definition) -%}
+    implement_{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro enum_class(definition) -%}

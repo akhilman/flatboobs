@@ -7,6 +7,22 @@
 
 /* {{ struct_name }} */
 
+// Constructor
+{{ struct_name }}::{{ struct_name }}(
+{% for field in fields %}
+  {{ utils.cpp_type(field.value.type) }} {# -#}
+    _{{ utils.escape(field.name) }}
+    {{- "," if not loop.last }}
+{% endfor %}
+) :
+{% for field_name in fields|map("attr", "name") %}
+   {{ utils.escape(field_name) }}_ {_{{ utils.escape(field_name) }}}
+   {{- "," if not loop.last }}
+{% endfor %}
+{}
+
+// Operators
+
 const {{ struct_name }}::value_variant_type
     {{ struct_name }}::operator[](const std::string &_key) const {
   return get_from_{{ class_name }}_by_key(*this, _key);

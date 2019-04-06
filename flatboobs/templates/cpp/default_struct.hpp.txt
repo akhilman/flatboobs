@@ -1,19 +1,20 @@
 {% import "cpp/utils.txt" as utils %}
 {% set default_class = utils.default_class(struct_def) %}
+{% set abstract_class = utils.abstract_class(struct_def) %}
 /* {{ default_class }} */
 
-class {{ default_class }} {
+class {{ default_class }} : public {{ abstract_class }}{
 public:
 
   // Metadata
-  inline flatboobs::content_id_t content_id() const {
+  flatboobs::content_id_t content_id() const override {
     return flatboobs::content_id_t(0);
   }
 
   // Getters
 {% for field in fields %}
-  static {{ utils.cpp_type(field.value.type) }} {# -#}
-      {{ utils.escape(field.name) }}() {
+  {{ utils.cpp_type(field.value.type) }} {# -#}
+      {{ utils.escape(field.name) }}() const override{
     return {{ utils.default_value(field) }};
   }
 {% endfor %}

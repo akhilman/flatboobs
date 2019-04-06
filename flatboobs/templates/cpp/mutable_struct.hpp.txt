@@ -1,13 +1,17 @@
 {% if struct_def.fixed %}
   {% set struct_name = utils.class_name(struct_def) %}
+  {% set base_class = "" %}
+  {% set override = "" %}
 {% else %}
   {% set struct_name = utils.mutable_class(struct_def) %}
+  {% set base_class = ": public " + utils.abstract_class(struct_def) %}
+  {% set override = "override" %}
 {% endif %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
 /* {{ struct_name }} */
 
-struct {{ struct_name }} {
+struct {{ struct_name }} {{ base_class }} {
 
   using value_variant_type = {{ utils.cpp_variant_type(
       fields|map("attr", "value")|map("attr", "type")) }};
@@ -23,12 +27,7 @@ struct {{ struct_name }} {
       _{{ utils.escape(field.name) }} = {{ utils.default_value(field) }}
       {{- "," if not loop.last }}
   {% endfor %}
-  ) :
-  {% for field_name in fields|map("attr", "name") %}
-     {{ utils.escape(field_name) }}_ {_{{ utils.escape(field_name) }}}
-     {{- "," if not loop.last }}
-  {% endfor %}
-  {}
+  );
 
   // Metadata
   static constexpr std::string_view fully_qualified_name() {
@@ -38,14 +37,14 @@ struct {{ struct_name }} {
     return { {{ fields|map("attr", "name")|map("quote")|join(", ")}} };
   }
 
-  inline flatboobs::content_id_t content_id() const {
+  flatboobs::content_id_t content_id() const {{ override }} {
     return flatboobs::content_id_t(this);
   }
 
   // Getters
 {% for field in fields %}
-  inline {{ utils.cpp_type(field.value.type) }} {{
-    utils.escape(field.name) }}() const {
+  {{ utils.cpp_type(field.value.type) }} {{
+    utils.escape(field.name) }}() const {{ override }}{
     return {{ utils.escape(field.name) }}_;
   }
 {% endfor %}

@@ -1,15 +1,38 @@
 {% set class_name = utils.class_name(struct_def) %}
+{% set abstract_class = utils.abstract_class(struct_def) %}
 {% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
 {% set default_class = utils.default_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set mutable_class = utils.mutable_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
-{% include "cpp/default_struct.hpp.txt" %}
-{% include "cpp/mutable_struct.hpp.txt" %}
-{% include "cpp/unpacked_table.hpp.txt" %}
 
 /* {{ class_name }} */
+
+class {{ abstract_class }} {
+public:
+
+  virtual ~{{ abstract_class }}() = default;
+
+  // Getters
+{% for field in fields %}
+  virtual {{ utils.cpp_type(field.value.type) }} {{
+      utils.escape(field.name) }}() const = 0;
+{% endfor %}
+
+  virtual flatboobs::content_id_t content_id() const = 0;
+
+};
+
+
+class {{ flatbuffer_class }};
+class {{ unpacked_class }};
+class {{ default_class }};
+struct {{ mutable_class }};
+
+{{ unpacked_class }} {{ utils.implement(struct_def) }} (flatboobs::Data);
+{{ mutable_class }} {{ utils.implement(struct_def) }} ({{ mutable_class }});
+
 
 class {{ class_name }} {
 public:
@@ -18,15 +41,15 @@ public:
       fields|map("attr", "value")|map("attr", "type")) }};
 
   // Constructor
-  template <typename T>
-  {{ class_name }}(T _x) noexcept
-    : self_{std::make_shared<model_t<T>>(std::move(_x))} {}
-  {{ class_name }}() noexcept
-    : self_{std::make_shared<model_t<{{ default_class }}>>(
-    {{- default_class }}())} {}
-  {{ class_name }}(flatboobs::Data _data)
-    : self_{std::make_shared<model_t<{{ unpacked_class }}>>(
-    {{- unpacked_class }}(std::move(_data)))} {}
+  template <typename T> {{ class_name }}(T _x) {
+    auto proxy = {{ utils.implement(struct_def) }}(std::move(_x));
+    impl_ = std::dynamic_pointer_cast<const {{ abstract_class }}>(
+        std::make_shared<const decltype(proxy)>(std::move(proxy)));
+  }
+  {{ class_name }}() {
+    impl_ = std::dynamic_pointer_cast<const {{ abstract_class }}>(
+        std::make_shared<const {{ default_class }}>());
+  }
 
   // Evolve
   {{ class_name }} evolve (
@@ -56,11 +79,11 @@ public:
 {% for field in fields %}
   inline {{ utils.cpp_type(field.value.type) }} {{
       utils.escape(field.name) }}() const {
-    return self_->{{ utils.escape(field.name) }}(); }
+    return impl_->{{ utils.escape(field.name) }}(); }
 {% endfor %}
 
   inline flatboobs::content_id_t content_id() const {
-    return self_->content_id(); }
+    return impl_->content_id(); }
 
   // Operators
   const value_variant_type operator[](const std::string &_key) const;
@@ -69,50 +92,13 @@ public:
   friend std::ostream &operator<< (std::ostream&, const {{ class_name }}&);
 
 private:
-
-  class concept_t {
-  public:
-
-    virtual ~concept_t() = default;
-
-    // Getters
-  {% for field in fields %}
-    virtual {{ utils.cpp_type(field.value.type) }} {{
-        utils.escape(field.name) }}() const = 0;
-  {% endfor %}
-
-    virtual flatboobs::content_id_t content_id() const = 0;
-
-  };
-
-  template <typename T> class model_t final : public concept_t {
-  public:
-
-    using value_type = typename std::remove_pointer<T>::type;
-    using object_type = typename std::conditional<
-                std::is_pointer<T>::value, int, value_type>::type;
-    model_t(object_type _obj) noexcept
-      : object_{std::move(_obj)}, ptr_{&object_} {};
-    model_t(const value_type *_ptr) noexcept : object_{0}, ptr_{_ptr} {};
-
-    // Getters
-  {% for field in fields %}
-    {{ utils.cpp_type(field.value.type) }} {{ utils.escape(field.name) -}}
-          () const override { return ptr_->{{ utils.escape(field.name) }}(); }
-  {% endfor %}
-
-    flatboobs::content_id_t content_id() const override {
-      return ptr_->content_id();
-    }
-
-    const object_type object_;
-    const value_type *ptr_;
-
-  };
-
-  std::shared_ptr<const concept_t> self_;
+  std::shared_ptr<const {{ abstract_class }}> impl_;
 
 };
+
+{% include "cpp/default_struct.hpp.txt" %}
+{% include "cpp/mutable_struct.hpp.txt" %}
+{% include "cpp/unpacked_table.hpp.txt" %}
 
 // Builder
 

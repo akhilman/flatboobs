@@ -1,16 +1,15 @@
 {% set class_name = utils.class_name(struct_def) %}
 {% set mutable_class = utils.mutable_class(struct_def) %}
 {% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
 {% include "cpp/struct_operators.cpp.txt" %}
 
-{% include "cpp/mutable_struct.cpp.txt" %}
-{% include "cpp/unpacked_table.cpp.txt" %}
-
 /* {{ class_name }} */
 
 // Evolve
+
 {% set comma = joiner(", ") %}
 {{ class_name }} {{ class_name }}::evolve (
 {% for field in fields %}
@@ -29,6 +28,7 @@
 }
 
 // Operators
+
 const {{ class_name }}::value_variant_type
     {{ class_name }}::operator[](const std::string &_key) const {
   return get_from_{{ class_name }}_by_key(*this, _key);
@@ -101,6 +101,17 @@ build(
 
   return offset;
 }
+
+// Implementation halpers
+
+{{ unpacked_class }} {{ utils.implement(struct_def) }} (flatboobs::Data _data)
+{ return {{ unpacked_class }}(std::move(_data)); }
+{{ mutable_class }} {{ utils.implement(struct_def) }} ({{ mutable_class }} _mutable)
+{ return _mutable; }
+
+
+{% include "cpp/mutable_struct.cpp.txt" %}
+{% include "cpp/unpacked_table.cpp.txt" %}
 
 
 {#

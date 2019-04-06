@@ -1,4 +1,5 @@
 {% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set abstract_class = utils.abstract_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
@@ -27,22 +28,19 @@ public:
 
 /* {{ unpacked_class }} */
 
-class {{ unpacked_class }} {
+class {{ unpacked_class }} : public {{ abstract_class }} {
 public:
   explicit {{ unpacked_class }}(flatboobs::Data);
   explicit {{ unpacked_class }}(
     flatboobs::Data, const {{ flatbuffer_class }} *);
 
   // Metadata
-
-  inline flatboobs::content_id_t content_id() const {
-    return flatboobs::content_id_t(flatbuf_);
-  }
+  flatboobs::content_id_t content_id() const override;
 
   // Getters
 {% for field in fields %}
   {{ utils.cpp_type(field.value.type) }} {{
-    utils.escape(field.name) }}() const;
+    utils.escape(field.name) }}() const override;
 {% endfor %}
 
 private:

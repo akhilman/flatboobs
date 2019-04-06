@@ -60,6 +60,12 @@ static bool verify_{{ class_name }}(const flatboobs::Data &_message) {
   const {{ flatbuffer_class }} *_flatbuf
   ) : message_{std::move(_message)}, flatbuf_{_flatbuf} {}
 
+// Metadata
+
+flatboobs::content_id_t {{ unpacked_class }}::content_id() const {
+  return flatboobs::content_id_t(flatbuf_);
+}
+
 // Getters
 
 {% for field in fields %}
