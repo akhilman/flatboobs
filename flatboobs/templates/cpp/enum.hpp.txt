@@ -1,7 +1,7 @@
 {% set class_name = utils.enum_class(enum_def) %}
 
 enum class {{ class_name }} : {{
-  enum_def.underlying_type|to_flatbuf_type }} {
+  utils.flatbuffer_type(enum_def.underlying_type) }} {
 {% for value in enum_def.values %}
   {{ utils.escape(value.name) }} = {{ value.value }},
 {% endfor %}
@@ -15,7 +15,7 @@ enum class {{ class_name }} : {{
 };
 {% if "bit_flags" in enum_def.attributes %}
 FLATBUFFERS_DEFINE_BITMASK_OPERATORS({{ class_name }}, {{
-    enum_def.underlying_type|to_flatbuf_type }})
+    utils.flatbuffer_type(enum_def.underlying_type) }})
 {% endif %}
 
 std::string {{ class_name }}_to_string(const {{ class_name }}&);

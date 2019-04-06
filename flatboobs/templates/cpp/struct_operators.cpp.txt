@@ -39,7 +39,7 @@ static inline std::ostream& print_{{ class_name -}}
       << (_obj.{{ utils.escape(field.name) }}()
           ? "true" : "false")
   {% elif field.value.type.definition is instance_of("EnumDef") %}
-      << {{ field.value.type|to_cpp_type }}_to_string(_obj.{{
+      << {{ utils.cpp_type(field.value.type) }}_to_string(_obj.{{
         utils.escape(field.name) }}())
   {% elif field.value.type.base_type.is_scalar() %}
       << +_obj.{{ utils.escape(field.name) }}()

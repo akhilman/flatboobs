@@ -67,14 +67,10 @@ build(
   start = fbb->StartTable();
 {% for field in fields|sort(attribute="value.type.inline_size") %}
 {% if field.value.type.definition is instance_of("EnumDef") %}
-  /* TODO
-  fbb->AddElement<{{ field.value.type|to_flatbuf_type }}>(
+  fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
     {{ flatbuffer_class }}::VT_{{ field.name|upper }},
-    static_cast<{{ field.value.type|to_flatbuf_type }}>({{
-    utils.escape(field.name) }}()),
-    {{ field.value.constant }}
-    );
-    */
+    static_cast<{{ utils.flatbuffer_type(field.value.type) }}>(
+      _table.{{ utils.escape(field.name) }}()), {{ field.value.constant }});
 {% elif field.value.type.base_type.is_scalar() %}
   fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
     {{ flatbuffer_class }}::VT_{{ field.name|upper }},

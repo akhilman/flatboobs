@@ -223,11 +223,11 @@
 
 {% macro cpp_type(type_) -%}
     {% if type_.definition %}
-        {{ namespace(type_.definition.defined_namespace) -}}
+        {{- namespace(type_.definition.defined_namespace) -}}
         ::{%- if type_.base_type == BaseType.VECTOR %}VectorOf{% endif -%}
-        {{ class_name(type_.definition) }}
+        {{ class_name(type_.definition) -}}
     {% elif type_.base_type in CPP_TYPES %}
-        {{ CPP_TYPES[type_.base_type] }}
+        {{- CPP_TYPES[type_.base_type] -}}
     {% else %}
         /* FIXME: UNHANDLED TYPE {{ type_ }} */
     {% endif %}
@@ -264,8 +264,10 @@
     Default values
 #}
 {% macro default_value(field) -%}
-    {% if field.value.definition is instance_of("EnumDef") %}
-        /* TODO: enums values */
+    {% if field.value.type.definition is instance_of("EnumDef") %}
+        {{ namespace(field.value.type.definition.defined_namespace) -}}
+          ::{{ enum_class(field.value.type.definition) }}(
+          {{- field.value.constant -}})
     {% elif field.value.type.base_type.is_scalar() %}
         {{- field.value.constant -}}
     {% else %}

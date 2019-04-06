@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence, Set, Union
+from typing import Any, Mapping, Sequence, Set, Union
 
 import toolz.itertoolz as it
 
@@ -183,108 +183,6 @@ def quote(txt: str) -> str:
     return f'"{txt}"'
 
 
-# Will be converted to macro
-
-def to_cpp_enum(src: Union[str, int], enum_def: idl.EnumDef) -> str:
-    value = int(src)
-    result = []
-    if 'bit_flags' in enum_def.attributes:
-        for enum_value in enum_def.values:
-            if value & enum_value.value:
-                result.append('::'.join([
-                    *enum_def.defined_namespace.components,
-                    escape_keyword(enum_def.name),
-                    escape_keyword(enum_value.name),
-                ]))
-        if not result:
-            result.append('::'.join([
-                *enum_def.defined_namespace.components,
-                escape_keyword(enum_def.name),
-                "NONE"
-            ]))
-    else:
-        for enum_value in enum_def.values:
-            if value == enum_value.value:
-                result.append('::'.join([
-                    *enum_def.defined_namespace.components,
-                    escape_keyword(enum_def.name),
-                    escape_keyword(enum_value.name),
-                ]))
-        if not result:
-            result.append('::'.join([
-                *enum_def.defined_namespace.components,
-                escape_keyword(enum_def.name),
-                escape_keyword(enum_def.values[0].name)
-            ]))
-    return '|'.join(result)
-
-
-def to_cpp_type(
-        type_: idl.Type,
-        const=False,
-        no_namespace=False,
-        no_pointer=False,
-) -> str:
-    base_type = type_.base_type
-    definition = type_.definition
-    is_pointer = False
-    if definition:
-        type_str = definition.name
-        if isinstance(definition, idl.StructDef) and not definition.fixed:
-            is_pointer = True
-        if not no_namespace:
-            type_str = '::'.join(
-                [*definition.defined_namespace.components, type_str])
-    elif base_type in CPP_TYPES:  # base types
-        type_str = CPP_TYPES[type_.base_type]
-    else:
-        raise NotImplementedError('Oops!')
-    if const:
-        type_str = f'const {type_str}'
-    if is_pointer and not no_pointer:
-        type_str = f'std::shared_ptr<{type_str}>'
-    return type_str
-
-
-def to_flatbuf_type(
-        type_: idl.Type,
-        const=False,
-) -> str:
-    base_type = type_.base_type
-    definition = type_.definition
-    if base_type == idl.BaseType.BOOL:
-        type_str = CPP_TYPES[idl.BaseType.CHAR]
-    if base_type in CPP_TYPES:
-        type_str = CPP_TYPES[type_.base_type]
-    elif base_type == idl.BaseType.STRUCT:
-        if definition.fixed:
-            type_str = definition.name
-        else:
-            type_str = "FlatBuffer" + definition.name
-    else:
-        raise NotImplementedError('Oops!')
-    if const:
-        type_str = f'const {type_str}'
-    return type_str
-
-
-def default_value(
-        value: idl.Value
-) -> str:
-
-    type_ = value.type
-    definition = type_.definition
-    is_vector = type_.base_type == idl.BaseType.VECTOR
-    element_type = type_.element if is_vector else type_.base_type
-    if isinstance(definition, idl.EnumDef):
-        return to_cpp_enum(value.constant, definition)
-    if isinstance(definition, idl.StructDef):
-        return class_name(definition, "Default", False, is_vector) + "()"
-    if element_type.is_scalar():
-        return value.constant
-    raise NotImplementedError
-
-
 # Path related
 
 def basename(fname: Union[str, Path]) -> str:
@@ -311,21 +209,6 @@ def stem(fname: Union[str, Path]) -> str:
     return Path(fname).stem
 
 
-def class_name(
-        definition: Union[idl.EnumDef, idl.StructDef],
-        prefix: str = "",
-        no_namespace: bool = False,
-        vector: bool = False
-) -> str:
-    name = prefix + escape_keyword(definition.name)
-    if not no_namespace:
-        name = '::'.join([
-            *definition.defined_namespace.components,
-            name
-        ])
-    return name
-
-
 def filters(
         output_dir: Path,
         options: Mapping[str, Any]
@@ -336,11 +219,6 @@ def filters(
         'escape_keyword': escape_keyword,
         'include_guard': include_guard,
         'quote': quote,
-        # will be converted to macro
-        'to_cpp_enum': to_cpp_enum,
-        'to_cpp_type': to_cpp_type,
-        'to_flatbuf_type': to_flatbuf_type,
-        'default_value': default_value,
         # path related
         'basename': basename,
         'dirname': dirname,
