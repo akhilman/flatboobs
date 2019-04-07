@@ -1,8 +1,6 @@
 #define BOOST_TEST_MODULE Test struct field in table
 #include <boost/test/data/test_case.hpp>
 #include <boost/test/unit_test.hpp>
-#include <flatboobs/utils.hpp>
-#include <iostream>
 #include <struct_flatboobs.hpp>
 
 namespace tt = boost::test_tools;
@@ -63,6 +61,4 @@ BOOST_DATA_TEST_CASE(test_pack_unpack, dataset()) {
   auto result = flatboobs::unpack<TestStructMsg>(message);
   BOOST_TEST(result.value() == sample, tt::tolerance(0.001));
   BOOST_TEST(result == source, tt::tolerance(0.001));
-  std::cout << result << "\n";
-  flatboobs::hex_dump(std::cout, message.str());
 }
