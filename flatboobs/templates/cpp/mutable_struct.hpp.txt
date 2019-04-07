@@ -1,24 +1,23 @@
 {% if struct_def.fixed %}
   {% set struct_name = utils.class_name(struct_def) %}
-  {% set base_class = "" %}
   {% set override = "" %}
 {% else %}
   {% set struct_name = utils.mutable_class(struct_def) %}
-  {% set base_class = ": public " + utils.abstract_class(struct_def) %}
+  {% set abstract_class = utils.abstract_class(struct_def) %}
   {% set override = "override" %}
 {% endif %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
 /* {{ struct_name }} */
 
-struct {{ struct_name }} {{ base_class }} {
+{% if struct_def.fixed %}
+struct alignas({{ struct_def.minalign }}) {{ struct_name }}
+{% else %}
+struct  {{ struct_name }} : public {{ abstract_class }}
+{% endif %} {
 
   using value_variant_type = {{ utils.cpp_variant_type(
       fields|map("attr", "value")|map("attr", "type")) }};
-
-{% for field in fields %}
-  {{ utils.cpp_type(field.value.type) }} {{utils.escape(field.name) }}_;
-{% endfor %}
 
   // Constructor
   {{ struct_name }}(
@@ -59,11 +58,21 @@ struct {{ struct_name }} {{ base_class }} {
 
   // Operators
   const value_variant_type operator[](const std::string &_key) const;
-  friend bool operator== (const {{ class_name }}&, const {{ class_name }}&);
-  friend bool operator!= (const {{ class_name }}&, const {{ class_name }}&);
-  friend std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
+  friend bool operator== (const {{ struct_name }}&, const {{ struct_name }}&);
+  friend bool operator!= (const {{ struct_name }}&, const {{ struct_name }}&);
+  friend std::ostream& operator<< (std::ostream&, const {{ struct_name }}&);
+
+  // Fields
+{% for field in fields %}
+  {{ utils.cpp_type(field.value.type) }} {{utils.escape(field.name) }}_;
+{% endfor %}
 
 };
+
+{% if struct_def.fixed %}
+static_assert(sizeof({{ struct_name }}) == {{ struct_def.bytesize -}}
+              , "compiler breaks packing rules");
+{% endif %}
 
 
 {#

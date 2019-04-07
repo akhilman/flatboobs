@@ -1,0 +1,16 @@
+include "enumflag.fbs";
+
+namespace flatboobs.schema.test;
+
+struct TestStruct {
+    a:uint8 = 10;
+    b:float = 11;
+    e:TestEnum = Bar;
+}
+
+table TestStructMsg {
+    value:TestStruct;
+}
+
+root_type TestStructMsg;
+file_identifier "TSTR";

@@ -20,6 +20,10 @@ bool {{ flatbuffer_class }}::Verify(
 {% if field.value.type.base_type.is_scalar() %}
   VerifyField<{{ utils.flatbuffer_type(field.value.type)
     }}>(verifier, VT_{{ field.name|upper }}) &&
+{% elif field.value.type.base_type == BaseType.STRUCT
+    and field.value.type.definition.fixed %}
+  VerifyField<{{ utils.flatbuffer_type(field.value.type)
+    }}>(verifier, VT_{{ field.name|upper }}) &&
 {% else %}
   // TODO {{ field.name }}
 {% endif %}
@@ -76,6 +80,13 @@ flatboobs::content_id_t {{ unpacked_class }}::content_id() const {
     >(flatbuf_->{{ utils.escape(field.name) }}());
 {% elif field.value.type.base_type.is_scalar() %}
   return flatbuf_->{{ utils.escape(field.name) }}();
+{% elif field.value.type.base_type == BaseType.STRUCT
+    and field.value.type.definition.fixed %}
+  const {{ utils.cpp_type(field.value.type) }} *value {flatbuf_->{{ utils.escape(field.name) }}()};
+    if (value == nullptr)
+      return {{ utils.cpp_type(field.value.type) }}();
+    else
+      return *value;
 {% else %}
   return;  // TODO {{ field.name }}
 {% endif %}

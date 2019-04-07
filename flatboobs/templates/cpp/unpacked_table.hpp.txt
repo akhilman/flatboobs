@@ -14,13 +14,22 @@ public:
   };
 
 {% for field in fields %}
+{% if field.value.type.base_type.is_scalar() %}
   inline {{ utils.flatbuffer_type(field.value.type) }} {# -#}
-    {{ utils.escape(field.name) }}() const
-  { return GetField<{{ utils.flatbuffer_type(field.value.type) }}>(
-      VT_{{- utils.escape(field.name)|upper -}}
-      {% if field.value.type.base_type.is_scalar() %}
-      , {{ field.value.constant }});
-      {% endif %} }
+    {{ utils.escape(field.name) }}() const {
+    return GetField<{{ utils.flatbuffer_type(field.value.type) }}>(
+      VT_{{ utils.escape(field.name)|upper }} , {{ field.value.constant }});
+  }
+{% elif field.value.type.base_type == BaseType.STRUCT
+      and field.value.type.definition.fixed %}
+  inline const {{ utils.flatbuffer_type(field.value.type) }} *
+    {{- utils.escape(field.name) }}() const {
+    return GetStruct<const {{ utils.flatbuffer_type(field.value.type) }} *>(
+      VT_{{ utils.escape(field.name)|upper }});
+  }
+{% else %}
+    /* TODO {{ field }} */
+{% endif %}
 {% endfor %}
 
   bool Verify(flatbuffers::Verifier &verifier) const;

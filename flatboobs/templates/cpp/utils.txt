@@ -250,11 +250,13 @@
     {% if type_.base_type == BaseType.BOOL %}
         char
     {% elif type_.base_type in CPP_TYPES %}
-        {{ CPP_TYPES[type_.base_type] }}
+        {{- CPP_TYPES[type_.base_type] -}}
     {% elif type_.base_type == BaseType.STRUCT and type_.definition.fixed %}
-        {{ class_name(type_.definition) }}
+        {{- namespace(type_.definition.defined_namespace) -}}
+        ::{{ class_name(type_.definition) -}}
     {% elif type_.base_type == BaseType.STRUCT %}
-        {{ flatbuffer_class(type_.definition) }}
+        {{- namespace(type_.definition.defined_namespace) -}}
+        ::{{ flatbuffer_class(type_.definition) -}}
     {% else %}
         /* FIXME: unahndled type {{ type_ }} */
     {% endif %}
@@ -265,11 +267,11 @@
 #}
 {% macro default_value(field) -%}
     {% if field.value.type.definition is instance_of("EnumDef") %}
-        {{ namespace(field.value.type.definition.defined_namespace) -}}
-          ::{{ enum_class(field.value.type.definition) }}(
-          {{- field.value.constant -}})
+          {{- cpp_type(field.value.type) -}}({{- field.value.constant -}})
     {% elif field.value.type.base_type.is_scalar() %}
         {{- field.value.constant -}}
+    {% elif field.value.type.base_type == BaseType.STRUCT %}
+        {{- cpp_type(field.value.type) }}()
     {% else %}
         /* FIXME: unhandled type in field {{ field }} */
     {% endif %}

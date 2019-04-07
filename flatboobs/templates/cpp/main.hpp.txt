@@ -32,8 +32,13 @@
 namespace {{ utils.escape(component) }} {
 {% endfor %}
 
-{% for definition in group.list|sort(attribute="name")|select("instance_of", "StructDef") %}
+{% for definition in group.list|sort(attribute="name")
+      |select("instance_of", "StructDef") %}
+{% if definition.fixed %}
+struct {{ utils.class_name(definition) }};
+{% else %}
 class {{ utils.class_name(definition) }};
+{% endif %}
 // TODO: vector of {{ utils.class_name(definition) }}
 {% endfor %}
 
@@ -61,11 +66,20 @@ namespace {{ utils.escape(component) }} {
 {% endfor %}
 
 /*
- * Declaration of structs and tables
+ * Declaration of structs
  */
 
 {% for struct_def in group.list|select("instance_of", "StructDef")
-        |sort(attribute="name") %}
+        |selectattr("fixed") |sort(attribute="name") %}
+{% include "cpp/mutable_struct.hpp.txt" %}
+{% endfor %}
+
+/*
+ * Declaration of tables
+ */
+
+{% for struct_def in group.list|select("instance_of", "StructDef")
+        |rejectattr("fixed")|sort(attribute="name") %}
 {% include "cpp/table.hpp.txt" %}
 {% endfor %}
 

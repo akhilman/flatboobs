@@ -25,11 +25,22 @@ namespace {{ utils.escape(component) }} {
 {% endfor %}
 
 /*
- * Implementation of structs and tables
+ * Implementation of structs
  */
 
 {% for struct_def in group.list|select("instance_of", "StructDef")
-        |sort(attribute="name") %}
+        |selectattr("fixed") |sort(attribute="name") %}
+{% include "cpp/struct_operators.cpp.txt" %}
+{% include "cpp/mutable_struct.cpp.txt" %}
+{% endfor %}
+
+/*
+ * Implementation of tables
+ */
+
+{% for struct_def in group.list|select("instance_of", "StructDef")
+        |rejectattr("fixed")|sort(attribute="name") %}
+{% include "cpp/struct_operators.cpp.txt" %}
 {% include "cpp/table.cpp.txt" %}
 {% endfor %}
 

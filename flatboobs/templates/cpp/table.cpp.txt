@@ -4,8 +4,6 @@
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
-{% include "cpp/struct_operators.cpp.txt" %}
-
 /* {{ class_name }} */
 
 // Evolve
@@ -65,20 +63,33 @@ build(
   flatbuffers::FlatBufferBuilder *fbb = _context.builder();
   flatbuffers::uoffset_t start;
   start = fbb->StartTable();
+
 {% for field in fields|sort(attribute="value.type.inline_size") %}
+  // {{ field.name }}
 {% if field.value.type.definition is instance_of("EnumDef") %}
   fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
     {{ flatbuffer_class }}::VT_{{ field.name|upper }},
     static_cast<{{ utils.flatbuffer_type(field.value.type) }}>(
       _table.{{ utils.escape(field.name) }}()), {{ field.value.constant }});
+
 {% elif field.value.type.base_type.is_scalar() %}
   fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
     {{ flatbuffer_class }}::VT_{{ field.name|upper }},
     _table.{{ utils.escape(field.name) }}(),
     {{ field.value.constant }}
     );
+
+{% elif field.value.type.base_type == BaseType.STRUCT
+    and field.value.type.definition.fixed %}
+  {{ utils.cpp_type(field.value.type) }} {{ field.name }}_value = _table.
+     {{- utils.escape(field.name) }}();
+  if({{ field.name }}_value != {{ utils.cpp_type(field.value.type) }}())
+    fbb->AddStruct({{ flatbuffer_class }}::VT_{{ field.name|upper -}}
+                   , &{{ field.name }}_value);
+
 {% else %}
   // TODO {{ field }}
+
 {% endif %}
 {% endfor %}
   flatbuffers::uoffset_t end = fbb->EndTable(start);
