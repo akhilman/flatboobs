@@ -55,10 +55,10 @@ BOOST_AUTO_TEST_CASE(test_set_field) {
 }
 
 BOOST_DATA_TEST_CASE(test_pack_unpack, dataset()) {
-  TestStructMsg source{};
+  TestStructRoot source{};
   source = source.evolve(sample);
   auto message = flatboobs::pack(source);
-  auto result = flatboobs::unpack<TestStructMsg>(message);
+  auto result = flatboobs::unpack<TestStructRoot>(message);
   BOOST_TEST(result.value() == sample, tt::tolerance(0.001));
   BOOST_TEST(result == source, tt::tolerance(0.001));
 }

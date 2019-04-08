@@ -8,9 +8,9 @@ struct TestStruct {
     e:TestEnum = Bar;
 }
 
-table TestStructMsg {
+table TestStructRoot {
     value:TestStruct;
 }
 
-root_type TestStructMsg;
+root_type TestStructRoot;
 file_identifier "TSTR";
