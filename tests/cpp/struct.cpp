@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE Test struct field in table
 #include <boost/test/data/test_case.hpp>
 #include <boost/test/unit_test.hpp>
-#include <struct_flatboobs.hpp>
+#include <flatboobs_test_schema/struct.hpp>
 
 namespace tt = boost::test_tools;
 

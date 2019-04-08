@@ -9,11 +9,17 @@ from typing import Sequence
 import click
 
 from flatboobs import logging
-from flatboobs.codegen import generate
 
 
-@click.command(help="Generates [de]serializer code.")
+@click.group()
 @click.option('--debug/-no-debug', default=False)
+def main(
+        debug: bool = False,
+):
+    logging.setup_logging(debug)
+
+
+@main.command(help="Generates C++ [de]serializer code.")
 @click.option(
     '--output-dir', '-o', default='./',
     type=click.Path(
@@ -24,29 +30,58 @@ from flatboobs.codegen import generate
     type=click.Path(
         file_okay=False, dir_okay=True, readable=True,
         resolve_path=True))
-@click.option('--header-only/--no-header-only', default=False,
-              help="Generated header only library")
-@click.option('--grpclib', default=False)
-@click.option('--python/--no-python', default=False,
-              help="Generate python module")
+@click.option(
+    '--header-only/--no-header-only', default=False,
+    help="Generated header only library.")
+@click.option(
+    '--clang-format/--no-clang-format', default=True,
+    help="Apply clang-format.")
+@click.argument('library_name', type=str)
 @click.argument(
     'schema_file', nargs=-1,
     type=click.Path(
         file_okay=True, dir_okay=False, readable=True, resolve_path=True))
-def main(
+def cpp(
         # pylint: disable=too-many-arguments
-        debug: bool = False,
         output_dir: str = './',
+        include_path: Sequence[str] = tuple(),
+        library_name: str = "",
+        schema_file: Sequence[str] = tuple(),
+        **kwargs
+):
+    from flatboobs.codegen.generate_cpp import generate_cpp
+
+    generate_cpp(
+        list(map(Path, schema_file)),
+        list(map(Path, include_path)),
+        Path(output_dir),
+        library_name,
+        options=kwargs
+    )
+
+
+@main.command(name="list",
+              help="Generates list of schema files with all includes.")
+@click.option(
+    '--include-path', '-I', multiple=True,
+    type=click.Path(
+        file_okay=False, dir_okay=True, readable=True,
+        resolve_path=True))
+@click.argument(
+    'schema_file', nargs=-1,
+    type=click.Path(
+        file_okay=True, dir_okay=False, readable=True, resolve_path=True))
+def list_(
+        # pylint: disable=too-many-arguments
         include_path: Sequence[str] = tuple(),
         schema_file: Sequence[str] = tuple(),
         **kwargs
 ):
-    logging.setup_logging(debug)
+    from flatboobs.codegen.generate_list import generate_list
 
-    generate(
+    generate_list(
         list(map(Path, schema_file)),
         list(map(Path, include_path)),
-        Path(output_dir),
         options=kwargs
     )
 

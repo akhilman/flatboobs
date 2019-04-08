@@ -1,15 +1,8 @@
 # pylint: disable=missing-docstring
 from flatboobs.about import __version__
-from flatboobs.registry import Registry
-from flatboobs.utils import asnative
-from flatboobs.serializers.fatboobs import FatBoobs
-
-FlatBuffers = FatBoobs
+from flatboobs.schema_loader import load_schema
 
 __all__ = [
-    'FatBoobs',
-    'FlatBuffers',
-    'Registry',
     '__version__',
-    'asnative',
+    'load_schema',
 ]

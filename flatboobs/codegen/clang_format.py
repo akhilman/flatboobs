@@ -3,7 +3,7 @@
 import subprocess
 
 
-def cpp_format(src: str) -> str:
+def clang_format(src: str) -> str:
     cmd = "clang-format"
     if subprocess.run(["which", cmd], stdout=subprocess.DEVNULL).returncode:
         return src

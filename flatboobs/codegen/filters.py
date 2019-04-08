@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Mapping, Sequence, Set, Union
+from typing import Sequence, Set, Union
 
 import toolz.itertoolz as it
 
@@ -209,20 +209,15 @@ def stem(fname: Union[str, Path]) -> str:
     return Path(fname).stem
 
 
-def filters(
-        output_dir: Path,
-        options: Mapping[str, Any]
-):
-    # pylint: disable=unused-argument
-    return {
-        'concat': it.concat,
-        'escape_keyword': escape_keyword,
-        'include_guard': include_guard,
-        'quote': quote,
-        # path related
-        'basename': basename,
-        'dirname': dirname,
-        'relative_path': relative_path,
-        'stem': stem,
-        'with_suffix': with_suffix,
-    }
+FILTERS = {
+    'concat': it.concat,
+    'escape_keyword': escape_keyword,
+    'include_guard': include_guard,
+    'quote': quote,
+    # path related
+    'basename': basename,
+    'dirname': dirname,
+    'relative_path': relative_path,
+    'stem': stem,
+    'with_suffix': with_suffix,
+}

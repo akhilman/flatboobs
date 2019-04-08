@@ -16,7 +16,7 @@ find_package(Flatbuffers REQUIRED)
 # schema
 set(schema_files)
 file(GLOB schema_files ../../schema/test/*.fbs)
-flatboobs_add_schema(flatboobs_test_schema ${schema_files})
+flatboobs_add_schema(flatboobs_test_schema SHARED ${schema_files})
 
 # tests
 file(GLOB test_sources ./*.cpp)
