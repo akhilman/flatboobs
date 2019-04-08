@@ -19,7 +19,7 @@ function(flatboobs_add_schema target)
   string(REPLACE "\n" ";" schema_names "${schema_names}")
 
   # make output directory
-  set(output_dir ${CMAKE_BINARY_DIR}/generated/)
+  set(output_dir ${CMAKE_CURRENT_BINARY_DIR}/generated/)
   add_custom_target("${target}_make_directory" ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory ${output_dir}
     )
