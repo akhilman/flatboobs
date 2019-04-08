@@ -5,8 +5,9 @@ TODO
 - [ ] Unpack/pack types (C++).
    - [X] Table with scalar values.
    - [X] Enum.
+   - [X] Struct.
+   - [X] Nested tables.
    - [ ] Union.
-   - [ ] Struct.
    - [ ] Vector of scalars.
    - [ ] Strings.
    - [ ] Vector of tables.
@@ -14,8 +15,9 @@ TODO
 - [ ] Unpack/pack types (Python).
    - [ ] Table with scalar values.
    - [ ] Enum.
-   - [ ] Union.
    - [ ] Struct.
+   - [ ] Nested tables.
+   - [ ] Union.
    - [ ] Vector of scalars.
    - [ ] Strings.
    - [ ] Vector of tables.
