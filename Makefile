@@ -15,9 +15,9 @@ syntax: flake8 pylint mypy
 inplace:
 	python ./setup.py build_cmake --inplace
 
-test: inplace
-	make -C tests/acceptance pybinds
-	pytest -sv tests
+# test: inplace
+# 	make -C tests/acceptance pybinds
+# 	pytest -sv tests
 
 coverage:
 	make -C tests/acceptance pybinds
@@ -26,7 +26,7 @@ coverage:
 clean:
 	rm -rv build || true
 	rm -rv dist || true
-	make -C tests/acceptance clean
+	# make -C tests/acceptance clean
 	find $(PACKAGE) -type d -name __pycache__ -exec rm -rv {} +
 	rm -rv __pycache__ || true
 	find tests -type d -name __pycache__ -exec rm -rv {} +
@@ -36,6 +36,6 @@ clean:
 	rm -rv flatboobs/include || true
 
 
-all: syntax test
+all: syntax # test
 
 .PHONY: all flake8 pylint mypy test $(SUBDIRS)
