@@ -1,20 +1,11 @@
 # pylint: disable=missing-docstring
+import collections
 import itertools
 import string
 from typing import Any
 
 import toolz.functoolz as ft
 import toolz.itertoolz as it
-
-from .abc import Struct, Table
-
-
-def apply(func, args):
-    return func(*args)
-
-
-def applykw(func, kwargs):
-    return func(**kwargs)
 
 
 def asnative(something: Any) -> Any:
@@ -24,8 +15,10 @@ def asnative(something: Any) -> Any:
     Result by default compatible with flatc's JSON.
     """
 
-    if isinstance(something, (Struct, Table)):
+    if isinstance(something, collections.Mapping):
         return {k: asnative(v) for k, v in something.items()}
+    if isinstance(something, collections.Sequence):
+        return [asnative(v) for v in something]
 
     return something
 
@@ -55,7 +48,3 @@ def hexdump(buffer: bytes) -> str:
         ft.partial(it.partition_all, 4),
         ft.partial(it.partition_all, 4),
     )(buffer)
-
-
-def remove_prefix(prefix: str, text: str) -> str:
-    return text[text.startswith(prefix) and len(prefix):]
