@@ -34,6 +34,25 @@
 {% endfor %}
 {}
 
+// Evolve
+
+{% set comma = joiner(", ") %}
+{{ struct_name }} {{ struct_name }}::evolve (
+{% for field in fields %}
+  {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
+    _{{ utils.escape(field.name) }}
+{% endfor %}
+) {
+  return {{ struct_name }}(
+  {% set comma = joiner(", ") %}
+  {% for field in fields %}
+    {% set field_name = utils.escape(field.name) %}
+    {{ comma() }} _{{ field_name }} ? std::move(*_{{ field_name -}}
+      ) : this->{{ field_name }}()
+  {% endfor %}
+  );
+}
+
 // Operators
 
 const {{ struct_name }}::value_variant_type

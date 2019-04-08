@@ -48,6 +48,15 @@ BOOST_DATA_TEST_CASE(test_init_with_values, dataset()) {
   BOOST_TEST(new_table == sample);
 }
 
+BOOST_DATA_TEST_CASE(test_evolve, dataset()) {
+  TestTable new_table{};
+  new_table = new_table.evolve(sample.a(), sample.a(), {});
+  BOOST_TEST(new_table.a() == new_table.b(), tt::tolerance(0.001));
+  BOOST_TEST(new_table != sample);
+  new_table = new_table.evolve(sample.a(), sample.b(), sample.e());
+  BOOST_TEST(new_table == sample);
+}
+
 BOOST_DATA_TEST_CASE(test_pack_unpack, dataset()) {
   TestTableRoot source{};
   source = source.evolve(sample);

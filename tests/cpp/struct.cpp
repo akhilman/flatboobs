@@ -42,6 +42,15 @@ BOOST_DATA_TEST_CASE(test_init_with_values, dataset()) {
   BOOST_TEST(new_struct == sample);
 }
 
+BOOST_DATA_TEST_CASE(test_evolve, dataset()) {
+  TestStruct new_struct{};
+  new_struct = new_struct.evolve(sample.a(), sample.a(), {});
+  BOOST_TEST(new_struct.a() == new_struct.b(), tt::tolerance(0.001));
+  BOOST_TEST(new_struct != sample, tt::tolerance(0.001));
+  new_struct = new_struct.evolve(sample.a(), sample.b(), sample.e());
+  BOOST_TEST(new_struct == sample, tt::tolerance(0.001));
+}
+
 BOOST_AUTO_TEST_CASE(test_set_field) {
   TestStruct default_struct{};
   TestStruct another_struct{};

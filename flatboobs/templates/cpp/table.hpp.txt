@@ -60,15 +60,6 @@ public:
         std::make_shared<const decltype(impl_proxy)>(std::move(impl_proxy)));
   }
 
-  // Evolve
-  {{ class_name }} evolve (
-  {% set comma = joiner(", ") %}
-  {% for field in fields %}
-    {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
-      _{{ utils.escape(field.name) }}
-  {% endfor %}
-  );
-
   // Metadata
   static constexpr std::string_view fully_qualified_name() {
     return "{{ struct_def.fully_qualified_name }}";
@@ -93,6 +84,15 @@ public:
 
   inline flatboobs::content_id_t content_id() const {
     return impl_->content_id(); }
+
+  // Evolve
+  {{ class_name }} evolve (
+  {% set comma = joiner(", ") %}
+  {% for field in fields %}
+    {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
+      _{{ utils.escape(field.name) }}
+  {% endfor %}
+  );
 
   // Operators
   const value_variant_type operator[](const std::string &_key) const;

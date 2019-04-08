@@ -56,6 +56,15 @@ struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
   }
 {% endfor %}
 
+  // Evolve
+  {{ struct_name }} evolve (
+  {% set comma = joiner(", ") %}
+  {% for field in fields %}
+    {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
+      _{{ utils.escape(field.name) }}
+  {% endfor %}
+  );
+
   // Operators
   const value_variant_type operator[](const std::string &_key) const;
   friend bool operator== (const {{ struct_name }}&, const {{ struct_name }}&);
