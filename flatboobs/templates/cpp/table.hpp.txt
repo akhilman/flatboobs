@@ -1,5 +1,4 @@
 {% set class_name = utils.class_name(struct_def) %}
-{% set abstract_class = utils.abstract_class(struct_def) %}
 {% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
 {% set default_class = utils.default_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
@@ -8,21 +7,6 @@
 
 
 /* {{ class_name }} */
-
-class {{ abstract_class }} {
-public:
-
-  virtual ~{{ abstract_class }}() = default;
-
-  // Getters
-{% for field in fields %}
-  virtual {{ utils.cpp_type(field.value.type) }} {{
-      utils.escape(field.name) }}() const = 0;
-{% endfor %}
-
-  virtual flatboobs::content_id_t content_id() const = 0;
-
-};
 
 
 class {{ flatbuffer_class }};
@@ -40,14 +24,30 @@ public:
   using value_variant_type = {{ utils.cpp_variant_type(
       fields|map("attr", "value")|map("attr", "type")) }};
 
+  // Abstract implementation
+  class AbstractImpl {
+  public:
+
+    virtual ~AbstractImpl() = default;
+
+    // Getters
+  {% for field in fields %}
+    virtual {{ utils.cpp_type(field.value.type) }} {{
+        utils.escape(field.name) }}() const = 0;
+  {% endfor %}
+
+    virtual flatboobs::content_id_t content_id() const = 0;
+
+  };
+
   // Constructor
   template <typename T> {{ class_name }}(T _x) {
     auto proxy = {{ utils.implement(struct_def) }}(std::move(_x));
-    impl_ = std::dynamic_pointer_cast<const {{ abstract_class }}>(
+    impl_ = std::dynamic_pointer_cast<const AbstractImpl>(
         std::make_shared<const decltype(proxy)>(std::move(proxy)));
   }
   {{ class_name }}() {
-    impl_ = std::dynamic_pointer_cast<const {{ abstract_class }}>(
+    impl_ = std::dynamic_pointer_cast<const AbstractImpl>(
         std::make_shared<const {{ default_class }}>());
   }
 
@@ -92,7 +92,8 @@ public:
   friend std::ostream &operator<< (std::ostream&, const {{ class_name }}&);
 
 private:
-  std::shared_ptr<const {{ abstract_class }}> impl_;
+  std::shared_ptr<const AbstractImpl> impl_;
+
 
 };
 

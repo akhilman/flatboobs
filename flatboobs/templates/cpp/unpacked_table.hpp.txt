@@ -1,5 +1,5 @@
 {% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
-{% set abstract_class = utils.abstract_class(struct_def) %}
+{% set class_name = utils.class_name(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
@@ -37,7 +37,7 @@ public:
 
 /* {{ unpacked_class }} */
 
-class {{ unpacked_class }} : public {{ abstract_class }} {
+class {{ unpacked_class }} : public {{ class_name }}::AbstractImpl {
 public:
   explicit {{ unpacked_class }}(flatboobs::Data);
   explicit {{ unpacked_class }}(

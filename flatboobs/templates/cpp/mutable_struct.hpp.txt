@@ -1,9 +1,9 @@
+{% set class_name = utils.class_name(struct_def) %}
 {% if struct_def.fixed %}
-  {% set struct_name = utils.class_name(struct_def) %}
+  {% set struct_name = class_name %}
   {% set override = "" %}
 {% else %}
   {% set struct_name = utils.mutable_class(struct_def) %}
-  {% set abstract_class = utils.abstract_class(struct_def) %}
   {% set override = "override" %}
 {% endif %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
@@ -13,7 +13,7 @@
 {% if struct_def.fixed %}
 struct alignas({{ struct_def.minalign }}) {{ struct_name }}
 {% else %}
-struct  {{ struct_name }} : public {{ abstract_class }}
+struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
 {% endif %} {
 
   using value_variant_type = {{ utils.cpp_variant_type(
