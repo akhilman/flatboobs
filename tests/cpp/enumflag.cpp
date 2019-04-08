@@ -26,7 +26,9 @@ std::vector<TestEnumAndFlag> dataset() {
   std::vector<TestEnumAndFlag> combined{};
   for (auto enum_val : enum_dataset) {
     for (auto flag_val : flag_dataset) {
-      combined.push_back(MutableTestEnumAndFlag(flag_val, enum_val));
+      auto table = TestEnumAndFlag();
+      table = table.evolve(flag_val, enum_val);
+      combined.push_back(table);
     }
   }
   return combined;
@@ -34,10 +36,9 @@ std::vector<TestEnumAndFlag> dataset() {
 
 BOOST_AUTO_TEST_CASE(test_default_values) {
   TestEnumAndFlag table{};
-  DefaultTestEnumAndFlag default_table{};
 
-  BOOST_TEST(table.test_enum() == default_table.test_enum());
-  BOOST_TEST(table.test_flag() == default_table.test_flag());
+  BOOST_TEST(table.test_enum() == TestEnum::Buz);
+  BOOST_TEST(table.test_flag() == TestFlag::NONE);
 }
 
 BOOST_AUTO_TEST_CASE(test_evolve) {

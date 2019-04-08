@@ -1,10 +1,28 @@
 {% set class_name = utils.class_name(struct_def) %}
+{% set default_class = utils.default_class(struct_def) %}
 {% set mutable_class = utils.mutable_class(struct_def) %}
 {% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
+{% include "cpp/default_table.cpp.txt" %}
+{% include "cpp/mutable_struct.hpp.txt" %}
+{% include "cpp/mutable_struct.cpp.txt" %}
+{% include "cpp/unpacked_table.cpp.txt" %}
+
 /* {{ class_name }} */
+
+// Constructor
+{{ class_name }}::{{ class_name }}()
+  : impl_{std::make_shared<{{ default_class }}>()} {}
+{{ class_name }}::{{ class_name }}({{ mutable_class }} _impl)
+  : impl_{std::make_shared<{{ mutable_class }}>(std::move(_impl))} {}
+{{ class_name }}::{{ class_name }}(flatboobs::Data _data)
+  : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_data))} {}
+{{ class_name }}::{{ class_name }}(
+    flatboobs::Data _data,
+    const {{ flatbuffer_class }} *_flatbuf
+) : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_data), _flatbuf)} {}
 
 // Evolve
 
@@ -41,7 +59,7 @@ bool operator!= (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
 
 std::ostream& operator<< (std::ostream &_stream, const {{ class_name }} &_obj) {
   return print_{{ class_name }}(_stream, _obj);
-};
+}
 
 
 // Builder
@@ -108,17 +126,6 @@ build(
 
   return offset;
 }
-
-// Implementation halpers
-
-{{ unpacked_class }} {{ utils.implement(struct_def) }} (flatboobs::Data _data)
-{ return {{ unpacked_class }}(std::move(_data)); }
-{{ mutable_class }} {{ utils.implement(struct_def) }} ({{ mutable_class }} _mutable)
-{ return _mutable; }
-
-
-{% include "cpp/mutable_struct.cpp.txt" %}
-{% include "cpp/unpacked_table.cpp.txt" %}
 
 
 {#

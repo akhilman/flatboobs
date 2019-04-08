@@ -1,6 +1,7 @@
 {% import "cpp/utils.txt" as utils %}
 {% set default_class = utils.default_class(struct_def) %}
 {% set class_name = utils.class_name(struct_def) %}
+{% set impl_factory = utils.implement(struct_def) %}
 /* {{ default_class }} */
 
 class {{ default_class }} : public {{ class_name }}::AbstractImpl {

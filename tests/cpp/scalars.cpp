@@ -10,27 +10,28 @@ namespace bdata = boost::unit_test::data;
 
 class Dataset {
 public:
-  using sample = MutableTestScalars;
+  using sample = TestScalars;
 
   struct iterator {
-    MutableTestScalars value;
+    TestScalars value;
     iterator() { operator++(); }
-    MutableTestScalars &operator*() { return value; }
-    MutableTestScalars &operator++() {
-      value.int_8_ = (std::rand() % 200) - 100;
-      value.int_16_ = (std::rand() % 200) - 100;
-      value.int_32_ = (std::rand() % 200) - 100;
-      value.int_64_ = (std::rand() % 200) - 100;
-      value.uint_8_ = (std::rand() % 200);
-      value.uint_16_ = (std::rand() % 200);
-      value.uint_32_ = (std::rand() % 200);
-      value.uint_64_ = (std::rand() % 200);
+    TestScalars &operator*() { return value; }
+    TestScalars &operator++() {
+      value = value.evolve((std::rand() % 200) - 100, // int_8
+                           (std::rand() % 200) - 100, // int_16
+                           (std::rand() % 200) - 100, // int_32
+                           (std::rand() % 200) - 100, // int_64
+                           (std::rand() % 200),       // unit_8
+                           (std::rand() % 200),       // uint_16
+                           (std::rand() % 200),       // uint_32
+                           (std::rand() % 200),       // uint_64
 
-      value.float_32_ = (std::rand() / 1000);
-      value.float_64_ = (std::rand() / 1000);
+                           (std::rand() / 1000), // float_32
+                           (std::rand() / 1000), // float_64
 
-      value.bool_true_ = (std::rand() % 2);
-      value.bool_false_ = (std::rand() % 2);
+                           (std::rand() % 2), // bool_true
+                           (std::rand() % 2)  // bool_false
+      );
       return value;
     }
   };
@@ -67,7 +68,7 @@ BOOST_AUTO_TEST_CASE(test_default_values) {
   BOOST_TEST(table.bool_false() == false);
 }
 
-BOOST_DATA_TEST_CASE(test_random_values, Dataset()) {
+BOOST_DATA_TEST_CASE(test_copy, Dataset()) {
 
   TestScalars table{sample};
 
@@ -130,9 +131,8 @@ BOOST_DATA_TEST_CASE(test_evolve, Dataset()) {
 
 BOOST_DATA_TEST_CASE(test_pack_unpack, Dataset()) {
 
-  TestScalars table{sample};
-  flatboobs::Data data = flatboobs::pack(table);
+  flatboobs::Data data = flatboobs::pack(sample);
   TestScalars result = flatboobs::unpack<TestScalars>(data);
 
-  BOOST_TEST(result == table);
+  BOOST_TEST(result == sample);
 }

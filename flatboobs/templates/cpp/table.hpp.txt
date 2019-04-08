@@ -3,24 +3,20 @@
 {% set default_class = utils.default_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set mutable_class = utils.mutable_class(struct_def) %}
+{% set impl_factory = utils.implement(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
 
 /* {{ class_name }} */
 
-
 class {{ flatbuffer_class }};
-class {{ unpacked_class }};
-class {{ default_class }};
 struct {{ mutable_class }};
 
-{{ unpacked_class }} {{ utils.implement(struct_def) }} (flatboobs::Data);
-{{ mutable_class }} {{ utils.implement(struct_def) }} ({{ mutable_class }});
-
+// Implementation factory
 
 class {{ class_name }} {
 public:
-  using flatbuffer_type = {{ utils.flatbuffer_class(struct_def) }};
+  using flatbuffer_type = {{ flatbuffer_class }};
   using value_variant_type = {{ utils.cpp_variant_type(
       fields|map("attr", "value")|map("attr", "type")) }};
 
@@ -41,14 +37,21 @@ public:
   };
 
   // Constructor
-  template <typename T> {{ class_name }}(T _x) {
-    auto proxy = {{ utils.implement(struct_def) }}(std::move(_x));
+  {{ class_name }}();
+  {{ class_name }}({{ mutable_class }});
+  {{ class_name }}(flatboobs::Data);
+  {{ class_name }}(flatboobs::Data, const {{ flatbuffer_class }} *);
+
+  // Constructor that invokes implementation factory
+  // Could be used to convert any kind of data to this type.
+  // Example:
+  //   {{ unpacked_class }} {{ impl_factory }}(flatboobs::Data _data) {
+  //     return {{ unpacked_class }}(std::move(_data));
+  //   }
+  template <typename ...Ts> {{ class_name }}(Ts... _args) {
+    auto impl_proxy = {{ utils.implement(struct_def) }}(std::forward<Ts>(_args)...);
     impl_ = std::dynamic_pointer_cast<const AbstractImpl>(
-        std::make_shared<const decltype(proxy)>(std::move(proxy)));
-  }
-  {{ class_name }}() {
-    impl_ = std::dynamic_pointer_cast<const AbstractImpl>(
-        std::make_shared<const {{ default_class }}>());
+        std::make_shared<const decltype(impl_proxy)>(std::move(impl_proxy)));
   }
 
   // Evolve
@@ -97,9 +100,6 @@ private:
 
 };
 
-{% include "cpp/default_struct.hpp.txt" %}
-{% include "cpp/mutable_struct.hpp.txt" %}
-{% include "cpp/unpacked_table.hpp.txt" %}
 
 // Builder
 
