@@ -78,6 +78,24 @@ build(
   if (it != _context.offset_map().end())
     return flatbuffers::Offset<{{ flatbuffer_class }}>{it->second};
 
+  // Build dependencies
+
+{% for field in fields|sort(attribute="value.type.inline_size") %}
+{% if field.value.type.base_type == BaseType.STRUCT
+    and not field.value.type.definition.fixed %}
+  // {{ field.name }}
+  {{ utils.cpp_type(field.value.type) }} {{ field.name }}_value = {# -#}
+    _table.{{ utils.escape(field.name) }}();
+  flatbuffers::Offset<{{ utils.flatbuffer_type(field.value.type) }}> {# #}
+    {{- field.name }}_offset {};
+  if ({{ field.name }}_value.content_id())
+    {{ field.name }}_offset = build(_context, {{ field.name }}_value, false);
+
+{% endif %}
+{% endfor %}
+
+  // Build this table
+
   flatbuffers::FlatBufferBuilder *fbb = _context.builder();
   flatbuffers::uoffset_t start;
   start = fbb->StartTable();
@@ -104,6 +122,12 @@ build(
   if({{ field.name }}_value != {{ utils.cpp_type(field.value.type) }}())
     fbb->AddStruct({{ flatbuffer_class }}::VT_{{ field.name|upper -}}
                    , &{{ field.name }}_value);
+
+{% elif field.value.type.base_type == BaseType.STRUCT
+    and not field.value.type.definition.fixed %}
+  if (!{{- field.name }}_offset.IsNull())
+    fbb->AddOffset({{ flatbuffer_class }}::VT_{{ field.name|upper -}}
+                   , {{ field.name }}_offset);
 
 {% else %}
   // TODO {{ field }}

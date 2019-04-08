@@ -1,0 +1,16 @@
+include "enumflag.fbs";
+
+namespace flatboobs.schema.test;
+
+table TestTable {
+    a:uint8 = 10;
+    b:float = 11;
+    e:TestEnum = Bar;
+}
+
+table TestTableRoot {
+    value:TestTable;
+}
+
+root_type TestTableRoot;
+file_identifier "TTBL";

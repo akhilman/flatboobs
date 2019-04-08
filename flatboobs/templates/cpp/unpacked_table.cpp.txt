@@ -33,13 +33,53 @@ public:
     return GetStruct<const {{ utils.flatbuffer_type(field.value.type) }} *>(
       VT_{{ utils.escape(field.name)|upper }});
   }
+{% elif field.value.type.base_type == BaseType.STRUCT
+      and not field.value.type.definition.fixed %}
+  inline const {{ utils.flatbuffer_type(field.value.type) }} *
+    {{- utils.escape(field.name) }}() const {
+    return GetPointer<const {{ utils.flatbuffer_type(field.value.type) }} *>(
+      VT_{{ utils.escape(field.name)|upper }});
+  }
 {% else %}
     /* TODO {{ field }} */
 {% endif %}
 {% endfor %}
 
-  bool Verify(flatbuffers::Verifier &verifier) const;
+  inline bool Verify( flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+  {% for field in fields %}
+  {% if field.value.type.base_type.is_scalar() %}
+    VerifyField<{{ utils.flatbuffer_type(field.value.type)
+      }}>(verifier, VT_{{ field.name|upper }}) &&
+  {% elif field.value.type.base_type == BaseType.STRUCT
+      and field.value.type.definition.fixed %}
+    VerifyField<{{ utils.flatbuffer_type(field.value.type)
+      }}>(verifier, VT_{{ field.name|upper }}) &&
+  {% elif field.value.type.base_type == BaseType.STRUCT
+      and not field.value.type.definition.fixed %}
+    VerifyOffset(verifier, VT_{{ field.name|upper }}) &&
+    verifier.VerifyTable({{ utils.escape(field.name) }}()) &&
+  {% else %}
+    // TODO {{ field.name }}
+  {% endif %}
+  {% endfor %}
+    verifier.EndTable();
+  }
 };
+
+// Verify {{ class_name }}
+static bool verify_{{ class_name }}(const flatboobs::Data &_message) {
+  auto verifier = flatbuffers::Verifier(
+    reinterpret_cast<const uint8_t *>(_message.data()),
+    _message.size()
+    );
+{% if file_identifier %}
+  const char* identifier = "{{ file_identifier }}";
+{% else %}
+  const char* identifier = nullptr;
+{% endif %}
+  return verifier.VerifyBuffer<{{ flatbuffer_class }}>(identifier);
+}
 
 /* {{ unpacked_class }} */
 
@@ -59,64 +99,27 @@ public:
 {% endfor %}
 
 private:
-  const flatboobs::Data message_;
+  const flatboobs::Data data_;
   const {{ flatbuffer_class }} *flatbuf_;
 
 };
 
-
-// Verify
-
-bool {{ flatbuffer_class }}::Verify(
-    flatbuffers::Verifier &verifier) const {
-  return VerifyTableStart(verifier) &&
-{% for field in fields %}
-{% if field.value.type.base_type.is_scalar() %}
-  VerifyField<{{ utils.flatbuffer_type(field.value.type)
-    }}>(verifier, VT_{{ field.name|upper }}) &&
-{% elif field.value.type.base_type == BaseType.STRUCT
-    and field.value.type.definition.fixed %}
-  VerifyField<{{ utils.flatbuffer_type(field.value.type)
-    }}>(verifier, VT_{{ field.name|upper }}) &&
-{% else %}
-  // TODO {{ field.name }}
-{% endif %}
-{% endfor %}
-  verifier.EndTable();
-}
-
-// Verify {{ class_name }}
-static bool verify_{{ class_name }}(const flatboobs::Data &_message) {
-  auto verifier = flatbuffers::Verifier(
-    reinterpret_cast<const uint8_t *>(_message.data()),
-    _message.size()
-    );
-{% if file_identifier %}
-  const char* identifier = "{{ file_identifier }}";
-{% else %}
-  const char* identifier = nullptr;
-{% endif %}
-  return verifier.VerifyBuffer<{{ flatbuffer_class }}>(identifier);
-}
-
-/* {{ unpacked_class }} */
-
 // Constructors
 
 {{ unpacked_class }}::{{ unpacked_class }}(flatboobs::Data _message)
-    : message_{std::move(_message)}, flatbuf_{nullptr} {
+    : data_{std::move(_message)}, flatbuf_{nullptr} {
 
-  if (!verify_{{ class_name }}(message_))
+  if (!verify_{{ class_name }}(data_))
     throw flatboobs::unpack_error("{{ class_name }} message verification failed");
 
-  flatbuf_ = flatbuffers::GetRoot<{{ flatbuffer_class }}>(message_.data());
+  flatbuf_ = flatbuffers::GetRoot<{{ flatbuffer_class }}>(data_.data());
 
 }
 
 {{ unpacked_class }}::{{ unpacked_class }}(
   flatboobs::Data _message,
   const {{ flatbuffer_class }} *_flatbuf
-  ) : message_{std::move(_message)}, flatbuf_{_flatbuf} {}
+  ) : data_{std::move(_message)}, flatbuf_{_flatbuf} {}
 
 // Metadata
 
@@ -134,13 +137,16 @@ flatboobs::content_id_t {{ unpacked_class }}::content_id() const {
     >(flatbuf_->{{ utils.escape(field.name) }}());
 {% elif field.value.type.base_type.is_scalar() %}
   return flatbuf_->{{ utils.escape(field.name) }}();
-{% elif field.value.type.base_type == BaseType.STRUCT
-    and field.value.type.definition.fixed %}
-  const {{ utils.cpp_type(field.value.type) }} *value {flatbuf_->{{ utils.escape(field.name) }}()};
+{% elif field.value.type.base_type == BaseType.STRUCT %}
+  const {{ utils.flatbuffer_type(field.value.type) }} *value {flatbuf_->{{ utils.escape(field.name) }}()};
     if (value == nullptr)
       return {{ utils.cpp_type(field.value.type) }}();
     else
+    {% if field.value.type.definition.fixed %}
       return *value;
+    {% else %}
+      return {{ utils.cpp_type(field.value.type) }}(data_, value);
+    {% endif %}
 {% else %}
   return;  // TODO {{ field.name }}
 {% endif %}
