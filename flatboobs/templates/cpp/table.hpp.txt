@@ -41,6 +41,12 @@ public:
   {{ class_name }}({{ mutable_class }});
   {{ class_name }}(flatboobs::Data);
   {{ class_name }}(flatboobs::Data, const {{ flatbuffer_class }} *);
+  {{ class_name }}(
+  {% for field in fields %}
+    {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
+    {{- "," if not loop.last }}
+  {% endfor %}
+  );
 
   // Constructor that invokes implementation factory
   // Could be used to convert any kind of data to this type.

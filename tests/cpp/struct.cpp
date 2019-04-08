@@ -37,6 +37,11 @@ BOOST_AUTO_TEST_CASE(test_defaults) {
   BOOST_TEST(default_struct.e() == TestEnum::Bar);
 }
 
+BOOST_DATA_TEST_CASE(test_init_with_values, dataset()) {
+  TestStruct new_struct{sample.a(), sample.b(), sample.e()};
+  BOOST_TEST(new_struct == sample);
+}
+
 BOOST_AUTO_TEST_CASE(test_set_field) {
   TestStruct default_struct{};
   TestStruct another_struct{};

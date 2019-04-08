@@ -43,6 +43,11 @@ BOOST_AUTO_TEST_CASE(test_defaults) {
   BOOST_TEST(default_table.value().e() == TestEnum::Bar);
 }
 
+BOOST_DATA_TEST_CASE(test_init_with_values, dataset()) {
+  TestTable new_table{sample.a(), sample.b(), sample.e()};
+  BOOST_TEST(new_table == sample);
+}
+
 BOOST_DATA_TEST_CASE(test_pack_unpack, dataset()) {
   TestTableRoot source{};
   source = source.evolve(sample);

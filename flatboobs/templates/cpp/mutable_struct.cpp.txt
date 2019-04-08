@@ -12,14 +12,23 @@
 {% endif %}
 
 // Constructor
+
+{{ struct_name }}::{{ struct_name }}()
+{% for field in fields %}
+   {{- " : " if loop.first -}}
+   {{ utils.escape(field.name) }}_ { {{ utils.default_value(field) }} }
+   {{- "," if not loop.last }}
+{% endfor %}
+{}
+
 {{ struct_name }}::{{ struct_name }}(
 {% for field in fields %}
-  {{ utils.cpp_type(field.value.type) }} {# -#}
-    _{{ utils.escape(field.name) }}
+  {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
     {{- "," if not loop.last }}
 {% endfor %}
-) :
+)
 {% for field_name in fields|map("attr", "name") %}
+   {{- " : " if loop.first -}}
    {{ utils.escape(field_name) }}_ {std::move(_{{ utils.escape(field_name) }})}
    {{- "," if not loop.last }}
 {% endfor %}

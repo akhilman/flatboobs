@@ -19,6 +19,19 @@
   : impl_{std::make_shared<{{ mutable_class }}>(std::move(_impl))} {}
 {{ class_name }}::{{ class_name }}(flatboobs::Data _data)
   : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_data))} {}
+
+{{ class_name }}::{{ class_name }}(
+{% for field in fields %}
+  {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
+    {{- "," if not loop.last }}
+{% endfor %}
+) : impl_{std::make_shared<{{ mutable_class }}>(
+  {% for field_name in fields|map("attr", "name") %}
+     std::move(_{{ utils.escape(field_name) }})
+     {{- "," if not loop.last }}
+  {% endfor %}
+  )} {}
+
 {{ class_name }}::{{ class_name }}(
     flatboobs::Data _data,
     const {{ flatbuffer_class }} *_flatbuf
