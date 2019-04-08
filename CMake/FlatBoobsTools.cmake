@@ -39,13 +39,18 @@ function(flatboobs_add_schema target)
   endforeach(schema)
 
   # Add command and target to generate C++ headers and sources
+  if(ARG_HEADER_ONLY)
+    set(boobs_args --header-only)
+  else()
+    set(boobs_args --no-header-only)
+  endif()
   add_custom_command(
     OUTPUT
       ${header_files}
       ${source_files}
     COMMAND
       ${Python_EXECUTABLE} -m flatboobs
-        cpp -o ${output_dir} ${target} ${schema_files}
+        cpp ${boobs_args} -o ${output_dir} ${target} ${schema_files}
     WORKING_DIRECTORY
       ${output_dir}
     )
