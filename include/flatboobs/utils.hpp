@@ -48,7 +48,7 @@ inline std::string unescape_string(const std::string src) {
   return ret.str();
 }
 
-std::ostream &hex_dump(std::ostream &stream, const std::string_view _data) {
+std::ostream &hexdump(std::ostream &stream, const std::string_view _data) {
 
   stream << std::hex << std::setfill('0');
 
