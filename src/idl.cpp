@@ -150,7 +150,7 @@ static void pydefine_Value(py::module &m) {
            [](fb::Value &self) {
              std::stringstream repr;
              repr << "<Value: ";
-             repr << py::cast(self.type.base_type);
+             repr << py::cast(self.type);
              if (fb::IsScalar(self.type.base_type))
                repr << " " << self.constant;
              repr << ">";
@@ -244,7 +244,7 @@ static void pydefine_Type(py::module &m) {
              else if (type.enum_def != nullptr)
                repr << type.enum_def->name;
              else
-               repr << type.base_type;
+               repr << py::cast(type.base_type);
              if (is_vector)
                repr << "]";
              repr << ">";
