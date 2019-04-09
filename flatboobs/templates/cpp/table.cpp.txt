@@ -17,8 +17,8 @@
   : impl_{std::make_shared<{{ default_class }}>()} {}
 {{ class_name }}::{{ class_name }}({{ mutable_class }} _impl)
   : impl_{std::make_shared<{{ mutable_class }}>(std::move(_impl))} {}
-{{ class_name }}::{{ class_name }}(flatboobs::Data _data)
-  : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_data))} {}
+{{ class_name }}::{{ class_name }}(flatboobs::Message _message)
+  : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_message))} {}
 
 {{ class_name }}::{{ class_name }}(
 {% for field in fields %}
@@ -33,9 +33,9 @@
   )} {}
 
 {{ class_name }}::{{ class_name }}(
-    flatboobs::Data _data,
+    flatboobs::Message _message,
     const {{ flatbuffer_class }} *_flatbuf
-) : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_data), _flatbuf)} {}
+) : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_message), _flatbuf)} {}
 
 // Evolve
 

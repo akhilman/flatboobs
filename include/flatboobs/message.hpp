@@ -7,9 +7,9 @@
 
 namespace flatboobs {
 
-class Data;
+class Message;
 
-struct DataIterator {
+struct MessageIterator {
   using difference_type = std::ptrdiff_t;
   using value_type = const std::byte;
   using pointer = const std::byte *;
@@ -17,83 +17,85 @@ struct DataIterator {
   using iterator_category = std::random_access_iterator_tag;
   // TODO use contiguous_iterator_tag in C++20
 
-  DataIterator(pointer _ptr = 0) noexcept : ptr_{_ptr} {}
+  MessageIterator(pointer _ptr = 0) noexcept : ptr_{_ptr} {}
 
-  DataIterator &operator+=(difference_type _diff) {
+  MessageIterator &operator+=(difference_type _diff) {
     ptr_ += _diff;
     return *this;
   }
-  DataIterator &operator-=(difference_type _diff) {
+  MessageIterator &operator-=(difference_type _diff) {
     ptr_ -= _diff;
     return *this;
   }
 
-  DataIterator &operator+(difference_type _diff) {
-    DataIterator tmp = *this;
+  MessageIterator &operator+(difference_type _diff) {
+    MessageIterator tmp = *this;
     return tmp += _diff;
   }
-  DataIterator &operator-(difference_type _diff) {
-    DataIterator tmp = *this;
+  MessageIterator &operator-(difference_type _diff) {
+    MessageIterator tmp = *this;
     return tmp -= _diff;
   }
 
-  DataIterator &operator++() {
+  MessageIterator &operator++() {
     ptr_++;
     return *this;
   }
-  DataIterator operator++(int) {
+  MessageIterator operator++(int) {
     auto tmp = ptr_;
     ptr_++;
-    return DataIterator(tmp);
+    return MessageIterator(tmp);
   }
-  DataIterator &operator--() {
+  MessageIterator &operator--() {
     ptr_--;
     return *this;
   }
-  DataIterator operator--(int) {
+  MessageIterator operator--(int) {
     auto tmp = ptr_;
     ptr_--;
-    return DataIterator(tmp);
+    return MessageIterator(tmp);
   }
 
-  bool operator<(DataIterator other) { return this->ptr_ < other.ptr_; }
-  bool operator>(DataIterator other) { return this->ptr_ > other.ptr_; }
-  bool operator<=(DataIterator other) { return this->ptr_ <= other.ptr_; }
-  bool operator>=(DataIterator other) { return this->ptr_ >= other.ptr_; }
+  bool operator<(MessageIterator other) { return this->ptr_ < other.ptr_; }
+  bool operator>(MessageIterator other) { return this->ptr_ > other.ptr_; }
+  bool operator<=(MessageIterator other) { return this->ptr_ <= other.ptr_; }
+  bool operator>=(MessageIterator other) { return this->ptr_ >= other.ptr_; }
 
   reference operator[](difference_type idx) { return *(ptr_ + idx); }
 
   reference operator*() const { return *ptr_; }
-  friend bool operator==(const DataIterator &lhs, const DataIterator &rhs) {
+  friend bool operator==(const MessageIterator &lhs,
+                         const MessageIterator &rhs) {
     return lhs.ptr_ == rhs.ptr_;
   }
-  friend bool operator!=(const DataIterator &lhs, const DataIterator &rhs) {
+  friend bool operator!=(const MessageIterator &lhs,
+                         const MessageIterator &rhs) {
     return lhs.ptr_ != rhs.ptr_;
   }
   pointer operator->() const { return ptr_; }
-  friend void swap(DataIterator &lhs, DataIterator &rhs) {
+  friend void swap(MessageIterator &lhs, MessageIterator &rhs) {
     std::swap(lhs.ptr_, rhs.ptr_);
   }
 
   pointer ptr_;
 };
 
-class Data {
+class Message {
 public:
   template <typename T>
-  Data(T _x) noexcept : self_{std::make_shared<model_t<T>>(std::move(_x))} {}
+  Message(T _x) noexcept : self_{std::make_shared<model_t<T>>(std::move(_x))} {}
 
   const std::byte *data() const { return self_->data(); }
   size_t size() const { return self_->size(); }
   size_t lenght() const { return size(); }
 
-  DataIterator begin() const { return DataIterator(data()); }
-  DataIterator end() const { return DataIterator(data()) + size(); }
+  MessageIterator begin() const { return MessageIterator(data()); }
+  MessageIterator end() const { return MessageIterator(data()) + size(); }
 
-  std::reverse_iterator<DataIterator> rbegin() const {
+  std::reverse_iterator<MessageIterator> rbegin() const {
     return std::reverse_iterator(end());
   }
-  std::reverse_iterator<DataIterator> rend() const {
+  std::reverse_iterator<MessageIterator> rend() const {
     return std::reverse_iterator(begin());
   }
 
@@ -101,8 +103,8 @@ public:
     return std::string_view(reinterpret_cast<const char *>(data()), size());
   }
 
-  friend std::ostream &operator<<(std::ostream &_stream, const Data &_data) {
-    _stream << "Data(" << _data.data() << ", size=" << _data.size() << ")";
+  friend std::ostream &operator<<(std::ostream &_stream, const Message &_data) {
+    _stream << "Message(" << _data.data() << ", size=" << _data.size() << ")";
     return _stream;
   }
 
@@ -140,17 +142,17 @@ private:
   std::shared_ptr<const concept_t> self_;
 };
 
-class BuiltData {
+class BuiltMessage {
 public:
-  BuiltData() : size_{0}, offset_{0}, data_{nullptr} {}
+  BuiltMessage() : size_{0}, offset_{0}, data_{nullptr} {}
 
   // Move
-  BuiltData(BuiltData &&_other) = default;
-  BuiltData &operator=(BuiltData &&_other) = default;
+  BuiltMessage(BuiltMessage &&_other) = default;
+  BuiltMessage &operator=(BuiltMessage &&_other) = default;
 
   // Copy
-  BuiltData(const BuiltData &) = delete;
-  BuiltData &operator=(const BuiltData &) = delete;
+  BuiltMessage(const BuiltMessage &) = delete;
+  BuiltMessage &operator=(const BuiltMessage &) = delete;
 
   void steal_from_builder(flatbuffers::FlatBufferBuilder &&builder) {
     size_ = builder.GetSize();

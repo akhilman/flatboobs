@@ -10,9 +10,9 @@
 
 static std::string static_str{TEST_STRING};
 
-std::vector<flatboobs::Data> sample_variants() {
+std::vector<flatboobs::Message> sample_variants() {
   std::string str{TEST_STRING};
-  std::vector<flatboobs::Data> samples;
+  std::vector<flatboobs::Message> samples;
   samples.push_back(str);
   samples.push_back(&static_str);
 
@@ -48,6 +48,6 @@ BOOST_AUTO_TEST_CASE(test_multibyte_items) {
   const std::vector<uint64_t> vec{1, 2, 3, 4};
   std::string_view view{reinterpret_cast<const char *>(vec.data()),
                         vec.size() * sizeof(double)};
-  flatboobs::Data data{vec};
-  BOOST_TEST(data.str() == view);
+  flatboobs::Message message{vec};
+  BOOST_TEST(message.str() == view);
 }

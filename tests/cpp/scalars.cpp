@@ -131,7 +131,7 @@ BOOST_DATA_TEST_CASE(test_evolve, Dataset()) {
 
 BOOST_DATA_TEST_CASE(test_pack_unpack, Dataset()) {
 
-  flatboobs::Data data = flatboobs::pack(sample);
+  auto data = flatboobs::pack(sample);
   TestScalars result = flatboobs::unpack<TestScalars>(data);
 
   BOOST_TEST(result == sample);

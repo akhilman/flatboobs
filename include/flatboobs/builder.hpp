@@ -5,9 +5,6 @@
 #include <flatbuffers/flatbuffers.h>
 #include <map>
 
-#include <flatboobs/builder.hpp>
-#include <flatboobs/data.hpp>
-
 namespace flatboobs {
 
 using content_id_t = size_t;

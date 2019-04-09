@@ -68,7 +68,7 @@ public:
 };
 
 // Verify {{ class_name }}
-static bool verify_{{ class_name }}(const flatboobs::Data &_message) {
+static bool verify_{{ class_name }}(const flatboobs::Message &_message) {
   auto verifier = flatbuffers::Verifier(
     reinterpret_cast<const uint8_t *>(_message.data()),
     _message.size()
@@ -85,9 +85,9 @@ static bool verify_{{ class_name }}(const flatboobs::Data &_message) {
 
 class {{ unpacked_class }} : public {{ class_name }}::AbstractImpl {
 public:
-  explicit {{ unpacked_class }}(flatboobs::Data);
+  explicit {{ unpacked_class }}(flatboobs::Message);
   explicit {{ unpacked_class }}(
-    flatboobs::Data, const {{ flatbuffer_class }} *);
+    flatboobs::Message, const {{ flatbuffer_class }} *);
 
   // Metadata
   flatboobs::content_id_t content_id() const override;
@@ -99,27 +99,27 @@ public:
 {% endfor %}
 
 private:
-  const flatboobs::Data data_;
+  const flatboobs::Message message_;
   const {{ flatbuffer_class }} *flatbuf_;
 
 };
 
 // Constructors
 
-{{ unpacked_class }}::{{ unpacked_class }}(flatboobs::Data _message)
-    : data_{std::move(_message)}, flatbuf_{nullptr} {
+{{ unpacked_class }}::{{ unpacked_class }}(flatboobs::Message _message)
+    : message_{std::move(_message)}, flatbuf_{nullptr} {
 
-  if (!verify_{{ class_name }}(data_))
+  if (!verify_{{ class_name }}(message_))
     throw flatboobs::unpack_error("{{ class_name }} message verification failed");
 
-  flatbuf_ = flatbuffers::GetRoot<{{ flatbuffer_class }}>(data_.data());
+  flatbuf_ = flatbuffers::GetRoot<{{ flatbuffer_class }}>(message_.data());
 
 }
 
 {{ unpacked_class }}::{{ unpacked_class }}(
-  flatboobs::Data _message,
+  flatboobs::Message _message,
   const {{ flatbuffer_class }} *_flatbuf
-  ) : data_{std::move(_message)}, flatbuf_{_flatbuf} {}
+  ) : message_{std::move(_message)}, flatbuf_{_flatbuf} {}
 
 // Metadata
 
@@ -145,7 +145,7 @@ flatboobs::content_id_t {{ unpacked_class }}::content_id() const {
     {% if field.value.type.definition.fixed %}
       return *value;
     {% else %}
-      return {{ utils.cpp_type(field.value.type) }}(data_, value);
+      return {{ utils.cpp_type(field.value.type) }}(message_, value);
     {% endif %}
 {% else %}
   return;  // TODO {{ field.name }}
