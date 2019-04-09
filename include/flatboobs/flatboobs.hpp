@@ -11,8 +11,12 @@ namespace flatboobs {
 template <typename T> Message pack(T _table) {
 
   const Message *source_message = _table.source_message();
-  if (source_message)
-    return Message{*source_message};
+  if (source_message) {
+    content_id_t source_content_id =
+        content_id_t(flatbuffers::GetRoot<void>(source_message->data()));
+    if (source_content_id == _table.content_id())
+      return Message{*source_message};
+  }
 
   flatbuffers::FlatBufferBuilder fbb{1024};
   BuilderContext context{&fbb};
