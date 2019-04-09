@@ -65,3 +65,20 @@ BOOST_DATA_TEST_CASE(test_pack_unpack, dataset()) {
   BOOST_TEST(result.value() == sample, tt::tolerance(0.001));
   BOOST_TEST(result == source, tt::tolerance(0.001));
 }
+
+BOOST_DATA_TEST_CASE(test_repack, dataset()) {
+
+  TestTableRoot source_a{};
+  auto message_a = flatboobs::pack(source_a);
+  auto result_a = flatboobs::unpack<TestTableRoot>(message_a);
+
+  auto source_b = result_a.evolve(sample);
+  auto message_b = flatboobs::pack(source_b);
+  auto result_b = flatboobs::unpack<TestTableRoot>(message_b);
+
+  auto message_c = flatboobs::pack(result_b);
+  auto result_c = flatboobs::unpack<TestTableRoot>(message_c);
+
+  BOOST_TEST(message_b.data() != message_a.data());
+  BOOST_TEST(message_c.data() == message_b.data());
+}

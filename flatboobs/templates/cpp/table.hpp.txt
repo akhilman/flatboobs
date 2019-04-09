@@ -33,6 +33,7 @@ public:
   {% endfor %}
 
     virtual flatboobs::content_id_t content_id() const = 0;
+    virtual const flatboobs::Message *source_message() const = 0;
 
   };
 
@@ -84,6 +85,8 @@ public:
 
   inline flatboobs::content_id_t content_id() const {
     return impl_->content_id(); }
+  inline const flatboobs::Message *source_message() const {
+    return impl_->source_message(); }
 
   // Evolve
   {{ class_name }} evolve (

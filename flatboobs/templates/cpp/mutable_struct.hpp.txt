@@ -36,9 +36,14 @@ struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
     return { {{ fields|map("attr", "name")|map("quote")|join(", ")}} };
   }
 
-  flatboobs::content_id_t content_id() const {{ override }} {
+{% if not struct_def.fixed %}
+  flatboobs::content_id_t content_id() const override {
     return flatboobs::content_id_t(this);
   }
+  const flatboobs::Message *source_message() const override {
+    return nullptr;
+  }
+{% endif %}
 
   // Getters
 {% for field in fields %}

@@ -8,7 +8,11 @@
 
 namespace flatboobs {
 
-template <typename T> flatboobs::Message pack(T _table) {
+template <typename T> Message pack(T _table) {
+
+  const Message *source_message = _table.source_message();
+  if (source_message)
+    return Message{*source_message};
 
   flatbuffers::FlatBufferBuilder fbb{1024};
   BuilderContext context{&fbb};

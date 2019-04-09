@@ -11,6 +11,9 @@ public:
   flatboobs::content_id_t content_id() const override {
     return flatboobs::content_id_t(0);
   }
+  const flatboobs::Message *source_message() const override {
+    return nullptr;
+  }
 
   // Getters
 {% for field in fields %}
