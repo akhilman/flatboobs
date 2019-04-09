@@ -59,7 +59,7 @@ target_include_directories(flatboobs INTERFACE
      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 pybind11_add_module(idl MODULE src/idl.cpp EXCLUDE_FROM_ALL)
-# target_link_libraries(idl PRIVATE flatbuffers)
+target_link_libraries(idl PUBLIC flatbuffers)
 include_directories(idl PRIVATE include)
 
 
