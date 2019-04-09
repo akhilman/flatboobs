@@ -196,10 +196,6 @@
     implement_{{ escape(definition.name) }}
 {%- endmacro %}
 
-{% macro enum_class(definition) -%}
-    {{ escape(definition.name) }}
-{%- endmacro %}
-
 
 {#
     cpp types
