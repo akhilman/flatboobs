@@ -1,141 +1,141 @@
 {#
-    Escape keywords
+  Escape keywords
 #}
 
 {% set CPP_KEYWORDS %}
-    alignas
-    alignof
-    and
-    and_eq
-    asm
-    atomic_cancel
-    atomic_commit
-    atomic_noexcept
-    auto
-    bitand
-    bitor
-    bool
-    break
-    case
-    catch
-    char
-    char16_t
-    char32_t
-    class
-    compl
-    concept
-    const
-    constexpr
-    const_cast
-    continue
-    co_await
-    co_return
-    co_yield
-    decltype
-    default
-    delete
-    do
-    double
-    dynamic_cast
-    else
-    enum
-    explicit
-    export
-    extern
-    false
-    float
-    for
-    friend
-    goto
-    if
-    import
-    inline
-    int
-    long
-    module
-    mutable
-    namespace
-    new
-    noexcept
-    not
-    not_eq
-    nullptr
-    operator
-    or
-    or_eq
-    private
-    protected
-    public
-    register
-    reinterpret_cast
-    requires
-    return
-    short
-    signed
-    sizeof
-    static
-    static_assert
-    static_cast
-    struct
-    switch
-    synchronized
-    template
-    this
-    thread_local
-    throw
-    true
-    try
-    typedef
-    typeid
-    typename
-    union
-    unsigned
-    using
-    virtual
-    void
-    volatile
-    wchar_t
-    while
-    xor
-    xor_eq
+  alignas
+  alignof
+  and
+  and_eq
+  asm
+  atomic_cancel
+  atomic_commit
+  atomic_noexcept
+  auto
+  bitand
+  bitor
+  bool
+  break
+  case
+  catch
+  char
+  char16_t
+  char32_t
+  class
+  compl
+  concept
+  const
+  constexpr
+  const_cast
+  continue
+  co_await
+  co_return
+  co_yield
+  decltype
+  default
+  delete
+  do
+  double
+  dynamic_cast
+  else
+  enum
+  explicit
+  export
+  extern
+  false
+  float
+  for
+  friend
+  goto
+  if
+  import
+  inline
+  int
+  long
+  module
+  mutable
+  namespace
+  new
+  noexcept
+  not
+  not_eq
+  nullptr
+  operator
+  or
+  or_eq
+  private
+  protected
+  public
+  register
+  reinterpret_cast
+  requires
+  return
+  short
+  signed
+  sizeof
+  static
+  static_assert
+  static_cast
+  struct
+  switch
+  synchronized
+  template
+  this
+  thread_local
+  throw
+  true
+  try
+  typedef
+  typeid
+  typename
+  union
+  unsigned
+  using
+  virtual
+  void
+  volatile
+  wchar_t
+  while
+  xor
+  xor_eq
 {% endset %}
 
 {% set PYTHON_KEYWORDS %}
-    False
-    None
-    True
-    and
-    as
-    assert
-    async
-    await
-    break
-    class
-    continue
-    def
-    del
-    elif
-    else
-    except
-    finally
-    for
-    from
-    global
-    if
-    import
-    in
-    is
-    lambda
-    nonlocal
-    not
-    or
-    pass
-    raise
-    return
-    try
-    while
-    with
-    yield
+  False
+  None
+  True
+  and
+  as
+  assert
+  async
+  await
+  break
+  class
+  continue
+  def
+  del
+  elif
+  else
+  except
+  finally
+  for
+  from
+  global
+  if
+  import
+  in
+  is
+  lambda
+  nonlocal
+  not
+  or
+  pass
+  raise
+  return
+  try
+  while
+  with
+  yield
 {% endset %}
 
 {% set EXTRA_KEYWORDS %}
@@ -145,130 +145,130 @@
 {% endset %}
 
 {% set KEYWORDS
-    = CPP_KEYWORDS.split()
-    + PYTHON_KEYWORDS.split()
-    + EXTRA_KEYWORDS.split() %}
+  = CPP_KEYWORDS.split()
+  + PYTHON_KEYWORDS.split()
+  + EXTRA_KEYWORDS.split() %}
 
 {% macro escape(name) -%}
-    {{ name|escape_keyword(KEYWORDS) }}
+  {{ name|escape_keyword(KEYWORDS) }}
 {%- endmacro %}
 
 {% macro namespace(nspace) -%}
-    {% set oper=joiner("::") %}
-    {% for comp in nspace.components %}
-        {{- oper() }}{{ escape(comp) -}}
-    {% endfor %}
+  {% set oper=joiner("::") %}
+  {% for comp in nspace.components %}
+    {{- oper() }}{{ escape(comp) -}}
+  {% endfor %}
 {%- endmacro %}
 
 {#
-    Class names
+  Class names
 #}
 
 {% macro class_name(definition) -%}
-    {{ escape(definition.name) }}
+  {{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro abstract_class(definition) -%}
-    Abstract{{ escape(definition.name) }}
+  Abstract{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro default_class(definition) -%}
-    Default{{ escape(definition.name) }}
+  Default{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro mutable_class(definition) -%}
-    Mutable{{ escape(definition.name) }}
+  Mutable{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro flatbuffer_class(definition) -%}
-    FlatBuffer{{ escape(definition.name) }}
+  FlatBuffer{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro unpacked_class(definition) -%}
-    Unpacked{{ escape(definition.name) }}
+  Unpacked{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro builder_class(definition) -%}
-    Unpacked{{ escape(definition.name) }}
+  Unpacked{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro implement(definition) -%}
-    implement_{{ escape(definition.name) }}
+  implement_{{ escape(definition.name) }}
 {%- endmacro %}
 
 
 {#
-    cpp types
+  cpp types
 #}
 
 {% set CPP_TYPES = {
-    BaseType.NONE: "uint8_t",
-    BaseType.UTYPE: "uint8_t",
-    BaseType.BOOL: "bool",
-    BaseType.CHAR: "int8_t",
-    BaseType.UCHAR: "uint8_t",
-    BaseType.SHORT: "int16_t",
-    BaseType.USHORT: "uint16_t",
-    BaseType.INT: "int32_t",
-    BaseType.UINT: "uint32_t",
-    BaseType.LONG: "int64_t",
-    BaseType.ULONG: "uint64_t",
-    BaseType.FLOAT: "float",
-    BaseType.DOUBLE: "double",
-    } %}
+  BaseType.NONE: "uint8_t",
+  BaseType.UTYPE: "uint8_t",
+  BaseType.BOOL: "bool",
+  BaseType.CHAR: "int8_t",
+  BaseType.UCHAR: "uint8_t",
+  BaseType.SHORT: "int16_t",
+  BaseType.USHORT: "uint16_t",
+  BaseType.INT: "int32_t",
+  BaseType.UINT: "uint32_t",
+  BaseType.LONG: "int64_t",
+  BaseType.ULONG: "uint64_t",
+  BaseType.FLOAT: "float",
+  BaseType.DOUBLE: "double",
+  } %}
 
 {% macro cpp_type(type_) -%}
-    {% if type_.definition %}
-        {{- namespace(type_.definition.defined_namespace) -}}
-        ::{%- if type_.base_type == BaseType.VECTOR %}VectorOf{% endif -%}
-        {{ class_name(type_.definition) -}}
-    {% elif type_.base_type in CPP_TYPES %}
-        {{- CPP_TYPES[type_.base_type] -}}
-    {% else %}
-        /* FIXME: UNHANDLED TYPE {{ type_ }} */
-    {% endif %}
+  {% if type_.definition %}
+    {{- namespace(type_.definition.defined_namespace) -}}
+    ::{%- if type_.base_type == BaseType.VECTOR %}VectorOf{% endif -%}
+    {{ class_name(type_.definition) -}}
+  {% elif type_.base_type in CPP_TYPES %}
+    {{- CPP_TYPES[type_.base_type] -}}
+  {% else %}
+    /* FIXME: UNHANDLED TYPE {{ type_ }} */
+  {% endif %}
 {%- endmacro %}
 
 {% macro cpp_variant_type(types) -%}
-    {% set type_strings %}
-        {% for type_ in types %}
-            {% if type_ is instance_of("Type") %}
-                {{ cpp_type(type_) }}
-            {% else %}
-                {{ type_ }}
-            {% endif %}
-        {% endfor %}
-    {% endset %}
-    std::variant<{{ type_strings.split()|unique|sort|join(", ") }}>
+  {% set type_strings %}
+    {% for type_ in types %}
+      {% if type_ is instance_of("Type") %}
+        {{ cpp_type(type_) }}
+      {% else %}
+        {{ type_ }}
+      {% endif %}
+    {% endfor %}
+  {% endset %}
+  std::variant<{{ type_strings.split()|unique|sort|join(", ") }}>
 {%- endmacro %}
 
 {% macro flatbuffer_type(type_) -%}
-    {% if type_.base_type == BaseType.BOOL %}
-        char
-    {% elif type_.base_type in CPP_TYPES %}
-        {{- CPP_TYPES[type_.base_type] -}}
-    {% elif type_.base_type == BaseType.STRUCT and type_.definition.fixed %}
-        {{- namespace(type_.definition.defined_namespace) -}}
-        ::{{ class_name(type_.definition) -}}
-    {% elif type_.base_type == BaseType.STRUCT %}
-        {{- namespace(type_.definition.defined_namespace) -}}
-        ::{{ flatbuffer_class(type_.definition) -}}
-    {% else %}
-        /* FIXME: unahndled type {{ type_ }} */
-    {% endif %}
+  {% if type_.base_type == BaseType.BOOL %}
+    char
+  {% elif type_.base_type in CPP_TYPES %}
+    {{- CPP_TYPES[type_.base_type] -}}
+  {% elif type_.base_type == BaseType.STRUCT and type_.definition.fixed %}
+    {{- namespace(type_.definition.defined_namespace) -}}
+    ::{{ class_name(type_.definition) -}}
+  {% elif type_.base_type == BaseType.STRUCT %}
+    {{- namespace(type_.definition.defined_namespace) -}}
+    ::{{ flatbuffer_class(type_.definition) -}}
+  {% else %}
+    /* FIXME: unahndled type {{ type_ }} */
+  {% endif %}
 {%- endmacro %}
 
 {#
-    Default values
+  Default values
 #}
 {% macro default_value(field) -%}
-    {% if field.value.type.definition is instance_of("EnumDef") %}
-          {{- cpp_type(field.value.type) -}}({{- field.value.constant -}})
-    {% elif field.value.type.base_type.is_scalar() %}
-        {{- field.value.constant -}}
-    {% elif field.value.type.base_type == BaseType.STRUCT %}
-        {{- cpp_type(field.value.type) }}()
-    {% else %}
-        /* FIXME: unhandled type in field {{ field }} */
-    {% endif %}
+  {% if field.value.type.definition is instance_of("EnumDef") %}
+      {{- cpp_type(field.value.type) -}}({{- field.value.constant -}})
+  {% elif field.value.type.base_type.is_scalar() %}
+    {{- field.value.constant -}}
+  {% elif field.value.type.base_type == BaseType.STRUCT %}
+    {{- cpp_type(field.value.type) }}()
+  {% else %}
+    /* FIXME: unhandled type in field {{ field }} */
+  {% endif %}
 {%- endmacro %}
