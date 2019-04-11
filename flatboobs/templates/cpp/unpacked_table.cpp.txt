@@ -34,7 +34,8 @@ public:
       VT_{{ utils.escape(field.name)|upper }});
   }
 {% elif field.value.type.base_type == BaseType.STRUCT
-      and not field.value.type.definition.fixed %}
+      and not field.value.type.definition.fixed
+      or field.value.type.base_type == BaseType.VECTOR %}
   inline const {{ utils.flatbuffer_type(field.value.type) }} *
     {{- utils.escape(field.name) }}() const {
     return GetPointer<const {{ utils.flatbuffer_type(field.value.type) }} *>(
@@ -59,6 +60,9 @@ public:
       and not field.value.type.definition.fixed %}
     VerifyOffset(verifier, VT_{{ field.name|upper }}) &&
     verifier.VerifyTable({{ utils.escape(field.name) }}()) &&
+  {% elif field.value.type.base_type == BaseType.VECTOR %}
+    VerifyOffset(verifier, VT_{{ field.name|upper }}) &&
+    verifier.VerifyVector({{ utils.escape(field.name) }}()) &&
   {% else %}
     // TODO {{ field.name }}
   {% endif %}
@@ -74,9 +78,9 @@ static bool verify_{{ class_name }}(const flatboobs::Message &_message) {
     _message.size()
     );
 {% if file_identifier %}
-  const char* identifier = "{{ file_identifier }}";
+  static const char* identifier = "{{ file_identifier }}";
 {% else %}
-  const char* identifier = nullptr;
+  static const char* identifier = nullptr;
 {% endif %}
   return verifier.VerifyBuffer<{{ flatbuffer_class }}>(identifier);
 }
@@ -135,7 +139,8 @@ flatboobs::content_id_t {{ unpacked_class }}::content_id() const {
 {% for field in fields %}
 {{ utils.cpp_type(field.value.type) }} {{ unpacked_class -}}
     ::{{ utils.escape(field.name) }}() const {
-{% if field.value.type.definition is instance_of("EnumDef") %}
+{% if field.value.type.definition is instance_of("EnumDef")
+    and field.value.type.base_type != BaseType.VECTOR %}
   return static_cast<{{ utils.cpp_type(field.value.type) -}}
     >(flatbuf_->{{ utils.escape(field.name) }}());
 {% elif field.value.type.base_type.is_scalar() %}
@@ -150,6 +155,12 @@ flatboobs::content_id_t {{ unpacked_class }}::content_id() const {
     {% else %}
       return {{ utils.cpp_type(field.value.type) }}(message_, value);
     {% endif %}
+{% elif field.value.type.base_type == BaseType.VECTOR %}
+  const {{ utils.flatbuffer_type(field.value.type) }} *value {flatbuf_->{{ utils.escape(field.name) }}()};
+    if (value == nullptr)
+      return {{ utils.cpp_type(field.value.type) }}();
+    else
+      return {{ utils.cpp_type(field.value.type) }}(message_, value);
 {% else %}
   return;  // TODO {{ field.name }}
 {% endif %}

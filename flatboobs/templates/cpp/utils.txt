@@ -218,28 +218,47 @@
   } %}
 
 {% macro cpp_type(type_) -%}
-  {% if type_.definition %}
-    {{- namespace(type_.definition.defined_namespace) -}}
-    ::{%- if type_.base_type == BaseType.VECTOR %}VectorOf{% endif -%}
-    {{ class_name(type_.definition) -}}
-  {% elif type_.base_type in CPP_TYPES %}
-    {{- CPP_TYPES[type_.base_type] -}}
-  {% else %}
-    /* FIXME: UNHANDLED TYPE {{ type_ }} */
+  {% set is_vector = type_.base_type == BaseType.VECTOR %}
+  {% if is_vector %}
+    {% set type_ = type_.vector_type() %}
   {% endif %}
+  {% if type_.definition %}
+    {% set type_name %}
+      {{- namespace(type_.definition.defined_namespace) -}}
+      ::{{ class_name(type_.definition) -}}
+    {% endset %}
+  {% elif type_.base_type in CPP_TYPES %}
+    {% set type_name = CPP_TYPES[type_.base_type] %}
+  {% else %}
+    /* TODO {{ type_ }} */
+  {% endif %}
+  {% if is_vector %}
+    {% if type_.base_type.is_scalar()
+        or (type_.base_type == BaseType.STRUCT and type_.definition.fixed()) %}
+      {% set vector_type = "flatboobs::ContiguousVector" %}
+    {% else %}
+      {% set vector_type = "flatboobs::VectorOfPointers" %}
+    {% endif %}
+    {% set type_name %}
+      {{- vector_type }}<{{ type_name }}>
+    {% endset %}
+  {% endif %}
+  {{- type_name -}}
 {%- endmacro %}
 
 {% macro cpp_variant_type(types) -%}
+  {% set semicolon = joiner(";") %}
   {% set type_strings %}
     {% for type_ in types %}
+      {{- semicolon() -}}
       {% if type_ is instance_of("Type") %}
-        {{ cpp_type(type_) }}
+        {{- cpp_type(type_) -}}
       {% else %}
-        {{ type_ }}
+        {{- type_ -}};
       {% endif %}
     {% endfor %}
   {% endset %}
-  std::variant<{{ type_strings.split()|unique|sort|join(", ") }}>
+  std::variant<{{ type_strings.split(";")|unique|sort|join(", ") }}>
 {%- endmacro %}
 
 {% macro flatbuffer_type(type_) -%}
@@ -253,6 +272,8 @@
   {% elif type_.base_type == BaseType.STRUCT %}
     {{- namespace(type_.definition.defined_namespace) -}}
     ::{{ flatbuffer_class(type_.definition) -}}
+  {% elif type_.base_type == BaseType.VECTOR %}
+    flatbuffers::Vector<{{ flatbuffer_type(type_.vector_type()) }}>
   {% else %}
     /* FIXME: unahndled type {{ type_ }} */
   {% endif %}
@@ -262,12 +283,14 @@
   Default values
 #}
 {% macro default_value(field) -%}
-  {% if field.value.type.definition is instance_of("EnumDef") %}
+  {% if field.value.type.base_type == BaseType.STRUCT %}
+    {{- cpp_type(field.value.type) }}()
+  {% elif field.value.type.base_type == BaseType.VECTOR %}
+    {{- cpp_type(field.value.type) }}()
+  {% elif field.value.type.definition is instance_of("EnumDef") %}
       {{- cpp_type(field.value.type) -}}({{- field.value.constant -}})
   {% elif field.value.type.base_type.is_scalar() %}
     {{- field.value.constant -}}
-  {% elif field.value.type.base_type == BaseType.STRUCT %}
-    {{- cpp_type(field.value.type) }}()
   {% else %}
     /* FIXME: unhandled type in field {{ field }} */
   {% endif %}

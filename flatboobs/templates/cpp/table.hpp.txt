@@ -95,7 +95,7 @@ public:
     {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
       _{{ utils.escape(field.name) }}
   {% endfor %}
-  );
+  ) const;
 
   // Operators
   const value_variant_type operator[](const std::string &_key) const;

@@ -254,6 +254,7 @@ static void pydefine_Type(py::module &m) {
            [](const fb::Type &self, const fb::Type &other) {
              return fb::EqualByName(self, other);
            })
+      .def("vector_type", &fb::Type::VectorType, RETPOL_REFINT)
       .def_readonly("base_type", &fb::Type::base_type)
       .def_readonly("element", &fb::Type::element)
       .def_property_readonly(

@@ -45,7 +45,7 @@
   {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
     _{{ utils.escape(field.name) }}
 {% endfor %}
-) {
+) const {
   return {{ class_name }}({{ mutable_class }}(
   {% set comma = joiner(", ") %}
   {% for field in fields %}
@@ -95,7 +95,8 @@ build(
 
 {% for field in fields|sort(attribute="value.type.inline_size") %}
 {% if field.value.type.base_type == BaseType.STRUCT
-    and not field.value.type.definition.fixed %}
+    and not field.value.type.definition.fixed
+    or field.value.type.base_type == BaseType.VECTOR %}
   // {{ field.name }}
   {{ utils.cpp_type(field.value.type) }} {{ field.name }}_value = {# -#}
     _table.{{ utils.escape(field.name) }}();
@@ -115,7 +116,8 @@ build(
 
 {% for field in fields|sort(attribute="value.type.inline_size") %}
   // {{ field.name }}
-{% if field.value.type.definition is instance_of("EnumDef") %}
+{% if field.value.type.definition is instance_of("EnumDef")
+    and field.value.type.base_type != BaseType.VECTOR%}
   fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
     {{ flatbuffer_class }}::VT_{{ field.name|upper }},
     static_cast<{{ utils.flatbuffer_type(field.value.type) }}>(
@@ -137,7 +139,8 @@ build(
                    , &{{ field.name }}_value);
 
 {% elif field.value.type.base_type == BaseType.STRUCT
-    and not field.value.type.definition.fixed %}
+    and not field.value.type.definition.fixed
+    or field.value.type.base_type == BaseType.VECTOR %}
   if (!{{- field.name }}_offset.IsNull())
     fbb->AddOffset({{ flatbuffer_class }}::VT_{{ field.name|upper -}}
                    , {{ field.name }}_offset);
@@ -154,9 +157,9 @@ build(
   if (_is_root) {
   {% if struct_def == parser.root_struct_def %}
     {% set file_identifier = parser.file_identifier %}
-    const char* identifier = "{{ parser.file_identifier }}";
+    static const char* identifier = "{{ parser.file_identifier }}";
   {% else %}
-    const char* identifier = nullptr;
+    static const char* identifier = nullptr;
   {% endif %}
     fbb->Finish(offset, identifier);
   }

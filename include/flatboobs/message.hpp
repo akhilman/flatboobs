@@ -9,7 +9,8 @@ namespace flatboobs {
 
 class Message;
 
-struct MessageIterator {
+class MessageIterator {
+public:
   using difference_type = std::ptrdiff_t;
   using value_type = const std::byte;
   using pointer = const std::byte *;
@@ -77,6 +78,7 @@ struct MessageIterator {
     std::swap(lhs.ptr_, rhs.ptr_);
   }
 
+private:
   pointer ptr_;
 };
 

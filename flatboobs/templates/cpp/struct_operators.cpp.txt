@@ -35,7 +35,9 @@ static inline std::ostream& print_{{ class_name -}}
   _stream << "{{ class_name }}("
   {% for field in fields %}
       << "{{ field.name }}="
-  {% if field.value.type.base_type == BaseType.BOOL %}
+  {% if field.value.type.base_type == BaseType.VECTOR %}
+      << _obj.{{ utils.escape(field.name) }}()
+  {% elif field.value.type.base_type == BaseType.BOOL %}
       << (_obj.{{ utils.escape(field.name) }}()
           ? "true" : "false")
   {% elif field.value.type.definition is instance_of("EnumDef") %}

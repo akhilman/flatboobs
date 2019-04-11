@@ -1,0 +1,13 @@
+include "enumflag.fbs";
+
+namespace flatboobs.schema.test;
+
+table TestVecOfScalars {
+    ints:[int];
+    floats:[float];
+    bools:[bool];
+    enums:[TestEnum];
+}
+
+root_type TestVecOfScalars;
+file_identifier "TVSC";
