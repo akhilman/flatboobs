@@ -8,29 +8,33 @@ TODO
    - [X] Struct.
    - [X] Nested tables.
    - [ ] Union.
-   - [ ] Vector of scalars.
    - [ ] Strings.
-   - [ ] Vector of tables.
+   - [X] Vector of scalars.
    - [ ] Vector of structs.
+   - [ ] Vector of tables.
+   - [ ] Vector of unions.
 - [ ] Unpack/pack types (Python).
    - [ ] Table with scalar values.
    - [ ] Enum.
    - [ ] Struct.
    - [ ] Nested tables.
    - [ ] Union.
-   - [ ] Vector of scalars.
    - [ ] Strings.
-   - [ ] Vector of tables.
+   - [ ] Vector of scalars.
    - [ ] Vector of structs.
-- [ ] gRPC.
+   - [ ] Vector of tables.
+   - [ ] Vector of unions.
+- [ ] gRPClib (https://github.com/vmagamedov/grpclib).
+- [ ] gRPC (google's C++ implementation).
 - [ ] Examples.
 - [ ] Documentation.
-- [X] Schema validation (uses google's schema parsers code).
+- [X] Schema validation (uses google's schema parser code).
 - [ ] 100% test coverage.
 - [ ] Benchmarks against Goolge's FlatBuffers implementation.
-- [ ] JSON RPC
 - [ ] Unpack/pack to JSON.
 - [ ] Unpack/pack to MessagePack.
+- [ ] JSON RPC
+- [ ] ZMQ/MessagePack RPC
 
 
 Template for defining Python modules
