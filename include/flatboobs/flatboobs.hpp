@@ -5,6 +5,7 @@
 
 #include <flatboobs/builder.hpp>
 #include <flatboobs/message.hpp>
+#include <flatboobs/types.hpp>
 #include <flatboobs/vector.hpp>
 
 namespace flatboobs {

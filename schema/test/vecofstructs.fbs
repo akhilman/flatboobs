@@ -1,0 +1,10 @@
+include "struct.fbs";
+
+namespace flatboobs.schema.test;
+
+table TestVecOfStructs {
+    structs:[TestStruct];
+}
+
+root_type TestVecOfStructs;
+file_identifier "TVST";

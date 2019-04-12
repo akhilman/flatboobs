@@ -14,7 +14,7 @@ struct {{ mutable_class }};
 
 // Implementation factory
 
-class {{ class_name }} {
+class {{ class_name }} : public flatboobs::BaseTable {
 public:
   using flatbuffer_type = {{ flatbuffer_class }};
   using value_variant_type = {{ utils.cpp_variant_type(

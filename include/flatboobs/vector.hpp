@@ -3,6 +3,7 @@
 
 #include <flatboobs/builder.hpp>
 #include <flatboobs/message.hpp>
+#include <flatboobs/types.hpp>
 #include <flatbuffers/flatbuffers.h>
 #include <memory>
 #include <string_view>
@@ -105,8 +106,9 @@ struct vector_mover {
 
 template <typename T> class OwningContiguousVector;
 template <typename T> class UnpackedContiguousVector;
+template <typename T> class UnpackedVectorOfStructs;
 
-template <typename T> class ContiguousVector {
+template <typename T> class ContiguousVector : public BaseVector {
 public:
   using value_type = typename std::decay_t<T>;
   using stored_type = typename std::conditional_t<
@@ -118,7 +120,6 @@ public:
                          vector_converter>;
   using size_type = size_t;
   using const_iterator = VectorIterator<ContiguousVector<T>>;
-  using iterator = const_iterator;
 
   class AbstractImpl {
   public:
@@ -140,6 +141,20 @@ public:
                             const flatbuffers::Vector<stored_type> *_fbvec)
       : impl_{std::make_shared<const UnpackedContiguousVector<T>>(
             std::move(_message), _fbvec)} {}
+  // Vector of structs
+  explicit ContiguousVector(
+      Message _message, const flatbuffers::Vector<const stored_type *> *_fbvec)
+      : impl_{std::make_shared<const UnpackedVectorOfStructs<T>>(
+            std::move(_message), _fbvec)} {}
+  /*
+  // Vector of tables
+  explicit ContiguousVector(
+      Message _message,
+      const flatbuffers::Vector<
+          flatbuffers::Offset<typename stored_type::flatbuffer_type>> *_fbvec)
+      : impl_{std::make_shared<const UnpackedContiguousVector<T>>(
+            std::move(_message), _fbvec)} {}
+  */
 
   value_type at(size_type pos) const { return value_type(impl_->at(pos)); }
   value_type operator[](size_type pos) const { return at(pos); }
@@ -189,16 +204,14 @@ public:
   friend bool operator!=(const ContiguousVector &_lhs, const Q &_rhs) {
     return !(_lhs == _rhs);
   }
+
   friend std::ostream &operator<<(std::ostream &_stream,
-                                  const ContiguousVector &_vec) {
+                                  const ContiguousVector<value_type> &_vec) {
     _stream << '[';
     for (size_t i = 0; i < _vec.size(); i++) {
       if (i != 0)
         _stream << ", ";
-      if (typeid(value_type) == typeid(bool))
-        _stream << (bool(_vec[i]) ? "true" : "false");
-      else
-        _stream << _vec[i];
+      _stream << _vec[i];
     }
     _stream << "]";
     return _stream;
@@ -253,21 +266,83 @@ private:
   const flatbuffers::Vector<stored_type> *fbvec_;
 };
 
+template <typename T>
+class UnpackedVectorOfStructs : public ContiguousVector<T>::AbstractImpl {
+  using proxy_type = ContiguousVector<T>;
+
+public:
+  using stored_type = typename proxy_type::stored_type;
+  using size_type = typename proxy_type::size_type;
+
+  UnpackedVectorOfStructs(
+      Message _message, const flatbuffers::Vector<const stored_type *> *_fbvec)
+      : message_{std::move(_message)}, fbvec_{_fbvec} {}
+
+  stored_type at(size_type _pos) const override { return *fbvec_->Get(_pos); }
+  size_type size() const noexcept override { return fbvec_->size(); }
+  const stored_type *data() const noexcept override {
+    return reinterpret_cast<const stored_type *>(fbvec_->Data());
+  }
+
+private:
+  const Message message_;
+  const flatbuffers::Vector<const stored_type *> *fbvec_;
+};
+
 // Builder
 
-template <typename T, typename ST = typename ContiguousVector<T>::stored_type,
-          typename FV = flatbuffers::Vector<ST>>
-flatbuffers::Offset<FV> build(flatboobs::BuilderContext &_context,
-                              const ContiguousVector<T> &_vec,
-                              bool _is_root = true) {
+namespace detail {
+
+template <typename T> struct vec_of_scalars_builder {
+
+  using value_type = T;
+  using storage_type = typename ContiguousVector<T>::stored_type;
+  using flatbuffers_type = flatbuffers::Vector<storage_type>;
+  using offset_type = flatbuffers::Offset<flatbuffers_type>;
+
+  static offset_type build(flatboobs::BuilderContext &_context,
+                           const ContiguousVector<T> &_vec) {
+
+    flatbuffers::FlatBufferBuilder *fbb = _context.builder();
+    offset_type offset = fbb->CreateVector(_vec.data(), _vec.size());
+
+    return offset;
+  }
+};
+
+template <typename T> struct vec_of_structs_builder {
+
+  using value_type = T;
+  using storage_type = T;
+  using flatbuffers_type = flatbuffers::Vector<const storage_type *>;
+  using offset_type = flatbuffers::Offset<flatbuffers_type>;
+
+  static offset_type build(flatboobs::BuilderContext &_context,
+                           const ContiguousVector<T> &_vec) {
+
+    flatbuffers::FlatBufferBuilder *fbb = _context.builder();
+    offset_type offset = fbb->CreateVectorOfStructs(_vec.data(), _vec.size());
+
+    return offset;
+  }
+};
+} // namespace detail
+
+template <typename T,
+          typename helper = typename std::conditional<
+              std::is_scalar_v<T>, detail::vec_of_scalars_builder<T>,
+              detail::vec_of_structs_builder<T>>::type>
+typename helper::offset_type build(flatboobs::BuilderContext &_context,
+                                   const ContiguousVector<T> &_vec,
+                                   bool _is_root = true) {
+
+  using offset_type = typename helper::offset_type;
 
   auto it = _context.offset_map().find(_vec.content_id());
   if (it != _context.offset_map().end())
-    return flatbuffers::Offset<FV>{it->second};
+    return offset_type{it->second};
 
-  flatbuffers::FlatBufferBuilder *fbb = _context.builder();
-  flatbuffers::Offset<FV> offset = fbb->CreateVector(_vec.data(), _vec.size());
-
+  offset_type offset = helper::build(_context, _vec);
   _context.offset_map()[_vec.content_id()] = offset.o;
 
   return offset;

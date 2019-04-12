@@ -10,7 +10,7 @@ TODO
    - [ ] Union.
    - [ ] Strings.
    - [X] Vector of scalars.
-   - [ ] Vector of structs.
+   - [X] Vector of structs.
    - [ ] Vector of tables.
    - [ ] Vector of unions.
 - [ ] Unpack/pack types (Python).

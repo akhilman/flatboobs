@@ -100,8 +100,7 @@ build(
   // {{ field.name }}
   {{ utils.cpp_type(field.value.type) }} {{ field.name }}_value = {# -#}
     _table.{{ utils.escape(field.name) }}();
-  flatbuffers::Offset<{{ utils.flatbuffer_type(field.value.type) }}> {# #}
-    {{- field.name }}_offset {};
+  {{ utils.offset_type(field.value.type) }} {{ field.name }}_offset {};
   if ({{ field.name }}_value.content_id())
     {{ field.name }}_offset = build(_context, {{ field.name }}_value, false);
 

@@ -12,6 +12,7 @@
 
 {% if struct_def.fixed %}
 struct alignas({{ struct_def.minalign }}) {{ struct_name }}
+  {#- #} : public flatboobs::BaseStruct
 {% else %}
 struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
 {% endif %} {
