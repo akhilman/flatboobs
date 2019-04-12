@@ -85,6 +85,7 @@ private:
   difference_type index_;
 };
 
+namespace detail {
 // Conversion helpers
 
 struct vector_converter {
@@ -102,11 +103,13 @@ struct vector_mover {
   }
 };
 
-// Vector
-
 template <typename T> class OwningVector;
 template <typename T> class UnpackedVectorOfScalars;
 template <typename T> class UnpackedVectorOfStructs;
+
+} // namespace detail
+
+// Vector
 
 template <typename T> class Vector : public BaseVector {
 public:
@@ -116,8 +119,8 @@ public:
       std::conditional<std::is_same_v<value_type, bool>, char,
                        value_type>>::type;
   using convert_helper =
-      std::conditional_t<std::is_same_v<value_type, stored_type>, vector_mover,
-                         vector_converter>;
+      std::conditional_t<std::is_same_v<value_type, stored_type>,
+                         detail::vector_mover, detail::vector_converter>;
   using size_type = size_t;
   using const_iterator = VectorIterator<Vector<T>>;
 
@@ -129,21 +132,21 @@ public:
     virtual const stored_type *data() const noexcept = 0;
   };
 
-  Vector() : impl_{std::make_shared<const OwningVector<T>>()} {}
+  Vector() : impl_{std::make_shared<const detail::OwningVector<T>>()} {}
   Vector(std::vector<T> _vec) {
     std::vector<stored_type> tmp{};
     // Tell me if you know how to make conversion better
     convert_helper::convert(_vec, tmp);
-    impl_ = std::make_shared<const OwningVector<T>>(std::move(tmp));
+    impl_ = std::make_shared<const detail::OwningVector<T>>(std::move(tmp));
   }
   explicit Vector(Message _message,
                   const flatbuffers::Vector<stored_type> *_fbvec)
-      : impl_{std::make_shared<const UnpackedVectorOfScalars<T>>(
+      : impl_{std::make_shared<const detail::UnpackedVectorOfScalars<T>>(
             std::move(_message), _fbvec)} {}
   // Vector of structs
   explicit Vector(Message _message,
                   const flatbuffers::Vector<const stored_type *> *_fbvec)
-      : impl_{std::make_shared<const UnpackedVectorOfStructs<T>>(
+      : impl_{std::make_shared<const detail::UnpackedVectorOfStructs<T>>(
             std::move(_message), _fbvec)} {}
   /*
   // Vector of tables
@@ -215,6 +218,7 @@ private:
   std::shared_ptr<const AbstractImpl> impl_;
 };
 
+namespace detail {
 /* Concrete impl */
 
 template <typename T> class OwningVector : public Vector<T>::AbstractImpl {
@@ -281,9 +285,7 @@ private:
   const flatbuffers::Vector<const stored_type *> *fbvec_;
 };
 
-// Builder
-
-namespace detail {
+// Builder helper
 
 template <typename T> struct vec_of_scalars_builder {
 
@@ -319,6 +321,8 @@ template <typename T> struct vec_of_structs_builder {
   }
 };
 } // namespace detail
+
+// Builder
 
 template <typename T,
           typename helper = typename std::conditional<
