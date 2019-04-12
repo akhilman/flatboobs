@@ -48,6 +48,9 @@ function(flatboobs_add_schema target)
     OUTPUT
       ${header_files}
       ${source_files}
+    DEPENDS
+      ${schema_files}
+      "${target}_make_directory"
     COMMAND
       ${Python_EXECUTABLE} -m flatboobs
         cpp ${boobs_args} -o ${output_dir} ${target} ${schema_files}
@@ -56,8 +59,6 @@ function(flatboobs_add_schema target)
     )
   add_custom_target(
     "${target}_generate"
-    DEPENDS
-      "${target}_make_directory"
     SOURCES
       ${header_files}
       ${source_files}
