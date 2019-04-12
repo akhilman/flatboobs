@@ -57,8 +57,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_vectors, T, test_types) {
 
   DataSet<T> src{};
 
-  flatboobs::ContiguousVector<T> vec_a{src.a};
-  flatboobs::ContiguousVector<T> vec_b{src.b};
+  flatboobs::Vector<T> vec_a{src.a};
+  flatboobs::Vector<T> vec_b{src.b};
 
   BOOST_TEST(vec_a.size() == src.a.size());
   BOOST_TEST(vec_b.size() == src.b.size());
@@ -77,8 +77,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_string_view, T, test_types_wo_bool) {
 
   DataSet<T> src{};
 
-  flatboobs::ContiguousVector<T> vec_a{src.a};
-  flatboobs::ContiguousVector<T> vec_b{src.b};
+  flatboobs::Vector<T> vec_a{src.a};
+  flatboobs::Vector<T> vec_b{src.b};
 
   BOOST_TEST(vec_a.str() ==
              std::string_view(reinterpret_cast<const char *>(src.a.data()),
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_pack_unpack, T, test_types) {
   auto result = flatboobs::unpack<TestVecOfScalars>(message);
   BOOST_TEST(result == table);
 
-  auto result_vec = std::get<flatboobs::ContiguousVector<T>>(result[src.key]);
+  auto result_vec = std::get<flatboobs::Vector<T>>(result[src.key]);
   BOOST_TEST(result_vec == src.a);
 
   // std::cout << table << std::endl;

@@ -2,7 +2,7 @@
 {% set namespace_ = type_def.defined_namespace.components|join("::") %}
 {% set class_name = "PyVectorOf" + type_def.name|escape_cpp_keyword %}
 {% set element_class = "Py" + type_def.name|escape_cpp_keyword %}
-{% set vector_template = "PyContiguousVector"
+{% set vector_template = "PyVector"
   if vector_type.element == BaseType.STRUCT and type_def.fixed
   or vector_type.element.is_scalar()
   else "PyVectorOfPointers" %}

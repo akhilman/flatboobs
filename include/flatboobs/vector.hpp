@@ -102,13 +102,13 @@ struct vector_mover {
   }
 };
 
-// ContiguousVector
+// Vector
 
-template <typename T> class OwningContiguousVector;
-template <typename T> class UnpackedContiguousVector;
+template <typename T> class OwningVector;
+template <typename T> class UnpackedVectorOfScalars;
 template <typename T> class UnpackedVectorOfStructs;
 
-template <typename T> class ContiguousVector : public BaseVector {
+template <typename T> class Vector : public BaseVector {
 public:
   using value_type = typename std::decay_t<T>;
   using stored_type = typename std::conditional_t<
@@ -119,7 +119,7 @@ public:
       std::conditional_t<std::is_same_v<value_type, stored_type>, vector_mover,
                          vector_converter>;
   using size_type = size_t;
-  using const_iterator = VectorIterator<ContiguousVector<T>>;
+  using const_iterator = VectorIterator<Vector<T>>;
 
   class AbstractImpl {
   public:
@@ -129,30 +129,29 @@ public:
     virtual const stored_type *data() const noexcept = 0;
   };
 
-  ContiguousVector()
-      : impl_{std::make_shared<const OwningContiguousVector<T>>()} {}
-  ContiguousVector(std::vector<T> _vec) {
+  Vector() : impl_{std::make_shared<const OwningVector<T>>()} {}
+  Vector(std::vector<T> _vec) {
     std::vector<stored_type> tmp{};
     // Tell me if you know how to make conversion better
     convert_helper::convert(_vec, tmp);
-    impl_ = std::make_shared<const OwningContiguousVector<T>>(std::move(tmp));
+    impl_ = std::make_shared<const OwningVector<T>>(std::move(tmp));
   }
-  explicit ContiguousVector(Message _message,
-                            const flatbuffers::Vector<stored_type> *_fbvec)
-      : impl_{std::make_shared<const UnpackedContiguousVector<T>>(
+  explicit Vector(Message _message,
+                  const flatbuffers::Vector<stored_type> *_fbvec)
+      : impl_{std::make_shared<const UnpackedVectorOfScalars<T>>(
             std::move(_message), _fbvec)} {}
   // Vector of structs
-  explicit ContiguousVector(
-      Message _message, const flatbuffers::Vector<const stored_type *> *_fbvec)
+  explicit Vector(Message _message,
+                  const flatbuffers::Vector<const stored_type *> *_fbvec)
       : impl_{std::make_shared<const UnpackedVectorOfStructs<T>>(
             std::move(_message), _fbvec)} {}
   /*
   // Vector of tables
-  explicit ContiguousVector(
+  explicit Vector(
       Message _message,
       const flatbuffers::Vector<
           flatbuffers::Offset<typename stored_type::flatbuffer_type>> *_fbvec)
-      : impl_{std::make_shared<const UnpackedContiguousVector<T>>(
+      : impl_{std::make_shared<const UnpackedVectorOfScalars<T>>(
             std::move(_message), _fbvec)} {}
   */
 
@@ -162,12 +161,8 @@ public:
   value_type front() const { return at(0); }
   value_type back() const { return at(size() - 1); }
 
-  VectorIterator<ContiguousVector> begin() const {
-    return VectorIterator(this, 0);
-  }
-  VectorIterator<ContiguousVector> end() const {
-    return VectorIterator(this, size());
-  }
+  VectorIterator<Vector> begin() const { return VectorIterator(this, 0); }
+  VectorIterator<Vector> end() const { return VectorIterator(this, size()); }
 
   size_type size() const noexcept { return impl_->size(); }
   bool empty() const noexcept { return size() == 0; }
@@ -182,8 +177,7 @@ public:
 
   operator bool() const { return !empty(); }
 
-  friend bool operator==(const ContiguousVector &_lhs,
-                         const ContiguousVector &_rhs) {
+  friend bool operator==(const Vector &_lhs, const Vector &_rhs) {
     if (_lhs.impl_ == _rhs.impl_)
       return true;
     if (_lhs.size() != _rhs.size())
@@ -193,7 +187,7 @@ public:
     auto pair = std::mismatch(_lhs.begin(), lhs_end, _rhs.begin(), rhs_end);
     return pair.first == lhs_end and pair.second == rhs_end;
   }
-  friend bool operator==(const ContiguousVector &_lhs,
+  friend bool operator==(const Vector &_lhs,
                          const std::vector<value_type> &_rhs) {
     auto lhs_end = _lhs.end();
     auto rhs_end = _rhs.end();
@@ -201,12 +195,12 @@ public:
     return pair.first == lhs_end and pair.second == rhs_end;
   }
   template <typename Q>
-  friend bool operator!=(const ContiguousVector &_lhs, const Q &_rhs) {
+  friend bool operator!=(const Vector &_lhs, const Q &_rhs) {
     return !(_lhs == _rhs);
   }
 
   friend std::ostream &operator<<(std::ostream &_stream,
-                                  const ContiguousVector<value_type> &_vec) {
+                                  const Vector<value_type> &_vec) {
     _stream << '[';
     for (size_t i = 0; i < _vec.size(); i++) {
       if (i != 0)
@@ -223,17 +217,15 @@ private:
 
 /* Concrete impl */
 
-template <typename T>
-class OwningContiguousVector : public ContiguousVector<T>::AbstractImpl {
-  using proxy_type = ContiguousVector<T>;
+template <typename T> class OwningVector : public Vector<T>::AbstractImpl {
+  using proxy_type = Vector<T>;
 
 public:
   using stored_type = typename proxy_type::stored_type;
   using size_type = typename proxy_type::size_type;
 
-  OwningContiguousVector() : vec_{} {}
-  OwningContiguousVector(const std::vector<stored_type> _vec)
-      : vec_{std::move(_vec)} {}
+  OwningVector() : vec_{} {}
+  OwningVector(const std::vector<stored_type> _vec) : vec_{std::move(_vec)} {}
 
   stored_type at(size_type _pos) const override { return vec_.at(_pos); }
   size_type size() const noexcept override { return vec_.size(); }
@@ -244,15 +236,15 @@ private:
 };
 
 template <typename T>
-class UnpackedContiguousVector : public ContiguousVector<T>::AbstractImpl {
-  using proxy_type = ContiguousVector<T>;
+class UnpackedVectorOfScalars : public Vector<T>::AbstractImpl {
+  using proxy_type = Vector<T>;
 
 public:
   using stored_type = typename proxy_type::stored_type;
   using size_type = typename proxy_type::size_type;
 
-  UnpackedContiguousVector(Message _message,
-                           const flatbuffers::Vector<stored_type> *_fbvec)
+  UnpackedVectorOfScalars(Message _message,
+                          const flatbuffers::Vector<stored_type> *_fbvec)
       : message_{std::move(_message)}, fbvec_{_fbvec} {}
 
   stored_type at(size_type _pos) const override { return fbvec_->Get(_pos); }
@@ -267,8 +259,8 @@ private:
 };
 
 template <typename T>
-class UnpackedVectorOfStructs : public ContiguousVector<T>::AbstractImpl {
-  using proxy_type = ContiguousVector<T>;
+class UnpackedVectorOfStructs : public Vector<T>::AbstractImpl {
+  using proxy_type = Vector<T>;
 
 public:
   using stored_type = typename proxy_type::stored_type;
@@ -296,12 +288,12 @@ namespace detail {
 template <typename T> struct vec_of_scalars_builder {
 
   using value_type = T;
-  using storage_type = typename ContiguousVector<T>::stored_type;
+  using storage_type = typename Vector<T>::stored_type;
   using flatbuffers_type = flatbuffers::Vector<storage_type>;
   using offset_type = flatbuffers::Offset<flatbuffers_type>;
 
   static offset_type build(flatboobs::BuilderContext &_context,
-                           const ContiguousVector<T> &_vec) {
+                           const Vector<T> &_vec) {
 
     flatbuffers::FlatBufferBuilder *fbb = _context.builder();
     offset_type offset = fbb->CreateVector(_vec.data(), _vec.size());
@@ -318,7 +310,7 @@ template <typename T> struct vec_of_structs_builder {
   using offset_type = flatbuffers::Offset<flatbuffers_type>;
 
   static offset_type build(flatboobs::BuilderContext &_context,
-                           const ContiguousVector<T> &_vec) {
+                           const Vector<T> &_vec) {
 
     flatbuffers::FlatBufferBuilder *fbb = _context.builder();
     offset_type offset = fbb->CreateVectorOfStructs(_vec.data(), _vec.size());
@@ -333,7 +325,7 @@ template <typename T,
               std::is_scalar_v<T>, detail::vec_of_scalars_builder<T>,
               detail::vec_of_structs_builder<T>>::type>
 typename helper::offset_type build(flatboobs::BuilderContext &_context,
-                                   const ContiguousVector<T> &_vec,
+                                   const Vector<T> &_vec,
                                    bool _is_root = true) {
 
   using offset_type = typename helper::offset_type;

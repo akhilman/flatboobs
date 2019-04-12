@@ -235,7 +235,7 @@
   {% if is_vector %}
     {% if type_.base_type.is_scalar()
         or (type_.base_type == BaseType.STRUCT and type_.definition.fixed) %}
-      {% set vector_type = "flatboobs::ContiguousVector" %}
+      {% set vector_type = "flatboobs::Vector" %}
     {% else %}
       {% set vector_type = "flatboobs::VectorOfPointers" %}
     {% endif %}
