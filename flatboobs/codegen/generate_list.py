@@ -17,6 +17,6 @@ def generate_list(
 
     all_schema = set()
     for schema_file, _ in load_schema(schema_files, include_paths):
-        all_schema.add(schema_file.stem)
+        all_schema.add(str(schema_file.resolve()))
 
     click.echo('\n'.join(sorted(all_schema)))
