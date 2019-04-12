@@ -7,7 +7,7 @@
 using namespace flatboobs::schema::test;
 
 using test_types = std::tuple<int, float, bool, TestEnum>;
-using test_types_wo_bool = std::tuple<int, float, TestEnum>;
+using test_types_with_data_access = std::tuple<int, float, TestEnum>;
 
 template <typename T> struct DataSet;
 
@@ -73,7 +73,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_vectors, T, test_types) {
   BOOST_TEST(src.b != vec_a);
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(test_string_view, T, test_types_wo_bool) {
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_string_view, T,
+                              test_types_with_data_access) {
 
   DataSet<T> src{};
 

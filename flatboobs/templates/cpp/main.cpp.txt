@@ -27,8 +27,9 @@ template {{ class_name }} unpack<{{ class_name }}>(Message);
         |rejectattr("fixed")|sort(attribute="name") %}
 {% for field in struct_def.fields
     |selectattr("value.type.base_type", "eq", BaseType.VECTOR) %}
-template class {{ utils.cpp_type(field.value.type) }};
-template class VectorIterator<{{- utils.cpp_type(field.value.type) }}>;
+{% set vector_type = utils.cpp_type(field.value.type.vector_type()) %}
+template class Vector<{{ vector_type }}>;
+template class VectorIterator<{{ vector_type }}>;
 {% endfor %}
 {% endfor %}
 

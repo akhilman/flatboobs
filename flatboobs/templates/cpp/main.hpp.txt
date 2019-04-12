@@ -35,7 +35,8 @@ namespace {{ utils.escape(component) }} {
 {% if definition is instance_of("StructDef") and definition.fixed %}
 struct {{ class_name }};
 {% elif definition is instance_of("EnumDef") %}
-enum class {{ class_name }} : {{ utils.flatbuffer_type(definition.underlying_type) }};
+enum class {{ class_name }} : {{ utils.flatbuffer_type(
+                                      definition.underlying_type) }};
 {% else %}
 class {{ class_name }};
 {% endif %}
@@ -66,8 +67,9 @@ extern template {{ class_name }} unpack<{{ class_name }}>(Message);
         |rejectattr("fixed")|sort(attribute="name") %}
 {% for field in struct_def.fields
     |selectattr("value.type.base_type", "eq", BaseType.VECTOR) %}
-extern template class {{ utils.cpp_type(field.value.type) }};
-extern template class VectorIterator<{{- utils.cpp_type(field.value.type) }}>;
+{% set vector_type = utils.cpp_type(field.value.type.vector_type()) %}
+extern template class Vector<{{ vector_type }}>;
+extern template class VectorIterator<{{ vector_type }}>;
 {% endfor %}
 {% endfor %}
 
