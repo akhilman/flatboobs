@@ -21,7 +21,7 @@ public:
   using iterator_category = std::random_access_iterator_tag;
   // TODO use contiguous_iterator_tag in C++20
 
-  VectorIterator(const vector_type *_vec, difference_type _index) noexcept
+  VectorIterator(const vector_type *_vec, difference_type _index = 0) noexcept
       : vec_{_vec}, index_{_index} {}
 
   VectorIterator &operator+=(difference_type _diff) {
@@ -131,7 +131,7 @@ public:
 
   ContiguousVector()
       : impl_{std::make_shared<const OwningContiguousVector<T>>()} {}
-  ContiguousVector(std::vector<value_type> _vec) {
+  ContiguousVector(std::vector<T> _vec) {
     std::vector<stored_type> tmp{};
     // Tell me if you know how to make conversion better
     convert_helper::convert(_vec, tmp);
