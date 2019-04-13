@@ -166,14 +166,6 @@ build(
   return offset;
 }
 
-// Pack/unpack
-
-flatboobs::Message {{ class_name }}::pack() const {
-  return flatboobs::pack<{{ class_name }}>(*this);
-}
-{{ class_name }} {{ class_name }}::unpack(flatboobs::Message _message) {
-  return flatboobs::unpack<{{ class_name }}>(std::move(_message));
-}
 
 {#
 // vim: syntax=cpp

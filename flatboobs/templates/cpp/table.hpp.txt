@@ -103,10 +103,6 @@ public:
   friend bool operator!= (const {{ class_name }}&, const {{ class_name }}&);
   friend std::ostream &operator<< (std::ostream&, const {{ class_name }}&);
 
-  // Pack/unpack
-  flatboobs::Message pack() const;
-  static {{ class_name }} unpack(flatboobs::Message);
-
 private:
   std::shared_ptr<const AbstractImpl> impl_;
 

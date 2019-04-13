@@ -33,7 +33,7 @@ template <typename T> Message pack(T _table) {
   return message;
 }
 
-template <typename T> T unpack(Message _message) { return T(_message); }
+template <typename T> const T unpack(Message _message) { return T(_message); }
 
 } // namespace flatboobs
 
