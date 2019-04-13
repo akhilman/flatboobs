@@ -4,6 +4,7 @@
 #include <flatbuffers/flatbuffers.h>
 
 #include <flatboobs/builder.hpp>
+#include <flatboobs/exceptions.hpp>
 #include <flatboobs/message.hpp>
 #include <flatboobs/types.hpp>
 #include <flatboobs/vector.hpp>

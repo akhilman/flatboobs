@@ -11,8 +11,6 @@
 #include <sstream>
 #include <variant>
 
-#include <flatbuffers/flatbuffers.h>
-#include <flatboobs/exceptions.hpp>
 #include <flatboobs/flatboobs.hpp>
 
 {% for name in parser.included_files.values()|reject("eq", "") %}
