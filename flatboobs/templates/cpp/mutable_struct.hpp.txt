@@ -22,7 +22,7 @@ struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
 
   // Constructor
   {{ struct_name }}();
-  {{ struct_name }}(
+  explicit {{ struct_name }}(
   {% for field in fields %}
     {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
     {{- "," if not loop.last }}
