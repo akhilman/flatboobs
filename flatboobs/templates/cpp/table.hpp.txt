@@ -12,8 +12,6 @@
 class {{ flatbuffer_class }};
 struct {{ owning_class }};
 
-// Implementation factory
-
 class {{ class_name }} : public flatboobs::BaseTable {
 public:
   using flatbuffer_type = {{ flatbuffer_class }};
