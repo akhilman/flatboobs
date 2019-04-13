@@ -7,6 +7,34 @@
 #include "{{ library_name }}/{{ schema_file|stem }}.hpp"
 {% endif %}
 
+/*
+ * Template specializationt definition
+ */
+
+namespace flatboobs {
+
+{% for struct_def in parser.structs|select("defined_here", parser)
+      |rejectattr("fixed")|sort(attribute="name") %}
+{% set class_name %}
+  {{- utils.namespace(struct_def.defined_namespace) -}}
+  ::{{ utils.class_name(struct_def) -}}
+{% endset %}
+template Message pack({{ class_name }});
+template {{ class_name }} unpack<{{ class_name }}>(Message);
+{% endfor %}
+
+{% for struct_def in parser.structs|select("defined_here", parser)
+        |rejectattr("fixed")|sort(attribute="name") %}
+{% for field in struct_def.fields
+    |selectattr("value.type.base_type", "eq", BaseType.VECTOR) %}
+template class {{ utils.cpp_type(field.value.type) }};
+template class VectorIterator<{{- utils.cpp_type(field.value.type) }}>;
+{% endfor %}
+{% endfor %}
+
+}
+
+
 {% for group in parser.types
     | map("attr", "definition")
     | select("defined_here", parser)

@@ -294,8 +294,8 @@ template <typename T> struct vec_of_scalars_builder {
   using flatbuffers_type = flatbuffers::Vector<storage_type>;
   using offset_type = flatbuffers::Offset<flatbuffers_type>;
 
-  static offset_type build(flatboobs::BuilderContext &_context,
-                           const Vector<T> &_vec) {
+  static inline offset_type build(flatboobs::BuilderContext &_context,
+                                  const Vector<T> &_vec) {
 
     flatbuffers::FlatBufferBuilder *fbb = _context.builder();
     offset_type offset = fbb->CreateVector(_vec.data(), _vec.size());
@@ -311,8 +311,8 @@ template <typename T> struct vec_of_structs_builder {
   using flatbuffers_type = flatbuffers::Vector<const storage_type *>;
   using offset_type = flatbuffers::Offset<flatbuffers_type>;
 
-  static offset_type build(flatboobs::BuilderContext &_context,
-                           const Vector<T> &_vec) {
+  static inline offset_type build(flatboobs::BuilderContext &_context,
+                                  const Vector<T> &_vec) {
 
     flatbuffers::FlatBufferBuilder *fbb = _context.builder();
     offset_type offset = fbb->CreateVectorOfStructs(_vec.data(), _vec.size());
