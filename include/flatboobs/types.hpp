@@ -1,9 +1,14 @@
 #ifndef FLATBOOBS_TYPES_HPP_
 #define FLATBOOBS_TYPES_HPP_
 
+#include <flatbuffers/flatbuffers.h>
+#include <map>
 #include <type_traits>
 
 namespace flatboobs {
+
+using content_id_t = size_t;
+using offset_map_t = std::map<flatboobs::content_id_t, flatbuffers::uoffset_t>;
 
 struct BaseStruct {};
 struct BaseTable {};
