@@ -39,10 +39,10 @@ public:
 
   // Constructor
   {{ class_name }}();
-  {{ class_name }}({{ mutable_class }});
-  {{ class_name }}(flatboobs::Message);
-  {{ class_name }}(flatboobs::Message, const {{ flatbuffer_class }} *);
-  {{ class_name }}(
+  explicit {{ class_name }}({{ mutable_class }});
+  explicit {{ class_name }}(flatboobs::Message);
+  explicit {{ class_name }}(flatboobs::Message, const {{ flatbuffer_class }} *);
+  explicit {{ class_name }}(
   {% for field in fields %}
     {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
     {{- "," if not loop.last }}
@@ -55,7 +55,7 @@ public:
   //   {{ unpacked_class }} {{ impl_factory }}(flatboobs::Message _message) {
   //     return {{ unpacked_class }}(std::move(_message));
   //   }
-  template <typename ...Ts> {{ class_name }}(Ts... _args) {
+  template <typename ...Ts> explicit {{ class_name }}(Ts... _args) {
     auto impl_proxy = {{ utils.implement(struct_def) }}(std::forward<Ts>(_args)...);
     impl_ = std::dynamic_pointer_cast<const AbstractImpl>(
         std::make_shared<const decltype(impl_proxy)>(std::move(impl_proxy)));
