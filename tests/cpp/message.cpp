@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE Test data wrapper
+#define BOOST_TEST_MODULE Test message data wrapper
 #include <algorithm>
 #include <boost/test/data/test_case.hpp>
 #include <boost/test/unit_test.hpp>
