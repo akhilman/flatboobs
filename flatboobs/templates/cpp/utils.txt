@@ -176,8 +176,8 @@
   Default{{ escape(definition.name) }}
 {%- endmacro %}
 
-{% macro mutable_class(definition) -%}
-  Mutable{{ escape(definition.name) }}
+{% macro owning_class(definition) -%}
+  Owning{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro flatbuffer_class(definition) -%}

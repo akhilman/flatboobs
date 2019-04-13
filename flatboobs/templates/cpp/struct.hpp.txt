@@ -1,28 +1,18 @@
 {% set class_name = utils.class_name(struct_def) %}
-{% if struct_def.fixed %}
-  {% set struct_name = class_name %}
-  {% set override = "" %}
-{% else %}
-  {% set struct_name = utils.mutable_class(struct_def) %}
-  {% set override = "override" %}
-{% endif %}
+{% set class_name = class_name %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
-/* {{ struct_name }} */
+/* {{ class_name }} */
 
-{% if struct_def.fixed %}
-struct alignas({{ struct_def.minalign }}) {{ struct_name }}
-  {#- #} : public flatboobs::BaseStruct
-{% else %}
-struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
-{% endif %} {
+struct alignas({{ struct_def.minalign }}) {{ class_name }}
+  {#- #} : public flatboobs::BaseStruct {
 
   using value_variant_type = {{ utils.cpp_variant_type(
       fields|map("attr", "value")|map("attr", "type")) }};
 
   // Constructor
-  {{ struct_name }}();
-  explicit {{ struct_name }}(
+  {{ class_name }}();
+  explicit {{ class_name }}(
   {% for field in fields %}
     {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
     {{- "," if not loop.last }}
@@ -37,19 +27,10 @@ struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
     return { {{ fields|map("attr", "name")|map("quote")|join(", ")}} };
   }
 
-{% if not struct_def.fixed %}
-  flatboobs::content_id_t content_id() const override {
-    return flatboobs::content_id_t(this);
-  }
-  const flatboobs::Message *source_message() const override {
-    return nullptr;
-  }
-{% endif %}
-
   // Getters
 {% for field in fields %}
   {{ utils.cpp_type(field.value.type) }} {{
-    utils.escape(field.name) }}() const {{ override }}{
+    utils.escape(field.name) }}() const {
     return {{ utils.escape(field.name) }}_;
   }
 {% endfor %}
@@ -63,7 +44,7 @@ struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
 {% endfor %}
 
   // Evolve
-  {{ struct_name }} evolve (
+  {{ class_name }} evolve (
   {% set comma = joiner(", ") %}
   {% for field in fields %}
     {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
@@ -73,9 +54,9 @@ struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
 
   // Operators
   const value_variant_type operator[](const std::string &_key) const;
-  friend bool operator== (const {{ struct_name }}&, const {{ struct_name }}&);
-  friend bool operator!= (const {{ struct_name }}&, const {{ struct_name }}&);
-  friend std::ostream& operator<< (std::ostream&, const {{ struct_name }}&);
+  friend bool operator== (const {{ class_name }}&, const {{ class_name }}&);
+  friend bool operator!= (const {{ class_name }}&, const {{ class_name }}&);
+  friend std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
 
   // Fields
 {% for field in fields %}
@@ -84,11 +65,8 @@ struct  {{ struct_name }} : public {{ class_name }}::AbstractImpl
 
 };
 
-{% if struct_def.fixed %}
-static_assert(sizeof({{ struct_name }}) == {{ struct_def.bytesize -}}
+static_assert(sizeof({{ class_name }}) == {{ struct_def.bytesize -}}
               , "compiler breaks packing rules");
-{% endif %}
-
 
 {#
 // vim: syntax=cpp

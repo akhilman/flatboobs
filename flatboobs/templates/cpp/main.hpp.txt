@@ -97,7 +97,7 @@ namespace {{ utils.escape(component) }} {
 
 {% for struct_def in group.list|select("instance_of", "StructDef")
         |selectattr("fixed") |sort(attribute="name") %}
-{% include "cpp/mutable_struct.hpp.txt" %}
+{% include "cpp/struct.hpp.txt" %}
 {% endfor %}
 
 /*

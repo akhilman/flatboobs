@@ -59,7 +59,7 @@ namespace {{ utils.escape(component) }} {
 {% for struct_def in group.list|select("instance_of", "StructDef")
         |selectattr("fixed") |sort(attribute="name") %}
 {% include "cpp/struct_operators.cpp.txt" %}
-{% include "cpp/mutable_struct.cpp.txt" %}
+{% include "cpp/struct.cpp.txt" %}
 {% endfor %}
 
 /*
