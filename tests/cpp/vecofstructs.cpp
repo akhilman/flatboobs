@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(test_defaults) {
 
 BOOST_AUTO_TEST_CASE(test_string_view) {
   auto sample = dataset();
-  TestVecOfStructs table{flatboobs::ContiguousVector(sample)};
+  TestVecOfStructs table{flatboobs::Vector(sample)};
   BOOST_TEST(table.structs().str() ==
              std::string_view(reinterpret_cast<const char *>(sample.data()),
                               sample.size() * sizeof(TestStruct)));
