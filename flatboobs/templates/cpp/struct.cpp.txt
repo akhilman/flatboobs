@@ -47,22 +47,8 @@
 }
 
 // Operators
+{% include "cpp/struct_operators.cpp.txt" %}
 
-const {{ class_name }}::value_variant_type
-    {{ class_name }}::operator[](const std::string &_key) const {
-  return get_from_{{ class_name }}_by_key(*this, _key);
-}
-
-bool operator== (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
-  return is_{{ class_name }}_eq(_lhs, _rhs);
-}
-bool operator!= (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
-  return is_{{ class_name }}_ne(_lhs, _rhs);
-}
-
-std::ostream& operator<< (std::ostream &_stream, const {{ class_name }} &_obj) {
-  return print_{{ class_name }}(_stream, _obj);
-}
 
 {#
 // vim: syntax=cpp

@@ -53,10 +53,7 @@ struct alignas({{ struct_def.minalign }}) {{ class_name }}
   );
 
   // Operators
-  const value_variant_type operator[](const std::string &_key) const;
-  friend bool operator== (const {{ class_name }}&, const {{ class_name }}&);
-  friend bool operator!= (const {{ class_name }}&, const {{ class_name }}&);
-  friend std::ostream& operator<< (std::ostream&, const {{ class_name }}&);
+  {% include "cpp/struct_operators.hpp.txt" %}
 
   // Fields
 {% for field in fields %}
