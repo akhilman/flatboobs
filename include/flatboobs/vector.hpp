@@ -392,6 +392,8 @@ template <typename T> struct options {
   static_assert(!std::is_void_v<type>);
 };
 
+template <typename T> using options_t = typename options<T>::type;
+
 } // namespace vector
 } // namespace detail
 
@@ -400,7 +402,7 @@ template <typename T> struct options {
  */
 
 template <typename T> class VectorIterator {
-  using V = typename detail::vector::options<T>::type;
+  using V = detail::vector::options_t<T>;
 
 public:
   using abstract_impl_type = detail::vector::AbstractImpl<V>;
@@ -522,11 +524,10 @@ private:
 };
 
 template <typename T>
-class Vector
-    : public BaseVector,
-      public VectorDataAccessMixin<
-          T, typename detail::vector::options<T>::type::data_ptr_type> {
-  using V = typename detail::vector::options<T>::type;
+class Vector : public BaseVector,
+               public VectorDataAccessMixin<
+                   T, typename detail::vector::options_t<T>::data_ptr_type> {
+  using V = detail::vector::options_t<T>;
 
 public:
   using abstract_impl_type = detail::vector::AbstractImpl<V>;
@@ -629,11 +630,11 @@ private:
 // Builder
 
 template <typename T>
-const typename detail::vector::options<T>::type::offset_type
+const typename detail::vector::options_t<T>::offset_type
 build(flatboobs::BuilderContext &_context, const Vector<T> &_vec,
       bool _is_root = false) {
 
-  using V = typename detail::vector::options<T>::type;
+  using V = detail::vector::options_t<T>;
   using offset_type = typename V::offset_type;
   using builder_type = typename V::builder_type;
 
