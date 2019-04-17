@@ -176,8 +176,8 @@
   Default{{ escape(definition.name) }}
 {%- endmacro %}
 
-{% macro mutable_class(definition) -%}
-  Mutable{{ escape(definition.name) }}
+{% macro owning_class(definition) -%}
+  Owning{{ escape(definition.name) }}
 {%- endmacro %}
 
 {% macro flatbuffer_class(definition) -%}
@@ -233,12 +233,7 @@
     /* TODO {{ type_ }} */
   {% endif %}
   {% if is_vector %}
-    {% if type_.base_type.is_scalar()
-        or (type_.base_type == BaseType.STRUCT and type_.definition.fixed) %}
-      {% set vector_type = "flatboobs::ContiguousVector" %}
-    {% else %}
-      {% set vector_type = "flatboobs::VectorOfPointers" %}
-    {% endif %}
+    {% set vector_type = "flatboobs::Vector" %}
     {% set type_name %}
       {{- vector_type }}<{{ type_name }}>
     {% endset %}
@@ -263,7 +258,7 @@
 
 {% macro flatbuffer_type(type_) -%}
   {% if type_.base_type == BaseType.BOOL %}
-    char
+    uint8_t
   {% elif type_.base_type in CPP_TYPES %}
     {{- CPP_TYPES[type_.base_type] -}}
   {% elif type_.base_type == BaseType.STRUCT and type_.definition.fixed %}
@@ -275,6 +270,11 @@
   {% elif type_.base_type == BaseType.VECTOR
       and type_.element == BaseType.STRUCT and type_.definition.fixed %}
     const flatbuffers::Vector<{{ flatbuffer_type(type_.vector_type()) }} > *
+  {% elif type_.base_type == BaseType.VECTOR
+      and type_.element == BaseType.STRUCT and not type_.definition.fixed %}
+    const flatbuffers::Vector<flatbuffers::Offset<
+      {{- namespace(type_.definition.defined_namespace) -}}
+      ::{{ flatbuffer_class(type_.definition) }}>> *
   {% elif type_.base_type == BaseType.VECTOR %}
     const flatbuffers::Vector<{{ flatbuffer_type(type_.vector_type()) }}> *
   {% else %}

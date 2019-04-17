@@ -11,8 +11,6 @@
 #include <sstream>
 #include <variant>
 
-#include <flatbuffers/flatbuffers.h>
-#include <flatboobs/exceptions.hpp>
 #include <flatboobs/flatboobs.hpp>
 
 {% for name in parser.included_files.values()|reject("eq", "") %}
@@ -21,7 +19,7 @@
 
 
 /*
- * Forvard declaration of structs
+ * Forvard declaration
  */
 
 {% for group in parser.types
@@ -32,20 +30,50 @@
 namespace {{ utils.escape(component) }} {
 {% endfor %}
 
-{% for definition in group.list|sort(attribute="name")
-      |select("instance_of", "StructDef") %}
-{% if definition.fixed %}
-struct {{ utils.class_name(definition) }};
+{% for definition in group.list|sort(attribute="name") %}
+{% set class_name = utils.class_name(definition) %}
+{% if definition is instance_of("StructDef") and definition.fixed %}
+struct {{ class_name }};
+{% elif definition is instance_of("EnumDef") %}
+enum class {{ class_name }} : {{ utils.flatbuffer_type(
+                                      definition.underlying_type) }};
 {% else %}
-class {{ utils.class_name(definition) }};
+class {{ class_name }};
 {% endif %}
-// TODO: vector of {{ utils.class_name(definition) }}
 {% endfor %}
 
 {% for component in group.grouper.components|reverse %}
 }  // {{ utils.escape(component) }}
 {% endfor %}
 {% endfor %}
+
+/*
+ * Template specializationt declaration
+ */
+
+namespace flatboobs {
+
+{% for struct_def in parser.structs|select("defined_here", parser)
+      |rejectattr("fixed")|sort(attribute="name") %}
+{% set class_name %}
+  {{- utils.namespace(struct_def.defined_namespace) -}}
+  ::{{ utils.class_name(struct_def) -}}
+{% endset %}
+extern template Message pack({{ class_name }});
+extern template {{ class_name }} unpack<{{ class_name }}>(Message);
+{% endfor %}
+
+{% for struct_def in parser.structs|select("defined_here", parser)
+        |rejectattr("fixed")|sort(attribute="name") %}
+{% for field in struct_def.fields
+    |selectattr("value.type.base_type", "eq", BaseType.VECTOR) %}
+{% set vector_type = utils.cpp_type(field.value.type.vector_type()) %}
+extern template class Vector<{{ vector_type }}>;
+extern template class VectorIterator<{{ vector_type }}>;
+{% endfor %}
+{% endfor %}
+
+}
 
 
 {% for group in parser.types
@@ -71,7 +99,7 @@ namespace {{ utils.escape(component) }} {
 
 {% for struct_def in group.list|select("instance_of", "StructDef")
         |selectattr("fixed") |sort(attribute="name") %}
-{% include "cpp/mutable_struct.hpp.txt" %}
+{% include "cpp/struct.hpp.txt" %}
 {% endfor %}
 
 /*
@@ -91,6 +119,7 @@ namespace {{ utils.escape(component) }} {
 {% if header_only %}
 {% include "cpp/main.cpp.txt" %}
 {% endif %}
+
 
 #endif  // {{ output_file|include_guard }}
 

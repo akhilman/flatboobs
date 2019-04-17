@@ -2,7 +2,7 @@
 {% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
 {% set default_class = utils.default_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
-{% set mutable_class = utils.mutable_class(struct_def) %}
+{% set owning_class = utils.owning_class(struct_def) %}
 {% set impl_factory = utils.implement(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
@@ -10,9 +10,7 @@
 /* {{ class_name }} */
 
 class {{ flatbuffer_class }};
-struct {{ mutable_class }};
-
-// Implementation factory
+struct {{ owning_class }};
 
 class {{ class_name }} : public flatboobs::BaseTable {
 public:
@@ -39,10 +37,10 @@ public:
 
   // Constructor
   {{ class_name }}();
-  {{ class_name }}({{ mutable_class }});
-  {{ class_name }}(flatboobs::Message);
-  {{ class_name }}(flatboobs::Message, const {{ flatbuffer_class }} *);
-  {{ class_name }}(
+  explicit {{ class_name }}({{ owning_class }});
+  explicit {{ class_name }}(flatboobs::Message);
+  explicit {{ class_name }}(flatboobs::Message, const {{ flatbuffer_class }} *);
+  explicit {{ class_name }}(
   {% for field in fields %}
     {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
     {{- "," if not loop.last }}
@@ -55,7 +53,7 @@ public:
   //   {{ unpacked_class }} {{ impl_factory }}(flatboobs::Message _message) {
   //     return {{ unpacked_class }}(std::move(_message));
   //   }
-  template <typename ...Ts> {{ class_name }}(Ts... _args) {
+  template <typename ...Ts> explicit {{ class_name }}(Ts... _args) {
     auto impl_proxy = {{ utils.implement(struct_def) }}(std::forward<Ts>(_args)...);
     impl_ = std::dynamic_pointer_cast<const AbstractImpl>(
         std::make_shared<const decltype(impl_proxy)>(std::move(impl_proxy)));
@@ -98,10 +96,7 @@ public:
   ) const;
 
   // Operators
-  const value_variant_type operator[](const std::string &_key) const;
-  friend bool operator== (const {{ class_name }}&, const {{ class_name }}&);
-  friend bool operator!= (const {{ class_name }}&, const {{ class_name }}&);
-  friend std::ostream &operator<< (std::ostream&, const {{ class_name }}&);
+  {% include "cpp/struct_operators.hpp.txt" %}
 
 private:
   std::shared_ptr<const AbstractImpl> impl_;

@@ -1,21 +1,16 @@
 {% set class_name = utils.class_name(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
-/* {{ class_name }} operators */
-
-template <typename T>
-static inline {{ class_name }}::value_variant_type
-    get_from_{{ class_name }}_by_key(const T &_table, const std::string &_key)
-{
+{{ class_name }}::value_variant_type {{ class_name }}::operator[](
+    const std::string &_key) const {
 {% for field in fields %}
   if (_key == "{{ field.name }}")
-    return _table.{{ utils.escape(field.name) }}();
+    return this->{{ utils.escape(field.name) }}();
 {% endfor %}
   throw flatboobs::key_error(_key);
 }
 
-template <typename L, typename R>
-static inline bool is_{{ class_name }}_eq (const L &_lhs, const R &_rhs){
+bool operator== (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
   return
   {% set and_ = joiner(" && ") %}
   {% for field in fields %}
@@ -24,14 +19,11 @@ static inline bool is_{{ class_name }}_eq (const L &_lhs, const R &_rhs){
   {% endfor %}
   ;
 }
-template <typename L, typename R>
-static inline bool is_{{ class_name }}_ne (const L &_lhs, const R &_rhs){
+bool operator!= (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
   return !(_lhs == _rhs);
 }
 
-template <typename T>
-static inline std::ostream& print_{{ class_name -}}
-      (std::ostream &_stream, const T &_obj) {
+std::ostream & operator<< (std::ostream& _stream, const {{ class_name }}& _obj) {
   _stream << "{{ class_name }}("
   {% for field in fields %}
       << "{{ field.name }}="

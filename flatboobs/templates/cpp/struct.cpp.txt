@@ -1,19 +1,12 @@
 {% set class_name = utils.class_name(struct_def) %}
-{% if struct_def.fixed %}
-  {% set struct_name = utils.class_name(struct_def) %}
-{% else %}
-  {% set struct_name = utils.mutable_class(struct_def) %}
-{% endif %}
 {% set impl_factory = utils.implement(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
-{% if struct_def.fixed %}
-/* {{ struct_name }} */
-{% endif %}
+/* {{ class_name }} */
 
 // Constructor
 
-{{ struct_name }}::{{ struct_name }}()
+{{ class_name }}::{{ class_name }}()
 {% for field in fields %}
    {{- " : " if loop.first -}}
    {{ utils.escape(field.name) }}_ { {{ utils.default_value(field) }} }
@@ -21,7 +14,7 @@
 {% endfor %}
 {}
 
-{{ struct_name }}::{{ struct_name }}(
+{{ class_name }}::{{ class_name }}(
 {% for field in fields %}
   {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
     {{- "," if not loop.last }}
@@ -37,13 +30,13 @@
 // Evolve
 
 {% set comma = joiner(", ") %}
-{{ struct_name }} {{ struct_name }}::evolve (
+{{ class_name }} {{ class_name }}::evolve (
 {% for field in fields %}
   {{ comma() }} std::optional<{{ utils.cpp_type(field.value.type) }}> {# -#}
     _{{ utils.escape(field.name) }}
 {% endfor %}
 ) {
-  return {{ struct_name }}(
+  return {{ class_name }}(
   {% set comma = joiner(", ") %}
   {% for field in fields %}
     {% set field_name = utils.escape(field.name) %}
@@ -54,22 +47,8 @@
 }
 
 // Operators
+{% include "cpp/struct_operators.cpp.txt" %}
 
-const {{ struct_name }}::value_variant_type
-    {{ struct_name }}::operator[](const std::string &_key) const {
-  return get_from_{{ class_name }}_by_key(*this, _key);
-}
-
-bool operator== (const {{ struct_name }} &_lhs, const {{ struct_name }} &_rhs){
-  return is_{{ class_name }}_eq(_lhs, _rhs);
-}
-bool operator!= (const {{ struct_name }} &_lhs, const {{ struct_name }} &_rhs){
-  return is_{{ class_name }}_ne(_lhs, _rhs);
-}
-
-std::ostream& operator<< (std::ostream &_stream, const {{ struct_name }} &_obj) {
-  return print_{{ class_name }}(_stream, _obj);
-}
 
 {#
 // vim: syntax=cpp

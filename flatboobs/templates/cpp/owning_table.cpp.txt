@@ -1,0 +1,68 @@
+{% set class_name = utils.class_name(struct_def) %}
+{% set owning_class = utils.owning_class(struct_def) %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+
+/* {{ owning_class }} */
+
+struct  {{ owning_class }} : public {{ class_name }}::AbstractImpl {
+
+  // Constructor
+  {{ owning_class }}();
+  explicit {{ owning_class }}(
+  {% for field in fields %}
+    {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
+    {{- "," if not loop.last }}
+  {% endfor %}
+  );
+
+  flatboobs::content_id_t content_id() const override {
+    return flatboobs::content_id_t(this);
+  }
+  const flatboobs::Message *source_message() const override {
+    return nullptr;
+  }
+
+  // Getters
+{% for field in fields %}
+  {{ utils.cpp_type(field.value.type) }} {{
+    utils.escape(field.name) }}() const override {
+    return {{ utils.escape(field.name) }}_;
+  }
+{% endfor %}
+
+  // Fields
+{% for field in fields %}
+  {{ utils.cpp_type(field.value.type) }} {{utils.escape(field.name) }}_;
+{% endfor %}
+
+};
+
+
+// Constructor
+
+{{ owning_class }}::{{ owning_class }}()
+{% for field in fields %}
+   {{- " : " if loop.first -}}
+   {{ utils.escape(field.name) }}_ { {{ utils.default_value(field) }} }
+   {{- "," if not loop.last }}
+{% endfor %}
+{}
+
+{{ owning_class }}::{{ owning_class }}(
+{% for field in fields %}
+  {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
+    {{- "," if not loop.last }}
+{% endfor %}
+)
+{% for field_name in fields|map("attr", "name") %}
+   {{- " : " if loop.first -}}
+   {{ utils.escape(field_name) }}_ {std::move(_{{ utils.escape(field_name) }})}
+   {{- "," if not loop.last }}
+{% endfor %}
+{}
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}

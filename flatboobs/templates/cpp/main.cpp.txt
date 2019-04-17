@@ -7,6 +7,35 @@
 #include "{{ library_name }}/{{ schema_file|stem }}.hpp"
 {% endif %}
 
+/*
+ * Template specializationt definition
+ */
+
+namespace flatboobs {
+
+{% for struct_def in parser.structs|select("defined_here", parser)
+      |rejectattr("fixed")|sort(attribute="name") %}
+{% set class_name %}
+  {{- utils.namespace(struct_def.defined_namespace) -}}
+  ::{{ utils.class_name(struct_def) -}}
+{% endset %}
+template Message pack({{ class_name }});
+template {{ class_name }} unpack<{{ class_name }}>(Message);
+{% endfor %}
+
+{% for struct_def in parser.structs|select("defined_here", parser)
+        |rejectattr("fixed")|sort(attribute="name") %}
+{% for field in struct_def.fields
+    |selectattr("value.type.base_type", "eq", BaseType.VECTOR) %}
+{% set vector_type = utils.cpp_type(field.value.type.vector_type()) %}
+template class Vector<{{ vector_type }}>;
+template class VectorIterator<{{ vector_type }}>;
+{% endfor %}
+{% endfor %}
+
+}
+
+
 {% for group in parser.types
     | map("attr", "definition")
     | select("defined_here", parser)
@@ -30,8 +59,7 @@ namespace {{ utils.escape(component) }} {
 
 {% for struct_def in group.list|select("instance_of", "StructDef")
         |selectattr("fixed") |sort(attribute="name") %}
-{% include "cpp/struct_operators.cpp.txt" %}
-{% include "cpp/mutable_struct.cpp.txt" %}
+{% include "cpp/struct.cpp.txt" %}
 {% endfor %}
 
 /*
@@ -40,7 +68,6 @@ namespace {{ utils.escape(component) }} {
 
 {% for struct_def in group.list|select("instance_of", "StructDef")
         |rejectattr("fixed")|sort(attribute="name") %}
-{% include "cpp/struct_operators.cpp.txt" %}
 {% include "cpp/table.cpp.txt" %}
 {% endfor %}
 

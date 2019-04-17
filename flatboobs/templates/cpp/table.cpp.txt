@@ -1,13 +1,12 @@
 {% set class_name = utils.class_name(struct_def) %}
 {% set default_class = utils.default_class(struct_def) %}
-{% set mutable_class = utils.mutable_class(struct_def) %}
+{% set owning_class = utils.owning_class(struct_def) %}
 {% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
 {% include "cpp/default_table.cpp.txt" %}
-{% include "cpp/mutable_struct.hpp.txt" %}
-{% include "cpp/mutable_struct.cpp.txt" %}
+{% include "cpp/owning_table.cpp.txt" %}
 {% include "cpp/unpacked_table.cpp.txt" %}
 
 /* {{ class_name }} */
@@ -15,8 +14,8 @@
 // Constructor
 {{ class_name }}::{{ class_name }}()
   : impl_{std::make_shared<{{ default_class }}>()} {}
-{{ class_name }}::{{ class_name }}({{ mutable_class }} _impl)
-  : impl_{std::make_shared<{{ mutable_class }}>(std::move(_impl))} {}
+{{ class_name }}::{{ class_name }}({{ owning_class }} _impl)
+  : impl_{std::make_shared<{{ owning_class }}>(std::move(_impl))} {}
 {{ class_name }}::{{ class_name }}(flatboobs::Message _message)
   : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_message))} {}
 
@@ -25,7 +24,7 @@
   {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
     {{- "," if not loop.last }}
 {% endfor %}
-) : impl_{std::make_shared<{{ mutable_class }}>(
+) : impl_{std::make_shared<{{ owning_class }}>(
   {% for field_name in fields|map("attr", "name") %}
      std::move(_{{ utils.escape(field_name) }})
      {{- "," if not loop.last }}
@@ -46,7 +45,7 @@
     _{{ utils.escape(field.name) }}
 {% endfor %}
 ) const {
-  return {{ class_name }}({{ mutable_class }}(
+  return {{ class_name }}({{ owning_class }}(
   {% set comma = joiner(", ") %}
   {% for field in fields %}
     {% set field_name = utils.escape(field.name) %}
@@ -57,22 +56,7 @@
 }
 
 // Operators
-
-const {{ class_name }}::value_variant_type
-    {{ class_name }}::operator[](const std::string &_key) const {
-  return get_from_{{ class_name }}_by_key(*this, _key);
-}
-
-bool operator== (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
-  return is_{{ class_name }}_eq(_lhs, _rhs);
-}
-bool operator!= (const {{ class_name }} &_lhs, const {{ class_name }} &_rhs){
-  return is_{{ class_name }}_ne(_lhs, _rhs);
-}
-
-std::ostream& operator<< (std::ostream &_stream, const {{ class_name }} &_obj) {
-  return print_{{ class_name }}(_stream, _obj);
-}
+{% include "cpp/struct_operators.cpp.txt" %}
 
 
 // Builder

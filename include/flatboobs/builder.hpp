@@ -2,13 +2,10 @@
 #ifndef FLATBOOBS_BUILDER_HPP
 #define FLATBOOBS_BUILDER_HPP
 
+#include <flatboobs/types.hpp>
 #include <flatbuffers/flatbuffers.h>
-#include <map>
 
 namespace flatboobs {
-
-using content_id_t = size_t;
-using offset_map_t = std::map<flatboobs::content_id_t, flatbuffers::uoffset_t>;
 
 struct BuilderContext {
 
