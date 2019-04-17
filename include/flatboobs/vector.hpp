@@ -283,7 +283,7 @@ template <typename T, typename V> struct StructBuilder {
 };
 
 /*
- * Vector properties
+ * Vector options
  */
 
 template <typename T> struct scalar_options {
