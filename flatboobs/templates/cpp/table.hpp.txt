@@ -98,6 +98,10 @@ public:
   // Operators
   {% include "cpp/struct_operators.hpp.txt" %}
 
+  // Builder
+  flatbuffers::Offset<{{ flatbuffer_class }}>
+  build(flatboobs::BuilderContext &, bool _is_root = true) const;
+
 private:
   std::shared_ptr<const AbstractImpl> impl_;
 

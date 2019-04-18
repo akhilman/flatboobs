@@ -1,0 +1,10 @@
+include "table.fbs";
+
+namespace flatboobs.schema.test;
+
+table TestVecOfTables {
+    tables:[TestTable];
+}
+
+root_type TestVecOfTables;
+file_identifier "TVTB";

@@ -24,7 +24,7 @@ template <typename T> Message pack(T _table) {
   flatbuffers::FlatBufferBuilder fbb{1024};
   BuilderContext context{&fbb};
 
-  build(context, _table);
+  _table.build(context, true);
 
   BuiltMessage built_message{};
   built_message.steal_from_builder(fbb);

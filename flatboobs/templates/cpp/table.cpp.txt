@@ -62,16 +62,15 @@
 // Builder
 
 flatbuffers::Offset<{{ flatbuffer_class }}>
-build(
+{{ class_name }}::build(
     flatboobs::BuilderContext &_context,
-    const {{ class_name }} &_table,
     bool _is_root
-) {
+) const {
 
-  if (!_is_root && !_table.content_id())
+  if (!_is_root && !this->content_id())
     return flatbuffers::Offset<{{ flatbuffer_class }}>{0};
 
-  auto it = _context.offset_map().find(_table.content_id());
+  auto it = _context.offset_map().find(this->content_id());
   if (it != _context.offset_map().end())
     return flatbuffers::Offset<{{ flatbuffer_class }}>{it->second};
 
@@ -83,10 +82,10 @@ build(
     or field.value.type.base_type == BaseType.VECTOR %}
   // {{ field.name }}
   {{ utils.cpp_type(field.value.type) }} {{ field.name }}_value = {# -#}
-    _table.{{ utils.escape(field.name) }}();
+    this->{{ utils.escape(field.name) }}();
   {{ utils.offset_type(field.value.type) }} {{ field.name }}_offset {};
   if ({{ field.name }}_value.content_id())
-    {{ field.name }}_offset = build(_context, {{ field.name }}_value, false);
+    {{ field.name }}_offset = {{ field.name }}_value.build(_context, false);
 
 {% endif %}
 {% endfor %}
@@ -104,18 +103,18 @@ build(
   fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
     {{ flatbuffer_class }}::VT_{{ field.name|upper }},
     static_cast<{{ utils.flatbuffer_type(field.value.type) }}>(
-      _table.{{ utils.escape(field.name) }}()), {{ field.value.constant }});
+      this->{{ utils.escape(field.name) }}()), {{ field.value.constant }});
 
 {% elif field.value.type.base_type.is_scalar() %}
   fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
     {{ flatbuffer_class }}::VT_{{ field.name|upper }},
-    _table.{{ utils.escape(field.name) }}(),
+    this->{{ utils.escape(field.name) }}(),
     {{ field.value.constant }}
     );
 
 {% elif field.value.type.base_type == BaseType.STRUCT
     and field.value.type.definition.fixed %}
-  {{ utils.cpp_type(field.value.type) }} {{ field.name }}_value = _table.
+  {{ utils.cpp_type(field.value.type) }} {{ field.name }}_value = this->
      {{- utils.escape(field.name) }}();
   if({{ field.name }}_value != {{ utils.cpp_type(field.value.type) }}())
     fbb->AddStruct({{ flatbuffer_class }}::VT_{{ field.name|upper -}}
@@ -134,7 +133,7 @@ build(
 {% endif %}
 {% endfor %}
   flatbuffers::uoffset_t end = fbb->EndTable(start);
-  _context.offset_map()[_table.content_id()] = end;
+  _context.offset_map()[this->content_id()] = end;
   flatbuffers::Offset<{{ flatbuffer_class }}> offset {end};
 
   if (_is_root) {
@@ -148,6 +147,15 @@ build(
   }
 
   return offset;
+}
+
+flatbuffers::Offset<{{ flatbuffer_class }}>
+build(
+    flatboobs::BuilderContext &_context,
+    const {{ class_name }} &_table,
+    bool _is_root
+) {
+  return _table.build(_context, _is_root);
 }
 
 

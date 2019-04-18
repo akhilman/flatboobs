@@ -186,6 +186,34 @@ private:
   const flatbuffers::Vector<fb_value_type> *fbvec_;
 };
 
+template <typename V> class UnpackedTablesImpl : public AbstractImpl<V> {
+public:
+  using data_ptr_type = typename V::data_ptr_type;
+  using fb_value_type = typename V::fb_value_type;
+  using return_value_type = typename V::return_value_type;
+  using size_type = typename V::size_type;
+  using value_type = typename V::value_type;
+  static_assert(std::is_same_v<return_value_type, value_type>);
+
+  UnpackedTablesImpl(Message _message,
+                     const flatbuffers::Vector<fb_value_type> *_fbvec) noexcept
+      : message_{std::move(_message)}, fbvec_{_fbvec} {}
+
+  return_value_type at(size_type _pos) const override {
+    return value_type(message_, fbvec_->Get(_pos));
+  }
+  data_ptr_type data() const noexcept override { return nullptr; }
+
+  size_type size() const noexcept override { return fbvec_->size(); }
+  content_id_t content_id() const noexcept override {
+    return content_id_t(fbvec_);
+  }
+
+private:
+  Message message_;
+  const flatbuffers::Vector<fb_value_type> *fbvec_;
+};
+
 /*
  * Accesssor
  */
@@ -240,7 +268,7 @@ template <typename T, typename V> struct ScalarsBuilder {
                                         const Vector<T> &_vec) {
 
     flatbuffers::FlatBufferBuilder *fbb = _context.builder();
-    const offset_type offset = fbb->CreateVector(_vec.data(), _vec.size());
+    offset_type offset = fbb->CreateVector(_vec.data(), _vec.size());
 
     return offset;
   }
@@ -257,8 +285,32 @@ template <typename T, typename V> struct StructsBuilder {
                                         const Vector<T> &_vec) {
 
     flatbuffers::FlatBufferBuilder *fbb = _context.builder();
-    const offset_type offset =
-        fbb->CreateVectorOfStructs(_vec.data(), _vec.size());
+    offset_type offset = fbb->CreateVectorOfStructs(_vec.data(), _vec.size());
+
+    return offset;
+  }
+};
+
+template <typename T, typename V> struct TablesBuilder {
+  using offset_type = typename V::offset_type;
+  using fb_value_type = typename V::fb_value_type;
+  using value_type = typename V::value_type;
+
+  static inline const offset_type build(flatboobs::BuilderContext &_context,
+                                        const Vector<T> &_vec) {
+
+    using std::cbegin;
+    using std::cend;
+    using std::crbegin;
+    using std::crend;
+
+    flatbuffers::FlatBufferBuilder *fbb = _context.builder();
+    std::vector<fb_value_type> item_offsets{};
+    for (auto iter = crbegin(_vec); iter < crend(_vec); iter++) {
+      item_offsets.push_back((*iter).build(_context));
+    }
+    std::reverse(begin(item_offsets), end(item_offsets));
+    offset_type offset = fbb->CreateVector(item_offsets);
 
     return offset;
   }
@@ -328,7 +380,6 @@ template <typename T> struct struct_options {
   using builder_type = StructsBuilder<T, V>;
 };
 
-/*
 template <typename T> struct table_options {
   using V = table_options<T>;
   using size_type = size_t;
@@ -345,6 +396,7 @@ template <typename T> struct table_options {
   using builder_type = TablesBuilder<T, V>;
 };
 
+/*
 template <typename T> struct union_options {
   using V = union_options<T>;
   using size_type = size_t;
@@ -369,8 +421,10 @@ template <typename T> struct options {
           std::is_enum_v<value_type>, enum_options<value_type>,
           std::conditional_t<
               std::is_scalar_v<value_type>, scalar_options<value_type>,
-              std::conditional_t<is_struct_v<value_type>,
-                                 struct_options<value_type>, void>>>>;
+              std::conditional_t<
+                  is_struct_v<value_type>, struct_options<value_type>,
+                  std::conditional_t<is_table_v<value_type>,
+                                     table_options<value_type>, void>>>>>;
   static_assert(!std::is_void_v<type>);
 };
 
@@ -606,32 +660,28 @@ public:
     return _stream;
   }
 
+  // Builder
+  const typename V::offset_type build(flatboobs::BuilderContext &_context,
+                                      bool _is_root = false) const {
+
+    using offset_type = typename V::offset_type;
+    using builder_type = typename V::builder_type;
+
+    auto it = _context.offset_map().find(this->content_id());
+    if (it != _context.offset_map().end())
+      return offset_type{it->second};
+
+    const offset_type offset = builder_type::build(_context, *this);
+    _context.offset_map()[this->content_id()] = offset.o;
+
+    return offset;
+  }
+
 private:
   friend VectorDataAccessMixin<T, data_ptr_type>;
   std::shared_ptr<const abstract_impl_type> impl_;
   accessor_type accessor_;
 };
-
-// Builder
-
-template <typename T>
-const typename detail::vector::options_t<T>::offset_type
-build(flatboobs::BuilderContext &_context, const Vector<T> &_vec,
-      bool _is_root = false) {
-
-  using V = detail::vector::options_t<T>;
-  using offset_type = typename V::offset_type;
-  using builder_type = typename V::builder_type;
-
-  auto it = _context.offset_map().find(_vec.content_id());
-  if (it != _context.offset_map().end())
-    return offset_type{it->second};
-
-  const offset_type offset = builder_type::build(_context, _vec);
-  _context.offset_map()[_vec.content_id()] = offset.o;
-
-  return offset;
-}
 
 } // namespace flatboobs
 

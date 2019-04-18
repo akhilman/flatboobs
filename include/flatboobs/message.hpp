@@ -4,6 +4,7 @@
 #include <flatbuffers/flatbuffers.h>
 #include <memory>
 #include <ostream>
+#include <stdexcept>
 
 namespace flatboobs {
 
@@ -157,6 +158,8 @@ public:
   BuiltMessage &operator=(const BuiltMessage &) = delete;
 
   void steal_from_builder(flatbuffers::FlatBufferBuilder &builder) {
+    if (data_)
+      throw std::runtime_error("Data already set");
     size_ = builder.GetSize();
     size_t buffer_size; // total buffer size with usless padding.
     const std::byte *data = reinterpret_cast<const std::byte *>(
