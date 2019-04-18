@@ -11,33 +11,25 @@
 
 /* {{ flatbuffer_class }} */
 
-class {{ flatbuffer_class }} final : private flatbuffers::Table {
-public:
-  enum {
-    {% for field in fields %}
-      VT_{{ utils.escape(field.name)|upper }} = {{ field.value.offset }},
-    {% endfor %}
-  };
-
 {% for field in fields %}
 {% if field.value.type.base_type.is_scalar() %}
-  inline {{ utils.flatbuffer_type(field.value.type) }} {# -#}
-    {{ utils.escape(field.name) }}() const {
+  {{ utils.flatbuffer_type(field.value.type) }} {# -#}
+    {{ flatbuffer_class }}::{{ utils.escape(field.name) }}() const {
     return GetField<{{ utils.flatbuffer_type(field.value.type) }}>(
       VT_{{ utils.escape(field.name)|upper }} , {{ field.value.constant }});
   }
 {% elif field.value.type.base_type == BaseType.STRUCT
       and field.value.type.definition.fixed %}
-  inline {{ utils.flatbuffer_type(field.value.type) }}
-    {{- utils.escape(field.name) }}() const {
+  {{ utils.flatbuffer_type(field.value.type) }} {# -#}
+    {{ flatbuffer_class }}::{{ utils.escape(field.name) }}() const {
     return GetStruct<{{ utils.flatbuffer_type(field.value.type) }}>(
       VT_{{ utils.escape(field.name)|upper }});
   }
 {% elif field.value.type.base_type == BaseType.STRUCT
       and not field.value.type.definition.fixed
       or field.value.type.base_type == BaseType.VECTOR %}
-  inline {{ utils.flatbuffer_type(field.value.type) }}
-    {{- utils.escape(field.name) }}() const {
+  {{ utils.flatbuffer_type(field.value.type) }} {# -#}
+    {{ flatbuffer_class }}::{{- utils.escape(field.name) }}() const {
     return GetPointer<{{ utils.flatbuffer_type(field.value.type) }}>(
       VT_{{ utils.escape(field.name)|upper }});
   }
@@ -46,34 +38,33 @@ public:
 {% endif %}
 {% endfor %}
 
-  inline bool Verify( flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-  {% for field in fields %}
-  {% if field.value.type.base_type.is_scalar() %}
-    VerifyField<{{ utils.flatbuffer_type(field.value.type)
-      }}>(verifier, VT_{{ field.name|upper }}) &&
-  {% elif field.value.type.base_type == BaseType.STRUCT
-      and field.value.type.definition.fixed %}
-    VerifyField<{{ utils.flatbuffer_type(field.value.type)
-      }}>(verifier, VT_{{ field.name|upper }}) &&
-  {% elif field.value.type.base_type == BaseType.STRUCT
+bool {{ flatbuffer_class }}::Verify(flatbuffers::Verifier &verifier) const {
+  return VerifyTableStart(verifier) &&
+{% for field in fields %}
+{% if field.value.type.base_type.is_scalar() %}
+  VerifyField<{{ utils.flatbuffer_type(field.value.type)
+    }}>(verifier, VT_{{ field.name|upper }}) &&
+{% elif field.value.type.base_type == BaseType.STRUCT
+    and field.value.type.definition.fixed %}
+  VerifyField<{{ utils.flatbuffer_type(field.value.type)
+    }}>(verifier, VT_{{ field.name|upper }}) &&
+{% elif field.value.type.base_type == BaseType.STRUCT
+    and not field.value.type.definition.fixed %}
+  VerifyOffset(verifier, VT_{{ field.name|upper }}) &&
+  verifier.VerifyTable({{ utils.escape(field.name) }}()) &&
+{% elif field.value.type.base_type == BaseType.VECTOR %}
+  VerifyOffset(verifier, VT_{{ field.name|upper }}) &&
+  verifier.VerifyVector({{ utils.escape(field.name) }}()) &&
+  {% if field.value.type.element == BaseType.STRUCT
       and not field.value.type.definition.fixed %}
-    VerifyOffset(verifier, VT_{{ field.name|upper }}) &&
-    verifier.VerifyTable({{ utils.escape(field.name) }}()) &&
-  {% elif field.value.type.base_type == BaseType.VECTOR %}
-    VerifyOffset(verifier, VT_{{ field.name|upper }}) &&
-    verifier.VerifyVector({{ utils.escape(field.name) }}()) &&
-    {% if field.value.type.element == BaseType.STRUCT
-        and not field.value.type.definition.fixed %}
-    verifier.VerifyVectorOfTables({{ utils.escape(field.name) }}()) &&
-    {% endif %}
-  {% else %}
-    // TODO {{ field.name }}
+  verifier.VerifyVectorOfTables({{ utils.escape(field.name) }}()) &&
   {% endif %}
-  {% endfor %}
-    verifier.EndTable();
-  }
-};
+{% else %}
+  // TODO {{ field.name }}
+{% endif %}
+{% endfor %}
+  verifier.EndTable();
+}
 
 // Verify {{ class_name }}
 static bool verify_{{ class_name }}(const flatboobs::Message &_message) {

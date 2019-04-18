@@ -110,6 +110,7 @@ private:
 flatbuffers::Offset<{{ flatbuffer_class }}>
 build(flatboobs::BuilderContext &, const {{ class_name }} &, bool _is_root = true);
 
+{% include "cpp/unpacked_table.hpp.txt" %}
 
 {#
 // vim: syntax=cpp

@@ -1,0 +1,30 @@
+{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
+
+/*
+ * {{ flatbuffer_class }}
+ * This class for internal use only
+ */
+
+class {{ flatbuffer_class }} final : private flatbuffers::Table {
+public:
+  enum {
+    {% for field in fields %}
+      VT_{{ utils.escape(field.name)|upper }} = {{ field.value.offset }},
+    {% endfor %}
+  };
+
+{% for field in fields %}
+  {{ utils.flatbuffer_type(field.value.type) }} {# -#}
+    {{ utils.escape(field.name) }}() const;
+{% endfor %}
+
+  bool Verify( flatbuffers::Verifier &verifier) const;
+};
+
+{#
+// vim: syntax=cpp
+// vim: tabstop=2
+// vim: shiftwidth=2
+#}
+
