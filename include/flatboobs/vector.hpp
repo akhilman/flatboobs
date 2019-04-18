@@ -58,7 +58,7 @@ public:
   }
 
 private:
-  const std::vector<value_type> vec_;
+  std::vector<value_type> vec_;
 };
 
 template <typename V> class OwningDirectImpl : public AbstractImpl<V> {
@@ -84,33 +84,37 @@ public:
   }
 
 private:
-  const std::vector<value_type> vec_;
+  std::vector<value_type> vec_;
 };
 
-template <typename V> class UnpackedBoolsImpl : public AbstractImpl<V> {
+template <typename V> class OwningBoolsImpl : public AbstractImpl<V> {
 public:
-  using fb_value_type = typename V::fb_value_type;
   using data_ptr_type = typename V::data_ptr_type;
   using return_value_type = typename V::return_value_type;
   using size_type = typename V::size_type;
+  using value_type = typename V::value_type;
+  static_assert(std::is_same_v<value_type, bool>);
+  static_assert(std::is_same_v<data_ptr_type, const uint8_t *>);
 
-  UnpackedBoolsImpl(Message _message,
-                    const flatbuffers::Vector<fb_value_type> *_fbvec) noexcept
-      : message_{std::move(_message)}, fbvec_{_fbvec} {}
+  OwningBoolsImpl() noexcept : vec_{} {}
+  OwningBoolsImpl(std::vector<bool> _vec) {
+    std::vector<uint8_t> tmp{};
+    std::transform(_vec.begin(), _vec.end(), std::back_inserter(tmp),
+                   [](bool v) { return uint8_t(v); });
+    vec_ = std::move(tmp);
+  }
 
   return_value_type at(size_type _pos) const override {
-    return this->fbvec_->Get(_pos);
+    return bool(vec_.at(_pos));
   }
-  data_ptr_type data() const noexcept override { return nullptr; }
-
-  size_type size() const noexcept override { return fbvec_->size(); }
+  size_type size() const noexcept override { return vec_.size(); }
+  data_ptr_type data() const noexcept override { return vec_.data(); }
   content_id_t content_id() const noexcept override {
-    return content_id_t(fbvec_);
+    return content_id_t(&vec_);
   }
 
 private:
-  const Message message_;
-  const flatbuffers::Vector<fb_value_type> *fbvec_;
+  std::vector<uint8_t> vec_;
 };
 
 template <typename V> class UnpackedScalarsImpl : public AbstractImpl<V> {
@@ -140,7 +144,7 @@ public:
   }
 
 private:
-  const Message message_;
+  Message message_;
   const flatbuffers::Vector<fb_value_type> *fbvec_;
 };
 
@@ -173,7 +177,7 @@ public:
   }
 
 private:
-  const Message message_;
+  Message message_;
   const flatbuffers::Vector<fb_value_type> *fbvec_;
 };
 
@@ -237,33 +241,6 @@ template <typename T, typename V> struct ScalarsBuilder {
   }
 };
 
-template <typename T, typename V> struct BoolsBuilder {
-  using data_ptr_type = typename V::data_ptr_type;
-  using fb_value_type = typename V::fb_value_type;
-  using offset_type = typename V::offset_type;
-  using return_value_type = typename V::return_value_type;
-  static_assert(std::is_same_v<return_value_type, bool>);
-  static_assert(std::is_same_v<fb_value_type, uint8_t>);
-
-  static inline const offset_type build(flatboobs::BuilderContext &_context,
-                                        const Vector<T> &_vec) {
-
-    using std::crbegin;
-    using std::crend;
-    using std::size;
-
-    flatbuffers::FlatBufferBuilder *fbb = _context.builder();
-    fbb->StartVector(size(_vec), sizeof(fb_value_type));
-
-    for (auto iter = crbegin(_vec); iter < crend(_vec); iter++)
-      fbb->PushElement(*iter);
-
-    const offset_type offset = fbb->EndVector(size(_vec));
-
-    return offset;
-  }
-};
-
 template <typename T, typename V> struct StructsBuilder {
   using offset_type = typename V::offset_type;
   using data_ptr_type = typename V::data_ptr_type;
@@ -301,19 +278,19 @@ template <typename T> struct scalar_options {
   using builder_type = ScalarsBuilder<T, V>;
 };
 
-template <typename T> struct struct_options {
-  using V = struct_options<T>;
+template <typename T> struct bool_options {
+  using V = bool_options<T>;
   using size_type = size_t;
   using difference_type = std::ptrdiff_t;
-  using value_type = typename std::decay_t<T>;
-  using return_value_type = const value_type &;
-  using data_ptr_type = const value_type *;
-  using fb_value_type = const value_type *;
+  using value_type = bool;
+  using return_value_type = value_type;
+  using data_ptr_type = const uint8_t *;
+  using fb_value_type = uint8_t;
   using offset_type = flatbuffers::Offset<flatbuffers::Vector<fb_value_type>>;
   using accessor_type = DirectAccessor<V>;
-  using owning_impl_type = OwningDirectImpl<V>;
-  using unpacked_impl_type = UnpackedStructsImpl<V>;
-  using builder_type = StructsBuilder<T, V>;
+  using owning_impl_type = OwningBoolsImpl<V>;
+  using unpacked_impl_type = UnpackedScalarsImpl<V>;
+  using builder_type = ScalarsBuilder<T, V>;
 };
 
 template <typename T> struct enum_options {
@@ -331,19 +308,19 @@ template <typename T> struct enum_options {
   using builder_type = ScalarsBuilder<T, V>;
 };
 
-template <typename T> struct bool_options {
-  using V = bool_options<T>;
+template <typename T> struct struct_options {
+  using V = struct_options<T>;
   using size_type = size_t;
   using difference_type = std::ptrdiff_t;
-  using value_type = bool;
-  using return_value_type = value_type;
-  using data_ptr_type = void *;
-  using fb_value_type = uint8_t;
+  using value_type = typename std::decay_t<T>;
+  using return_value_type = const value_type &;
+  using data_ptr_type = const value_type *;
+  using fb_value_type = const value_type *;
   using offset_type = flatbuffers::Offset<flatbuffers::Vector<fb_value_type>>;
-  using accessor_type = ImplAccessor<V>;
-  using owning_impl_type = OwningImpl<V>;
-  using unpacked_impl_type = UnpackedBoolsImpl<V>;
-  using builder_type = BoolsBuilder<T, V>;
+  using accessor_type = DirectAccessor<V>;
+  using owning_impl_type = OwningDirectImpl<V>;
+  using unpacked_impl_type = UnpackedStructsImpl<V>;
+  using builder_type = StructsBuilder<T, V>;
 };
 
 /*
