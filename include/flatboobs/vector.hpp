@@ -218,7 +218,7 @@ private:
  * Builder
  */
 
-template <typename T, typename V> struct ScalarBuilder {
+template <typename T, typename V> struct ScalarsBuilder {
   using offset_type = typename V::offset_type;
   using data_ptr_type = typename V::data_ptr_type;
   using fb_value_type = typename V::fb_value_type;
@@ -237,7 +237,7 @@ template <typename T, typename V> struct ScalarBuilder {
   }
 };
 
-template <typename T, typename V> struct BoolBuilder {
+template <typename T, typename V> struct BoolsBuilder {
   using data_ptr_type = typename V::data_ptr_type;
   using fb_value_type = typename V::fb_value_type;
   using offset_type = typename V::offset_type;
@@ -264,7 +264,7 @@ template <typename T, typename V> struct BoolBuilder {
   }
 };
 
-template <typename T, typename V> struct StructBuilder {
+template <typename T, typename V> struct StructsBuilder {
   using offset_type = typename V::offset_type;
   using data_ptr_type = typename V::data_ptr_type;
   using fb_value_type = typename V::fb_value_type;
@@ -298,7 +298,7 @@ template <typename T> struct scalar_options {
   using accessor_type = DirectAccessor<V>;
   using owning_impl_type = OwningDirectImpl<V>;
   using unpacked_impl_type = UnpackedScalarsImpl<V>;
-  using builder_type = ScalarBuilder<T, V>;
+  using builder_type = ScalarsBuilder<T, V>;
 };
 
 template <typename T> struct struct_options {
@@ -313,7 +313,7 @@ template <typename T> struct struct_options {
   using accessor_type = DirectAccessor<V>;
   using owning_impl_type = OwningDirectImpl<V>;
   using unpacked_impl_type = UnpackedStructsImpl<V>;
-  using builder_type = StructBuilder<T, V>;
+  using builder_type = StructsBuilder<T, V>;
 };
 
 template <typename T> struct enum_options {
@@ -328,7 +328,7 @@ template <typename T> struct enum_options {
   using accessor_type = DirectAccessor<V>;
   using owning_impl_type = OwningDirectImpl<V>;
   using unpacked_impl_type = UnpackedScalarsImpl<V>;
-  using builder_type = ScalarBuilder<T, V>;
+  using builder_type = ScalarsBuilder<T, V>;
 };
 
 template <typename T> struct bool_options {
@@ -343,7 +343,7 @@ template <typename T> struct bool_options {
   using accessor_type = ImplAccessor<V>;
   using owning_impl_type = OwningImpl<V>;
   using unpacked_impl_type = UnpackedBoolsImpl<V>;
-  using builder_type = BoolBuilder<T, V>;
+  using builder_type = BoolsBuilder<T, V>;
 };
 
 /*
@@ -360,7 +360,7 @@ template <typename T> struct table_options {
   using accessor_type = ImplAccessor<V>;
   using owning_impl_type = OwningImpl<V>;
   using unpacked_impl_type = UnpackedTablesImpl<V>;
-  using builder_type = TableBuilder<T, V>;
+  using builder_type = TablesBuilder<T, V>;
 };
 
 template <typename T> struct union_options {
@@ -375,7 +375,7 @@ template <typename T> struct union_options {
   using accessor_type = ImplAccessor<V>;
   using owning_impl_type = OwningImpl<V>;
   using unpacked_impl_type = UnpackeUnionsImpl<V>;
-  using builder_type = UnionBuilder<T, V>;
+  using builder_type = UnionsBuilder<T, V>;
 };
 */
 
