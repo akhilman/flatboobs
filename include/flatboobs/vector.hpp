@@ -46,7 +46,8 @@ public:
   static_assert(!std::is_reference_v<return_value_type>);
 
   OwningImpl() noexcept : vec_{} {}
-  OwningImpl(std::vector<value_type> _vec) noexcept : vec_{std::move(_vec)} {}
+  OwningImpl(const std::vector<value_type> &_vec) : vec_{_vec} {}
+  OwningImpl(std::vector<value_type> &&_vec) noexcept : vec_{std::move(_vec)} {}
 
   return_value_type at(size_type _pos) const override {
     return return_value_type(vec_.at(_pos));
@@ -71,7 +72,8 @@ public:
                 sizeof(value_type));
 
   OwningDirectImpl() noexcept : vec_{} {}
-  OwningDirectImpl(std::vector<value_type> _vec) noexcept
+  OwningDirectImpl(const std::vector<value_type> &_vec) : vec_{_vec} {}
+  OwningDirectImpl(std::vector<value_type> &&_vec) noexcept
       : vec_{std::move(_vec)} {}
 
   return_value_type at(size_type _pos) const override { return vec_.at(_pos); }
@@ -97,12 +99,8 @@ public:
   static_assert(std::is_same_v<data_ptr_type, const uint8_t *>);
 
   OwningBoolsImpl() noexcept : vec_{} {}
-  OwningBoolsImpl(std::vector<bool> _vec) {
-    std::vector<uint8_t> tmp{};
-    std::transform(_vec.begin(), _vec.end(), std::back_inserter(tmp),
-                   [](bool v) { return uint8_t(v); });
-    vec_ = std::move(tmp);
-  }
+  OwningBoolsImpl(const std::vector<bool> &_vec) : vec_{convert(_vec)} {}
+  OwningBoolsImpl(std::vector<bool> &&_vec) : vec_{convert(_vec)} {}
 
   return_value_type at(size_type _pos) const override {
     return bool(vec_.at(_pos));
@@ -114,6 +112,13 @@ public:
   }
 
 private:
+  static std::vector<uint8_t> convert(const std::vector<bool> &_src) {
+    std::vector<uint8_t> tmp{};
+    std::transform(_src.begin(), _src.end(), std::back_inserter(tmp),
+                   [](bool v) { return uint8_t(v); });
+    return tmp;
+  };
+
   std::vector<uint8_t> vec_;
 };
 
@@ -520,8 +525,11 @@ public:
   Vector()
       : impl_{std::make_shared<const owning_impl_type>()}, accessor_{
                                                                impl_.get()} {}
-  Vector(std::vector<T> _vec)
-      : impl_{std::make_shared<const owning_impl_type>(std::move(_vec))},
+  Vector(const std::vector<T> &_vec)
+      : impl_{std::make_shared<const owning_impl_type>(_vec)},
+        accessor_{impl_.get()} {}
+  Vector(std::vector<T> &&_vec)
+      : impl_{std::make_shared<const owning_impl_type>(_vec)},
         accessor_{impl_.get()} {}
   template <typename... Ts>
   explicit Vector(Message _message, Ts... _args)
