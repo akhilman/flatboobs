@@ -156,7 +156,7 @@ public:
   BuiltMessage(const BuiltMessage &) = delete;
   BuiltMessage &operator=(const BuiltMessage &) = delete;
 
-  void steal_from_builder(flatbuffers::FlatBufferBuilder &&builder) {
+  void steal_from_builder(flatbuffers::FlatBufferBuilder &builder) {
     size_ = builder.GetSize();
     size_t buffer_size; // total buffer size with usless padding.
     const std::byte *data = reinterpret_cast<const std::byte *>(

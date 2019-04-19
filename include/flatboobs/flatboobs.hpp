@@ -27,7 +27,7 @@ template <typename T> Message pack(T _table) {
   build(context, _table);
 
   BuiltMessage built_message{};
-  built_message.steal_from_builder(std::move(fbb));
+  built_message.steal_from_builder(fbb);
   Message message{std::move(built_message)};
 
   return message;
