@@ -7,25 +7,31 @@
 
 using namespace flatboobs::schema::test;
 
-std::vector<TestStruct> dataset() {
-  std::vector<TestStruct> samples{};
-  TestStruct sample{};
-  samples.push_back(sample);
-  for (int i = 0; i < 10; i++) {
-    sample.set_a(std::rand() % 0xff);
-    sample.set_b(std::rand() / 100);
-    switch (i % 3) {
-    case 0:
-      sample.set_e(TestEnum::Foo);
-      break;
-    case 1:
-      sample.set_e(TestEnum::Bar);
-      break;
-    case 2:
-      sample.set_e(TestEnum::Buz);
-      break;
+std::vector<flatboobs::Vector<TestStruct>> dataset() {
+  std::vector<flatboobs::Vector<TestStruct>> samples{};
+  std::vector<TestStruct> items{};
+  samples.push_back({});
+  for (int n = 0; n < 10; n++) {
+    for (int i = 0; i < 10; i++) {
+      TestStruct item{};
+      items.push_back(item);
+      item.set_a(std::rand() % 0xff);
+      item.set_b(std::rand() / 100);
+      switch (n + i % 3) {
+      case 0:
+        item.set_e(TestEnum::Foo);
+        break;
+      case 1:
+        item.set_e(TestEnum::Bar);
+        break;
+      case 2:
+        item.set_e(TestEnum::Buz);
+        break;
+      }
+      items.push_back(item);
     }
-    samples.push_back(sample);
+    samples.push_back(items);
+    items.clear();
   }
   return samples;
 }
@@ -35,16 +41,14 @@ BOOST_AUTO_TEST_CASE(test_defaults) {
   BOOST_TEST(table.structs().size() == 0);
 }
 
-BOOST_AUTO_TEST_CASE(test_string_view) {
-  auto sample = dataset();
+BOOST_DATA_TEST_CASE(test_string_view, dataset()) {
   TestVecOfStructs table{flatboobs::Vector(sample)};
   BOOST_TEST(table.structs().str() ==
              std::string_view(reinterpret_cast<const char *>(sample.data()),
                               sample.size() * sizeof(TestStruct)));
 }
 
-BOOST_AUTO_TEST_CASE(test_pack_unpack) {
-  auto sample = dataset();
+BOOST_DATA_TEST_CASE(test_pack_unpack, dataset()) {
   TestVecOfStructs table{};
   table = table.evolve(sample);
   auto message = flatboobs::pack(table);
