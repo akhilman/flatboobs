@@ -17,7 +17,7 @@ std::vector<flatboobs::Vector<TestStruct>> dataset() {
       items.push_back(item);
       item.set_a(std::rand() % 0xff);
       item.set_b(std::rand() / 100);
-      switch (n + i % 3) {
+      switch ((n + i) % 3) {
       case 0:
         item.set_e(TestEnum::Foo);
         break;

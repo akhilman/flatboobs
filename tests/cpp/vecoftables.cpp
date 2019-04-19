@@ -20,7 +20,7 @@ std::vector<flatboobs::Vector<TestTable>> dataset() {
     for (int i = 0; i < 10; i++) {
       a = std::rand() % 0xff;
       b = std::rand() / 100;
-      switch (n + i % 3) {
+      switch ((n + i) % 3) {
       case 0:
         e = TestEnum::Foo;
         break;
