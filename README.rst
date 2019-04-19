@@ -11,7 +11,7 @@ TODO
    - [ ] Strings.
    - [X] Vector of scalars.
    - [X] Vector of structs.
-   - [ ] Vector of tables.
+   - [X] Vector of tables.
    - [ ] Vector of unions.
 - [ ] Unpack/pack types (Python).
    - [ ] Table with scalar values.
