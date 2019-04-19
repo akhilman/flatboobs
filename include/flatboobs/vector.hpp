@@ -667,6 +667,9 @@ public:
     using offset_type = typename V::offset_type;
     using builder_type = typename V::builder_type;
 
+    if (!size())
+      return 0;
+
     auto it = _context.offset_map().find(this->content_id());
     if (it != _context.offset_map().end())
       return offset_type{it->second};
