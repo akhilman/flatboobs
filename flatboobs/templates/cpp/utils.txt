@@ -180,7 +180,7 @@
   Owning{{ escape(definition.name) }}
 {%- endmacro %}
 
-{% macro flatbuffer_class(definition) -%}
+{% macro flatbuffers_class(definition) -%}
   FlatBuffer{{ escape(definition.name) }}
 {%- endmacro %}
 
@@ -256,7 +256,7 @@
   std::variant<{{ type_strings.split(";")|unique|sort|join(", ") }}>
 {%- endmacro %}
 
-{% macro flatbuffer_type(type_) -%}
+{% macro flatbuffers_type(type_) -%}
   {% if type_.base_type == BaseType.BOOL %}
     uint8_t
   {% elif type_.base_type in CPP_TYPES %}
@@ -266,17 +266,17 @@
     ::{{ class_name(type_.definition) }} *
   {% elif type_.base_type == BaseType.STRUCT %}
     const {{ namespace(type_.definition.defined_namespace) -}}
-    ::{{ flatbuffer_class(type_.definition) }} *
+    ::{{ flatbuffers_class(type_.definition) }} *
   {% elif type_.base_type == BaseType.VECTOR
       and type_.element == BaseType.STRUCT and type_.definition.fixed %}
-    const flatbuffers::Vector<{{ flatbuffer_type(type_.vector_type()) }} > *
+    const flatbuffers::Vector<{{ flatbuffers_type(type_.vector_type()) }} > *
   {% elif type_.base_type == BaseType.VECTOR
       and type_.element == BaseType.STRUCT and not type_.definition.fixed %}
     const flatbuffers::Vector<flatbuffers::Offset<
       {{- namespace(type_.definition.defined_namespace) -}}
-      ::{{ flatbuffer_class(type_.definition) }}>> *
+      ::{{ flatbuffers_class(type_.definition) }}>> *
   {% elif type_.base_type == BaseType.VECTOR %}
-    const flatbuffers::Vector<{{ flatbuffer_type(type_.vector_type()) }}> *
+    const flatbuffers::Vector<{{ flatbuffers_type(type_.vector_type()) }}> *
   {% else %}
     /* FIXME: unahndled type {{ type_ }} */
   {% endif %}
@@ -288,21 +288,21 @@
     ::{{ class_name(type_.definition) }} *>
   {% elif type_.base_type == BaseType.STRUCT %}
     flatbuffers::Offset<{{ namespace(type_.definition.defined_namespace) -}}
-    ::{{ flatbuffer_class(type_.definition) }}>
+    ::{{ flatbuffers_class(type_.definition) }}>
   {% elif type_.base_type == BaseType.VECTOR
       and type_.element == BaseType.STRUCT and type_.definition.fixed %}
     flatbuffers::Offset<flatbuffers::Vector<
-      {{- flatbuffer_type(type_.vector_type()) }}>>
+      {{- flatbuffers_type(type_.vector_type()) }}>>
   {% elif type_.base_type == BaseType.VECTOR
       and type_.element == BaseType.STRUCT and not type_.definition.fixed %}
     flatbuffers::Offset<flatbuffers::Vector<
       flatbuffers::Offset<
         {{- namespace(type_.definition.defined_namespace) -}}
-        ::{{ flatbuffer_class(type_.definition) -}}
+        ::{{ flatbuffers_class(type_.definition) -}}
       >>>
   {% elif type_.base_type == BaseType.VECTOR %}
     flatbuffers::Offset<flatbuffers::Vector<
-      {{- flatbuffer_type(type_.vector_type()) }}>>
+      {{- flatbuffers_type(type_.vector_type()) }}>>
   {% else %}
     /* FIXME: unahndled type {{ type_ }} */
   {% endif %}

@@ -1,7 +1,7 @@
 {% set class_name = utils.class_name(struct_def) %}
 {% set default_class = utils.default_class(struct_def) %}
 {% set owning_class = utils.owning_class(struct_def) %}
-{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set flatbuffers_class = utils.flatbuffers_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
@@ -33,7 +33,7 @@
 
 {{ class_name }}::{{ class_name }}(
     flatboobs::Message _message,
-    const {{ flatbuffer_class }} *_flatbuf
+    const {{ flatbuffers_class }} *_flatbuf
 ) : impl_{std::make_shared<{{ unpacked_class }}>(std::move(_message), _flatbuf)} {}
 
 // Evolve
@@ -61,18 +61,18 @@
 
 // Builder
 
-flatbuffers::Offset<{{ flatbuffer_class }}>
+flatbuffers::Offset<{{ flatbuffers_class }}>
 {{ class_name }}::build(
     flatboobs::BuilderContext &_context,
     bool _is_root
 ) const {
 
   if (!_is_root && !this->content_id())
-    return flatbuffers::Offset<{{ flatbuffer_class }}>{0};
+    return flatbuffers::Offset<{{ flatbuffers_class }}>{0};
 
   auto it = _context.offset_map().find(this->content_id());
   if (it != _context.offset_map().end())
-    return flatbuffers::Offset<{{ flatbuffer_class }}>{it->second};
+    return flatbuffers::Offset<{{ flatbuffers_class }}>{it->second};
 
   // Build dependencies
 
@@ -100,14 +100,14 @@ flatbuffers::Offset<{{ flatbuffer_class }}>
   // {{ field.name }}
 {% if field.value.type.definition is instance_of("EnumDef")
     and field.value.type.base_type != BaseType.VECTOR%}
-  fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
-    {{ flatbuffer_class }}::VT_{{ field.name|upper }},
-    static_cast<{{ utils.flatbuffer_type(field.value.type) }}>(
+  fbb->AddElement<{{ utils.flatbuffers_type(field.value.type) }}>(
+    {{ flatbuffers_class }}::VT_{{ field.name|upper }},
+    static_cast<{{ utils.flatbuffers_type(field.value.type) }}>(
       this->{{ utils.escape(field.name) }}()), {{ field.value.constant }});
 
 {% elif field.value.type.base_type.is_scalar() %}
-  fbb->AddElement<{{ utils.flatbuffer_type(field.value.type) }}>(
-    {{ flatbuffer_class }}::VT_{{ field.name|upper }},
+  fbb->AddElement<{{ utils.flatbuffers_type(field.value.type) }}>(
+    {{ flatbuffers_class }}::VT_{{ field.name|upper }},
     this->{{ utils.escape(field.name) }}(),
     {{ field.value.constant }}
     );
@@ -117,14 +117,14 @@ flatbuffers::Offset<{{ flatbuffer_class }}>
   {{ utils.cpp_type(field.value.type) }} {{ field.name }}_value = this->
      {{- utils.escape(field.name) }}();
   if({{ field.name }}_value != {{ utils.cpp_type(field.value.type) }}())
-    fbb->AddStruct({{ flatbuffer_class }}::VT_{{ field.name|upper -}}
+    fbb->AddStruct({{ flatbuffers_class }}::VT_{{ field.name|upper -}}
                    , &{{ field.name }}_value);
 
 {% elif field.value.type.base_type == BaseType.STRUCT
     and not field.value.type.definition.fixed
     or field.value.type.base_type == BaseType.VECTOR %}
   if (!{{- field.name }}_offset.IsNull())
-    fbb->AddOffset({{ flatbuffer_class }}::VT_{{ field.name|upper -}}
+    fbb->AddOffset({{ flatbuffers_class }}::VT_{{ field.name|upper -}}
                    , {{ field.name }}_offset);
 
 {% else %}
@@ -134,7 +134,7 @@ flatbuffers::Offset<{{ flatbuffer_class }}>
 {% endfor %}
   flatbuffers::uoffset_t end = fbb->EndTable(start);
   _context.offset_map()[this->content_id()] = end;
-  flatbuffers::Offset<{{ flatbuffer_class }}> offset {end};
+  flatbuffers::Offset<{{ flatbuffers_class }}> offset {end};
 
   if (_is_root) {
   {% if struct_def == parser.root_struct_def %}
@@ -149,7 +149,7 @@ flatbuffers::Offset<{{ flatbuffer_class }}>
   return offset;
 }
 
-flatbuffers::Offset<{{ flatbuffer_class }}>
+flatbuffers::Offset<{{ flatbuffers_class }}>
 build(
     flatboobs::BuilderContext &_context,
     const {{ class_name }} &_table,

@@ -1,5 +1,5 @@
 {% set class_name = utils.class_name(struct_def) %}
-{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set flatbuffers_class = utils.flatbuffers_class(struct_def) %}
 {% set default_class = utils.default_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set owning_class = utils.owning_class(struct_def) %}
@@ -9,12 +9,12 @@
 
 /* {{ class_name }} */
 
-class {{ flatbuffer_class }};
+class {{ flatbuffers_class }};
 struct {{ owning_class }};
 
 class {{ class_name }} : public flatboobs::BaseTable {
 public:
-  using flatbuffer_type = {{ flatbuffer_class }};
+  using flatbuffers_type = {{ flatbuffers_class }};
   using value_variant_type = {{ utils.cpp_variant_type(
       fields|map("attr", "value")|map("attr", "type")) }};
 
@@ -39,7 +39,7 @@ public:
   {{ class_name }}();
   explicit {{ class_name }}({{ owning_class }});
   explicit {{ class_name }}(flatboobs::Message);
-  explicit {{ class_name }}(flatboobs::Message, const {{ flatbuffer_class }} *);
+  explicit {{ class_name }}(flatboobs::Message, const {{ flatbuffers_class }} *);
   explicit {{ class_name }}(
   {% for field in fields %}
     {{ utils.cpp_type(field.value.type) }} _{{ utils.escape(field.name) }}
@@ -99,7 +99,7 @@ public:
   {% include "cpp/struct_operators.hpp.txt" %}
 
   // Builder
-  flatbuffers::Offset<{{ flatbuffer_class }}>
+  flatbuffers::Offset<{{ flatbuffers_class }}>
   build(flatboobs::BuilderContext &, bool _is_root = true) const;
 
 private:
@@ -111,7 +111,7 @@ private:
 
 // Builder
 
-flatbuffers::Offset<{{ flatbuffer_class }}>
+flatbuffers::Offset<{{ flatbuffers_class }}>
 build(flatboobs::BuilderContext &, const {{ class_name }} &, bool _is_root = true);
 
 {% include "cpp/unpacked_table.hpp.txt" %}

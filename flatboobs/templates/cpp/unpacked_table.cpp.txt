@@ -1,5 +1,5 @@
 {% set class_name = utils.class_name(struct_def) %}
-{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set flatbuffers_class = utils.flatbuffers_class(struct_def) %}
 {% set unpacked_class = utils.unpacked_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
@@ -9,28 +9,28 @@
   {% set file_identifier = None %}
 {% endif %}
 
-/* {{ flatbuffer_class }} */
+/* {{ flatbuffers_class }} */
 
 {% for field in fields %}
 {% if field.value.type.base_type.is_scalar() %}
-  {{ utils.flatbuffer_type(field.value.type) }} {# -#}
-    {{ flatbuffer_class }}::{{ utils.escape(field.name) }}() const {
-    return GetField<{{ utils.flatbuffer_type(field.value.type) }}>(
+  {{ utils.flatbuffers_type(field.value.type) }} {# -#}
+    {{ flatbuffers_class }}::{{ utils.escape(field.name) }}() const {
+    return GetField<{{ utils.flatbuffers_type(field.value.type) }}>(
       VT_{{ utils.escape(field.name)|upper }} , {{ field.value.constant }});
   }
 {% elif field.value.type.base_type == BaseType.STRUCT
       and field.value.type.definition.fixed %}
-  {{ utils.flatbuffer_type(field.value.type) }} {# -#}
-    {{ flatbuffer_class }}::{{ utils.escape(field.name) }}() const {
-    return GetStruct<{{ utils.flatbuffer_type(field.value.type) }}>(
+  {{ utils.flatbuffers_type(field.value.type) }} {# -#}
+    {{ flatbuffers_class }}::{{ utils.escape(field.name) }}() const {
+    return GetStruct<{{ utils.flatbuffers_type(field.value.type) }}>(
       VT_{{ utils.escape(field.name)|upper }});
   }
 {% elif field.value.type.base_type == BaseType.STRUCT
       and not field.value.type.definition.fixed
       or field.value.type.base_type == BaseType.VECTOR %}
-  {{ utils.flatbuffer_type(field.value.type) }} {# -#}
-    {{ flatbuffer_class }}::{{- utils.escape(field.name) }}() const {
-    return GetPointer<{{ utils.flatbuffer_type(field.value.type) }}>(
+  {{ utils.flatbuffers_type(field.value.type) }} {# -#}
+    {{ flatbuffers_class }}::{{- utils.escape(field.name) }}() const {
+    return GetPointer<{{ utils.flatbuffers_type(field.value.type) }}>(
       VT_{{ utils.escape(field.name)|upper }});
   }
 {% else %}
@@ -38,15 +38,15 @@
 {% endif %}
 {% endfor %}
 
-bool {{ flatbuffer_class }}::Verify(flatbuffers::Verifier &verifier) const {
+bool {{ flatbuffers_class }}::Verify(flatbuffers::Verifier &verifier) const {
   return VerifyTableStart(verifier) &&
 {% for field in fields %}
 {% if field.value.type.base_type.is_scalar() %}
-  VerifyField<{{ utils.flatbuffer_type(field.value.type)
+  VerifyField<{{ utils.flatbuffers_type(field.value.type)
     }}>(verifier, VT_{{ field.name|upper }}) &&
 {% elif field.value.type.base_type == BaseType.STRUCT
     and field.value.type.definition.fixed %}
-  VerifyField<{{ utils.flatbuffer_type(field.value.type)
+  VerifyField<{{ utils.flatbuffers_type(field.value.type)
     }}>(verifier, VT_{{ field.name|upper }}) &&
 {% elif field.value.type.base_type == BaseType.STRUCT
     and not field.value.type.definition.fixed %}
@@ -77,7 +77,7 @@ static bool verify_{{ class_name }}(const flatboobs::Message &_message) {
 {% else %}
   static const char* identifier = nullptr;
 {% endif %}
-  return verifier.VerifyBuffer<{{ flatbuffer_class }}>(identifier);
+  return verifier.VerifyBuffer<{{ flatbuffers_class }}>(identifier);
 }
 
 /* {{ unpacked_class }} */
@@ -86,7 +86,7 @@ class {{ unpacked_class }} : public {{ class_name }}::AbstractImpl {
 public:
   explicit {{ unpacked_class }}(flatboobs::Message);
   explicit {{ unpacked_class }}(
-    flatboobs::Message, const {{ flatbuffer_class }} *);
+    flatboobs::Message, const {{ flatbuffers_class }} *);
 
   // Metadata
   flatboobs::content_id_t content_id() const override;
@@ -102,7 +102,7 @@ public:
 
 private:
   const flatboobs::Message message_;
-  const {{ flatbuffer_class }} *flatbuf_;
+  const {{ flatbuffers_class }} *flatbuf_;
 
 };
 
@@ -114,13 +114,13 @@ private:
   if (!verify_{{ class_name }}(message_))
     throw flatboobs::unpack_error("{{ class_name }} message verification failed");
 
-  flatbuf_ = flatbuffers::GetRoot<{{ flatbuffer_class }}>(message_.data());
+  flatbuf_ = flatbuffers::GetRoot<{{ flatbuffers_class }}>(message_.data());
 
 }
 
 {{ unpacked_class }}::{{ unpacked_class }}(
   flatboobs::Message _message,
-  const {{ flatbuffer_class }} *_flatbuf
+  const {{ flatbuffers_class }} *_flatbuf
   ) : message_{std::move(_message)}, flatbuf_{_flatbuf} {}
 
 // Metadata
@@ -141,7 +141,7 @@ flatboobs::content_id_t {{ unpacked_class }}::content_id() const {
 {% elif field.value.type.base_type.is_scalar() %}
   return flatbuf_->{{ utils.escape(field.name) }}();
 {% elif field.value.type.base_type == BaseType.STRUCT %}
-  {{ utils.flatbuffer_type(field.value.type) }} value {flatbuf_->
+  {{ utils.flatbuffers_type(field.value.type) }} value {flatbuf_->
       {{- utils.escape(field.name) }}()};
     if (value == nullptr)
       return {{ utils.cpp_type(field.value.type) }}();
@@ -152,7 +152,7 @@ flatboobs::content_id_t {{ unpacked_class }}::content_id() const {
       return {{ utils.cpp_type(field.value.type) }}(message_, value);
     {% endif %}
 {% elif field.value.type.base_type == BaseType.VECTOR %}
-  {{ utils.flatbuffer_type(field.value.type) }} value {flatbuf_->
+  {{ utils.flatbuffers_type(field.value.type) }} value {flatbuf_->
       {{- utils.escape(field.name) }}()};
     if (value == nullptr)
       return {{ utils.cpp_type(field.value.type) }}();

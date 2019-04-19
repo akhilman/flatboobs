@@ -1,12 +1,12 @@
-{% set flatbuffer_class = utils.flatbuffer_class(struct_def) %}
+{% set flatbuffers_class = utils.flatbuffers_class(struct_def) %}
 {% set fields = struct_def.fields|rejectattr("attributes.deprecated")|list %}
 
 /*
- * {{ flatbuffer_class }}
+ * {{ flatbuffers_class }}
  * This class for internal use only
  */
 
-class {{ flatbuffer_class }} final : private flatbuffers::Table {
+class {{ flatbuffers_class }} final : private flatbuffers::Table {
 public:
   enum {
     {% for field in fields %}
@@ -15,7 +15,7 @@ public:
   };
 
 {% for field in fields %}
-  {{ utils.flatbuffer_type(field.value.type) }} {# -#}
+  {{ utils.flatbuffers_type(field.value.type) }} {# -#}
     {{ utils.escape(field.name) }}() const;
 {% endfor %}
 

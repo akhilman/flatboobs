@@ -388,7 +388,7 @@ template <typename T> struct table_options {
   using return_value_type = value_type;
   using data_ptr_type = void *;
   using fb_value_type =
-      flatbuffers::Offset<typename value_type::flatbuffer_type>;
+      flatbuffers::Offset<typename value_type::flatbuffers_type>;
   using offset_type = flatbuffers::Offset<flatbuffers::Vector<fb_value_type>>;
   using accessor_type = ImplAccessor<V>;
   using owning_impl_type = OwningImpl<V>;
